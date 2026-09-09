@@ -20,7 +20,6 @@ export class GameScene2 extends Phaser.Scene {
         const baseHeight = 1080;
         const scaleX = this.scale.width / baseWidth;
         const scaleY = this.scale.height / baseHeight;
-
         this.gameScale = Math.min(scaleX, scaleY);
     }
 
@@ -106,10 +105,10 @@ export class GameScene2 extends Phaser.Scene {
     createButtonMenu() {
         const buttonWidth = 72 * this.gameScale;
         const buttonHeight = 66 * this.gameScale;
-        const panelCenterX = this.panelX + (this.scale.width - this.panelX) / 2;
+        const buttonX = this.panelX + (this.scale.width - this.panelX) - 0.06 * this.scale.width;
 
         this.add.rectangle(
-            panelCenterX,
+            buttonX,
             10 * this.gameScale + buttonHeight / 2,
             buttonWidth,
             buttonHeight,

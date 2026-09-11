@@ -1,19 +1,20 @@
 import Phaser from 'phaser';
-import MainScene from './scenes/MainScene.js';
-import './styles/reset.css';
+import './style.css';
 
-const config = {
-    type: Phaser.AUTO,
+import { BootScene } from './scenes/boot/BootScene.js';
+import { StartScene } from './scenes/start/StartScene.js';
+import { StoryScene } from './scenes/story/StoryScene.js';
+import { PauseScene } from './scenes/pause/PauseScene.js';
+import { SettingsScene } from './scenes/settings/SettingsScene.js';
+import { PlaceholderMinigameScene } from './scenes/minigames/placeholder/PlaceholderMinigameScene.js';
+import { QuoteMinigameScene } from './scenes/minigames/quote/QuoteMinigameScene.js';
 
-    scale: {
-    mode: Phaser.Scale.RESIZE,
-    width: '100%',
-    height: '100%'
-    },
-
-    backgroundColor: '#0f0f0f',
-
-    scene: [MainScene]
-};
-
-new Phaser.Game(config);
+new Phaser.Game({
+  type: Phaser.AUTO,
+  width: 1920,
+  height: 1080,
+  parent: 'app',
+  backgroundColor: '#000000',
+  scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+  scene: [BootScene, StartScene, StoryScene, PauseScene, SettingsScene, PlaceholderMinigameScene, QuoteMinigameScene],
+});

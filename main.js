@@ -38,7 +38,8 @@ import { GameScene4 } from './games/game4/GameScene4.js';
     ],
   };
 
-  new Phaser.Game(config);
+  // new Phaser.Game(config);
+  window.game = new Phaser.Game(config);
 
   // Страховка на случай сворачивания/закрытия вкладки: даже если
   // что-то не сохранилось на последнем клике, эти события гарантированно

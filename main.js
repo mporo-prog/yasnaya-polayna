@@ -4,6 +4,12 @@
  * и записали себя в window.VN — здесь мы просто берём готовые классы
  * сцен и создаём Phaser.Game.
  */
+
+import { GameScene1 } from './games/game1/GameScene1.js';
+import { GameScene2 } from './games/game2/GameScene2.js';
+import { GameScene3 } from './games/game3/GameScene3.js';
+import { GameScene4 } from './games/game4/GameScene4.js';
+
 (function () {
   const VN = window.VN;
 
@@ -24,6 +30,11 @@
       VN.scenes.PauseScene,
       VN.scenes.PlaceholderMinigameScene,
       VN.scenes.QuoteMinigameScene,
+
+      GameScene1,
+      GameScene2,
+      GameScene3,
+      GameScene4
     ],
   };
 

@@ -1,9 +1,14 @@
-import Phaser from 'phaser';
+// import Phaser from 'phaser';
 
 export class GameScene4 extends Phaser.Scene {
 
     constructor() {
         super('GameScene4');
+    }
+
+    init(data) {
+        this.storySceneIndex = data.storySceneIndex;
+        this.minigameId = data.minigameId;
     }
 
     preload() {
@@ -333,13 +338,34 @@ export class GameScene4 extends Phaser.Scene {
         return null;
     }
 
+    // deleteLetter(letter) {
+    //     const letterX = letter.startX;
+    //     const letterY = letter.startY;
+    //     const letterType = letter.shape;
+    //     letter.locked = true;
+    //     letter.sprite.destroy();
+    //     this.createNewLetter(letterX, letterY, letterType);
+    // }
+
     deleteLetter(letter) {
+
         const letterX = letter.startX;
         const letterY = letter.startY;
-        const letterType = letter.shape;
+
         letter.locked = true;
+
         letter.sprite.destroy();
-        this.createNewLetter(letterX, letterY, letterType);
+
+        this.letters = this.letters.filter(
+            item => item !== letter
+        );
+
+        if (this.checkGameFinished()) {
+            this.finishGame();
+            return;
+        }
+
+        this.createNewLetter(letterX, letterY);
     }
 
     createNewLetter(x, y, lastType) {
@@ -359,6 +385,56 @@ export class GameScene4 extends Phaser.Scene {
             y: letter.startY,
             duration: 500,
             ease: 'Power2'
+        });
+    }
+
+    checkGameFinished() {
+
+        if (this.letters.length === 0) {
+            return true;
+        }
+
+        const hasNormalLetters =
+            this.letters.some(
+                letter => letter.folder !== null
+            );
+
+        if (!hasNormalLetters) {
+            return true;
+        }
+
+        return false;
+    }
+
+    finishGame() {
+
+        this.add.text(
+            this.scale.width / 2,
+            this.scale.height / 2,
+            'Ура! Победа!\n\nДалее',
+            {
+                fontSize: '48px',
+                color: '#ffffff',
+                backgroundColor: '#000000',
+                align: 'center',
+                padding: {
+                    x: 30,
+                    y: 20
+                }
+            }
+        )
+        .setOrigin(0.5)
+        .setInteractive({
+            useHandCursor: true
+        })
+        .on('pointerdown', () => {
+
+            window.VN.systems.finishMinigameAndAdvance(
+                this,
+                this.storySceneIndex,
+                this.minigameId
+            );
+
         });
     }
 

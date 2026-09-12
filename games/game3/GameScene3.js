@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+// import Phaser from 'phaser';
 
 const BASE_WIDTH = 1920;
 const BASE_HEIGHT = 1080;
@@ -43,6 +43,11 @@ export class GameScene3 extends Phaser.Scene {
 
     constructor() {
         super('GameScene3');
+    }
+
+    init(data) {
+        this.storySceneIndex = data.storySceneIndex;
+        this.minigameId = data.minigameId;
     }
 
     create() {
@@ -337,13 +342,27 @@ export class GameScene3 extends Phaser.Scene {
         }
     }
 
+    // finishGame() {
+    //     if (this.completed) {
+    //         return;
+    //     }
+
+    //     this.completed = true;
+    //     this.events.emit('game3:complete');
+    // }
+
     finishGame() {
         if (this.completed) {
             return;
         }
 
         this.completed = true;
-        this.events.emit('game3:complete');
+
+        window.VN.systems.finishMinigameAndAdvance(
+            this,
+            this.storySceneIndex,
+            this.minigameId
+        );
     }
 
     setupInput() {

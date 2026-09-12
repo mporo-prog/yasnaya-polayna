@@ -1,9 +1,14 @@
-import Phaser from 'phaser';
+// import Phaser from 'phaser';
 
 export class GameScene2 extends Phaser.Scene {
 
     constructor() {
         super('GameScene2');
+    }
+
+    init(data) {
+        this.storySceneIndex = data.storySceneIndex;
+        this.minigameId = data.minigameId;
     }
 
     create() {
@@ -248,9 +253,27 @@ export class GameScene2 extends Phaser.Scene {
         }
     }
 
+    // showWinMessage() {
+
+    //     this.add.text(
+    //         this.scale.width / 2,
+    //         this.scale.height / 2,
+    //         'Далее',
+    //         {
+    //             fontSize: '48px',
+    //             color: '#ffffff',
+    //             backgroundColor: '#000000',
+    //             padding: {
+    //                 x: 20,
+    //                 y: 10
+    //             }
+    //         }
+    //     ).setOrigin(0.5);
+    // }
+
     showWinMessage() {
 
-        this.add.text(
+        const button = this.add.text(
             this.scale.width / 2,
             this.scale.height / 2,
             'Далее',
@@ -264,6 +287,22 @@ export class GameScene2 extends Phaser.Scene {
                 }
             }
         ).setOrigin(0.5);
+
+
+        button.setInteractive({
+            useHandCursor: true
+        });
+
+
+        button.on('pointerdown', () => {
+
+            window.VN.systems.finishMinigameAndAdvance(
+                this,
+                this.storySceneIndex,
+                this.minigameId
+            );
+
+        });
     }
 
     returnElement(element) {

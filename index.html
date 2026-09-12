@@ -1,4 +1,4 @@
-<!doctype html>
+<!-- <!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -7,6 +7,85 @@
     <title>yasnaya-polyana</title>
   </head>
   <body>
+    <div id="app"></div>
+
     <script type="module" src="/src/main.js"></script>
   </body>
+</html> -->
+
+
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Один день Льва Николаевича</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      overflow: hidden;
+    }
+    #app {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #app canvas {
+      max-width: 100%;
+      max-height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+
+  <!-- 1. Движок -->
+  <script src="resource/lib/phaser.min.js"></script>
+
+  <!-- 2. Общий namespace (должен подключаться первым из наших файлов) -->
+  <script src="resource/core/namespace.js"></script>
+
+  <!-- 3. Системы: сохранение прогресса -->
+  <script src="resource/systems/SaveManager.js"></script>
+  <script src="resource/systems/GameState.js"></script>
+
+  <!-- 4. Данные: начальный экран -->
+  <script src="resource/data/start/startMenuData.js"></script>
+  <script src="resource/data/start/startStyle.js"></script>
+
+  <!-- 5. Данные: сюжетная часть -->
+  <script src="resource/data/story/storyLines.js"></script>
+  <script src="resource/data/story/storyHistoryTexts.js"></script>
+  <script src="resource/data/story/storyBackgrounds.js"></script>
+  <script src="resource/data/story/storyMinigameLinks.js"></script>
+
+  <!-- 6. Данные: пауза -->
+  <script src="resource/data/pause/pauseMenuData.js"></script>
+
+  <!-- 7. Данные: мини-игра "Продолжите цитату" -->
+  <script src="resource/data/minigames/quote/quoteData.js"></script>
+  <script src="resource/data/minigames/quote/quoteStyle.js"></script>
+
+  <!-- 8. minigameFlow.js использует storyLines, поэтому подключается
+          после данных сюжета -->
+  <script src="resource/systems/minigameFlow.js"></script>
+
+  <!-- 9. Сцены -->
+  <script src="resource/scenes/BootScene.js"></script>
+  <script src="resource/scenes/start/StartScene.js"></script>
+  <script src="resource/scenes/story/StoryScene.js"></script>
+  <script src="resource/scenes/pause/PauseScene.js"></script>
+  <script src="resource/scenes/minigames/PlaceholderMinigameScene.js"></script>
+  <script src="resource/scenes/minigames/quote/QuoteMinigameScene.js"></script>
+
+  <!-- 10. Сборка игры -->
+  <script type="module" src="main.js"></script>
+</body>
 </html>

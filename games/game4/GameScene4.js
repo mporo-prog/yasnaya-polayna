@@ -14,7 +14,7 @@ export class GameScene4 extends Phaser.Scene {
     preload() {
         this.load.image(
             'table',
-            '../../public/images/table.png'
+            '/images/table.png'
         );
     }
 

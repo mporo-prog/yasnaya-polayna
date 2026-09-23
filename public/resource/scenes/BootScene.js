@@ -22,7 +22,8 @@
           '1': 'GameScene1',
           '2': 'GameScene2',
           '3': 'GameScene3',
-          '4': 'GameScene4'
+          '4': 'GameScene4',
+          '5': 'GameScene5'
       };
 
       const gameKey = games[game];

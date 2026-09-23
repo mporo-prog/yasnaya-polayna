@@ -23,7 +23,7 @@
           '2': 'GameScene2',
           '3': 'GameScene3',
           '4': 'GameScene4',
-          '5': 'GameScene5'
+          '5': 'QuoteMinigameScene'
       };
 
       const gameKey = games[game];

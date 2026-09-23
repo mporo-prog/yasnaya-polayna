@@ -15,6 +15,28 @@
     }
 
     create() {
+      const params = new URLSearchParams(window.location.search);
+      const game = params.get('game');
+
+      const games = {
+          '1': 'GameScene1',
+          '2': 'GameScene2',
+          '3': 'GameScene3',
+          '4': 'GameScene4'
+      };
+
+      const gameKey = games[game];
+
+      if (gameKey) {
+          this.scene.start(gameKey, {
+              storySceneIndex: 0,
+              minigameId: 'test_' + gameKey,
+              direct: true
+          });
+
+          return;
+      }
+
       this.scene.start('MainMenuScene');
     }
   }

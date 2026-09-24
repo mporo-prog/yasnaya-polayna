@@ -11,13 +11,6 @@ export class GameScene4 extends Phaser.Scene {
         this.minigameId = data.minigameId;
     }
 
-    preload() {
-        this.load.image(
-            'table',
-            `${import.meta.env.BASE_URL}images/table.png`
-        );
-    }
-
     create() {
         this.calculateScale();
         this.createBackground();
@@ -25,51 +18,6 @@ export class GameScene4 extends Phaser.Scene {
         this.createEnvelopes();
         this.createButtonMenu();
         this.setupDrag();
-
-        this.letterTypes = [
-            {
-                color: 0xff5757,
-                shape: "square",
-                folder: 'red_square'
-            },
-            {
-                color: 0x70ff80,
-                shape: 'triangle',
-                folder: 'green_triangle'
-            },
-            {
-                color: 0x6e9cff,
-                shape: 'circle',
-                folder: 'blue_circle'
-            },
-            {
-                color: 0xff5757,
-                shape: 'circle',
-                folder: null
-            },
-            {
-                color: 0xff5757,
-                shape: 'triangle',
-                folder: null
-            },
-            // {
-            //     color: 0x70ff80,
-            //     shape: 'square',
-            //     folder: null
-            // },
-            // {
-            //     color: 0x70ff80,
-            //     shape: 'circle',
-            //     folder: null
-            // },
-            // {
-            //     color: 0x6e9cff,
-            //     shape: 'triangle',
-            //     folder: null
-            // }
-        ];
-
-        this.letters = [];
         this.createLetters();
     }
 
@@ -108,229 +56,219 @@ export class GameScene4 extends Phaser.Scene {
     createGameField() {
         const width = this.scale.width;
         const height = this.scale.height;
-        this.mapWidth = width * 0.2;
-        this.panelX = this.mapWidth;
+        const tableWidth = width * 0.8;
+        const tableHeight = height * 0.5;
+        this.panelX = width / 2 - tableWidth / 2;
+        this.panelY = height - tableHeight;
 
         this.add.rectangle(
             0,
             0,
-            this.mapWidth,
+            width,
             height,
-            0xffffff
+            0xd9d9d9
         ).setOrigin(0);
 
         this.add.rectangle(
             this.panelX,
-            0,
-            width - this.panelX,
-            height
+            this.panelY,
+            tableWidth,
+            tableHeight,
+            0x6f6f6f
         ).setOrigin(0);
-
-        const table = this.add.image(
-            this.panelX,
-            0,
-            'table'
-        ).setOrigin(0)
-
-        table.setDisplaySize(
-            this.scale.width,
-            this.scale.height
-        );
-    }
-
-    createEnvelopes() {
-
-        const sizeEnvelopes = 213;
-        const envelopesWidth = sizeEnvelopes * this.gameScale;
-        const gap = 80 * this.gameScale;
-        const panelCenterX = this.panelX / 2 - envelopesWidth / 2;
-        const totalHeight = envelopesWidth * 3 + gap * 2;
-        const startY = (this.scale.height - totalHeight) / 2;
-        const startYTriangle = envelopesWidth * 1.5 + gap;
-        const startYCircle = envelopesWidth * 2 + gap * 2;
-
-        this.envelopes = this.add.container(
-            panelCenterX,
-            startY
-        );
-
-        const square = this.add.rectangle(
-            0,
-            0,
-            envelopesWidth,
-            envelopesWidth,
-            0xff5757
-        ).setOrigin(0);
-        square.id = "red_square";
-
-        const triangle = this.add.triangle(
-            envelopesWidth / 2,
-            startYTriangle,
-            0,
-            -envelopesWidth / 2,
-            -envelopesWidth / 2,
-            envelopesWidth / 2,
-            envelopesWidth / 2,
-            envelopesWidth / 2,
-            0x70ff80
-        ).setOrigin(0);
-        triangle.id = "green_triangle";
-
-        const circle = this.add.circle(
-            0,
-            startYCircle,
-            envelopesWidth/2,
-            0x6e9cff
-        ).setOrigin(0);
-        circle.id = "blue_circle";
-
-        this.envelopes.add([
-            square,
-            triangle,
-            circle
-        ]);
     }
 
     createLetters() {
-    
-        const startX = this.scale.width - this.mapWidth;
 
-        const positions = [
-            {
-                x: startX * 0.65,
-                y: this.scale.height * 0.12,
-                empty: false
-            },
-            {
-                x: startX * 0.45,
-                y: this.scale.height * 0.2,
-                empty: false
-            },
-            {
-                x: startX * 0.8,
-                y: this.scale.height * 0.4,
-                empty: false
-            },
-            {
-                x: startX * 1,
-                y: this.scale.height * 0.6,
-                empty: false
-            },
-            {
-                x: startX * 1.15,
-                y: this.scale.height * 0.45,
-                empty: false
-            },
-            {
-                x: startX * 0.9,
-                y: this.scale.height * 0.2,
-                empty: false
-            }
+        this.letters = [
+            { envelope: 'pink', color: 0xff8181 },
+            { envelope: 'pink', color: 0xff8181 },
+            { envelope: 'pink', color: 0xff8181 },
+            { envelope: 'pink', color: 0xff8181 },
+            { envelope: 'pink', color: 0xff8181 },
+
+            { envelope: 'blue', color: 0x6e9cff },
+            { envelope: 'blue', color: 0x6e9cff },
+            { envelope: 'blue', color: 0x6e9cff },
+            { envelope: 'blue', color: 0x6e9cff },
+            { envelope: 'blue', color: 0x6e9cff },
+
+            { envelope: 'yellow', color: 0xf7ff87 },
+            { envelope: 'yellow', color: 0xf7ff87 },
+            { envelope: 'yellow', color: 0xf7ff87 },
+            { envelope: 'yellow', color: 0xf7ff87 },
+            { envelope: 'yellow', color: 0xf7ff87 },
+
+            { envelope: 'black', color: 0x000000 },
+            { envelope: 'black', color: 0x000000 },
+            { envelope: 'black', color: 0x000000 },
+            { envelope: 'black', color: 0x000000 },
+            { envelope: 'black', color: 0x000000 }
         ];
 
-        for (let i = 0; i < 6; i++) {
-            const type = Phaser.Utils.Array.GetRandom(this.letterTypes);
-            if(!positions[i].empty){
-                this.createLetter(positions[i].x, positions[i].y, type);
-                positions[i].empty = true;
-            }
-        }
-    }
+        const letterWidth = 450 * this.gameScale;
+        const letterHeight = 300 * this.gameScale;
 
-    createLetter(x, y, type) {
-        const lettersSize = 164 * this.gameScale;
-        let letter;
+        const startLetterX = this.scale.width / 2 - letterWidth / 2;
+        const startLetterY = this.scale.height * 0.6;
 
-        if (type.shape == 'square') {
-            letter = this.add.rectangle(
-                x,
-                y,
-                lettersSize,
-                lettersSize,
-                type.color
-            );
-        }
+        this.letters.forEach((letter, index) => {
 
-        if (type.shape == 'triangle') {
+            letter.folder = letter.envelope;
+            letter.startX = startLetterX;
+            letter.startY = startLetterY;
+            letter.locked = false;
 
-            letter = this.add.triangle(
-                x + lettersSize / 2,
-                y + lettersSize / 2,
-                0,
-                -lettersSize / 2,
-                -lettersSize / 2,
-                lettersSize / 2,
-                lettersSize / 2,
-                lettersSize / 2,
-                type.color
-            );
-        }
+            letter.sprite = this.add.rectangle(
+                startLetterX,
+                startLetterY,
+                letterWidth,
+                letterHeight,
+                letter.color
+            ).setOrigin(0);
 
-        if (type.shape == 'circle') {
-
-            letter = this.add.circle(
-                x,
-                y,
-                lettersSize / 2,
-                type.color
-            );
-        }
-
-        letter.setInteractive({
-            draggable: true
+            letter.sprite.setDepth(index);
         });
 
-        this.letters.push({
-            sprite: letter,
-            color: type.color,
-            shape: type.shape,
-            folder: type.folder,
-            locked: false,
-            startX: letter.x,
-            startY: letter.y
+        this.activateTopLetter();
+    }
+
+    activateTopLetter() {
+
+        this.letters.forEach(letter => {
+            letter.sprite.disableInteractive();
+            letter.locked = false;
+        });
+
+        if (this.letters.length === 0) {
+            return;
+        }
+
+        const topLetter = this.letters[this.letters.length - 1];
+
+        topLetter.sprite.setInteractive({
+            draggable: true,
+            useHandCursor: true
+        });
+
+        topLetter.sprite.setDepth(100);
+    }
+
+    createEnvelopes(){
+        const sizeEnvelopes = 240;
+        const envelopesWidthAndHeight = sizeEnvelopes * this.gameScale;
+        const gap = 80 * this.gameScale;
+        const widthContainer = envelopesWidthAndHeight * 4 + gap * 3;
+        const startContainerX = this.scale.width / 2 - widthContainer / 2;
+        const startContainerY = this.scale.height * 0.15;
+
+        this.envelopes = [
+            {
+                id: 'pink',
+                x: startContainerX + gap * 0,
+                y: startContainerY,
+                color: 0xff8181,
+            },
+            {
+                id: 'blue',
+                x: startContainerX + gap * 1 + envelopesWidthAndHeight * 1,
+                y: startContainerY,
+                color: 0x6e9cff
+            },
+            {
+                id: 'yellow',
+                x: startContainerX + gap * 2 + envelopesWidthAndHeight * 2,
+                y: startContainerY,
+                color: 0xf7ff87
+            },
+            {
+                id: 'black',
+                x: startContainerX + gap * 3 + envelopesWidthAndHeight * 3,
+                y: startContainerY,
+                color: 0x000000
+            }
+        ]
+
+        this.envelopes.forEach(envelope => {
+            envelope.sprite = this.add.rectangle(
+                envelope.x,
+                envelope.y,
+                envelopesWidthAndHeight,
+                envelopesWidthAndHeight,
+                envelope.color
+            ).setOrigin(0)
         });
     }
 
     setupDrag() {
-        this.input.on('dragstart', (pointer, gameObject) => {
-            const letter = this.letters.find(item => item.sprite == gameObject);
 
-            if (!letter || letter.locked) {return;}
+        this.input.on('dragstart', (pointer, gameObject) => {
+
+            const letter = this.letters.find(
+                item => item.sprite === gameObject
+            );
+
+            if (!letter || letter.locked) {
+                return;
+            }
+
+            gameObject.setDepth(200);
         });
 
-        this.input.on('drag', (pointer, gameObject, dragX, dragY) => {
-            const letter = this.letters.find(item => item.sprite == gameObject);
 
-            if (!letter || letter.locked) {return;}
+        this.input.on('drag', (pointer, gameObject, dragX, dragY) => {
+
+            const letter = this.letters.find(
+                item => item.sprite === gameObject
+            );
+
+            if (!letter || letter.locked) {
+                return;
+            }
 
             gameObject.x = dragX;
             gameObject.y = dragY;
         });
 
+
         this.input.on('dragend', (pointer, gameObject) => {
-            const letter = this.letters.find(item => item.sprite == gameObject);
 
-            if (!letter || letter.locked) {return;}
+            const letter = this.letters.find(
+                item => item.sprite === gameObject
+            );
 
-            const envelope = this.findZone(gameObject);
-
-            if (envelope && envelope.id == letter.folder) {
-                this.deleteLetter(letter);
-                // this.createLetter();
+            if (!letter || letter.locked) {
+                return;
             }
-            else {
+
+            const envelope = this.findZone(letter);
+
+            if (envelope && envelope.id === letter.folder) {
+                this.deleteLetter(letter);
+            } else {
                 this.returnLetter(letter);
             }
         });
     }
 
     findZone(letter) {
-        
-        for (const envelope of this.envelopes.list) {
 
-            const bounds = envelope.getBounds();
+        const bounds = letter.sprite.getBounds();
 
-            if (bounds.contains(letter.x, letter.y)) {
+        const centerX = bounds.centerX;
+        const centerY = bounds.centerY;
+
+        for (const envelope of this.envelopes) {
+
+            const envelopeBounds =
+                envelope.sprite.getBounds();
+
+            if (
+                envelopeBounds.contains(
+                    centerX,
+                    centerY
+                )
+            ) {
                 return envelope;
             }
         }
@@ -338,47 +276,38 @@ export class GameScene4 extends Phaser.Scene {
         return null;
     }
 
-    // deleteLetter(letter) {
-    //     const letterX = letter.startX;
-    //     const letterY = letter.startY;
-    //     const letterType = letter.shape;
-    //     letter.locked = true;
-    //     letter.sprite.destroy();
-    //     this.createNewLetter(letterX, letterY, letterType);
-    // }
-
     deleteLetter(letter) {
-
-        const letterX = letter.startX;
-        const letterY = letter.startY;
 
         letter.locked = true;
 
-        letter.sprite.destroy();
+        const sprite = letter.sprite;
 
         this.letters = this.letters.filter(
             item => item !== letter
         );
 
-        if (this.checkGameFinished()) {
-            this.finishGame();
-            return;
-        }
+        this.tweens.add({
+            targets: sprite,
+            alpha: 0,
+            scale: 0.8,
+            duration: 200,
 
-        this.createNewLetter(letterX, letterY);
-    }
+            onComplete: () => {
 
-    createNewLetter(x, y, lastType) {
-        const type = Phaser.Utils.Array.GetRandom(this.letterTypes);
-        const lettersSize = 164 * this.gameScale;
-        if(lastType == "triangle"){
-            this.createLetter(x - lettersSize / 2, y - lettersSize / 2, type);
-            return;
-        }
-        this.createLetter(x, y, type);
+                sprite.destroy();
+
+                if (this.checkGameFinished()) {
+                    this.finishGame();
+                    return;
+                }
+
+                this.activateTopLetter();
+            }
+        });
     }
 
     returnLetter(letter) {
+
         this.tweens.add({
             targets: letter.sprite,
             x: letter.startX,
@@ -386,24 +315,12 @@ export class GameScene4 extends Phaser.Scene {
             duration: 500,
             ease: 'Power2'
         });
+
+        letter.sprite.setDepth(100);
     }
 
     checkGameFinished() {
-
-        if (this.letters.length === 0) {
-            return true;
-        }
-
-        const hasNormalLetters =
-            this.letters.some(
-                letter => letter.folder !== null
-            );
-
-        if (!hasNormalLetters) {
-            return true;
-        }
-
-        return false;
+        return this.letters.length == 0;
     }
 
     finishGame() {

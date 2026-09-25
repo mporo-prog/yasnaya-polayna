@@ -1,5 +1,7 @@
 // import Phaser from 'phaser';
 
+const GAME4_SAVE_KEY = 'game4_save_v1';
+
 export class GameScene4 extends Phaser.Scene {
 
     constructor() {
@@ -20,6 +22,11 @@ export class GameScene4 extends Phaser.Scene {
         this.setupDrag();
         this.createLetters();
         this.createCounter();
+        this.createTimer();
+
+        this.events.once('shutdown', () => {
+            this.saveGame4State();
+        });
     }
 
     calculateScale() {
@@ -176,12 +183,32 @@ export class GameScene4 extends Phaser.Scene {
             ]
         ];
 
-        const randomList = Phaser.Utils.Array.GetRandom(letterLists);
+        const saved = this.loadGame4State();
 
-        this.letters = randomList.map(letter => ({
-            envelope: letter.envelope,
-            color: letter.color
-        }));
+        if (saved) {
+
+            this.letters = saved.letters.map(letter => ({
+                envelope: letter.envelope,
+                color: letter.color
+            }));
+
+            this.sortedLetters = saved.sortedLetters;
+            this.totalLetters = saved.totalLetters;
+            this.timeLeft = saved.timeLeft;
+
+        } else {
+
+    const randomList =
+        Phaser.Utils.Array.GetRandom(letterLists);
+
+    this.letters = randomList.map(letter => ({
+        envelope: letter.envelope,
+        color: letter.color
+    }));
+
+    this.totalLetters = this.letters.length;
+    this.sortedLetters = 0;
+}
 
         this.totalLetters = this.letters.length;
         this.sortedLetters = 0;
@@ -213,6 +240,69 @@ export class GameScene4 extends Phaser.Scene {
         this.activateTopLetter();
     }
 
+    saveGame4State() {
+
+        if (!this.letters) {
+            return;
+        }
+
+        const data = {
+            version: 1,
+
+            letters: this.letters.map(letter => ({
+                envelope: letter.envelope,
+                color: letter.color
+            })),
+
+            sortedLetters: this.sortedLetters,
+            totalLetters: this.totalLetters,
+            timeLeft: this.timeLeft,
+
+            savedAt: Date.now()
+        };
+
+        localStorage.setItem(
+            GAME4_SAVE_KEY,
+            JSON.stringify(data)
+        );
+    }
+
+    loadGame4State() {
+
+        const raw = localStorage.getItem(
+            GAME4_SAVE_KEY
+        );
+
+        if (!raw) {
+            return null;
+        }
+
+        try {
+
+            return JSON.parse(raw);
+
+        } catch (error) {
+
+            console.warn(
+                'Не удалось загрузить сохранение Game 4',
+                error
+            );
+
+            localStorage.removeItem(
+                GAME4_SAVE_KEY
+            );
+
+            return null;
+        }
+    }
+
+    clearGame4Save() {
+
+        localStorage.removeItem(
+            GAME4_SAVE_KEY
+        );
+    }
+
     createCounter() {
 
         this.counterText = this.add.text(
@@ -224,6 +314,76 @@ export class GameScene4 extends Phaser.Scene {
                 color: '#000000'
             }
         ).setOrigin(0.5);
+
+    }
+
+    createTimer() {
+
+        if (this.timeLeft === undefined) {
+            this.timeLeft = 30;
+        }
+
+        this.timerText = this.add.text(
+            this.scale.width / 2,
+            90 * this.gameScale,
+            '',
+            {
+                fontSize: `${36 * this.gameScale}px`,
+                color: '#000000'
+            }
+        ).setOrigin(0.5);
+
+        this.updateTimerText();
+
+        this.timerEvent = this.time.addEvent({
+            delay: 1000,
+            loop: true,
+            callback: this.updateTimer,
+            callbackScope: this
+        });
+
+        this.saveGame4State();
+    }
+
+    updateTimer() {
+
+        if (this.completed) {
+            return;
+        }
+
+        this.timeLeft--;
+
+        if (this.timeLeft <= 0) {
+
+            this.timeLeft = 0;
+
+            this.saveGame4State();
+            this.updateTimerText();
+
+            if (this.timerEvent) {
+                this.timerEvent.remove(false);
+            }
+
+            this.loseGame();
+
+            return;
+        }
+
+        this.updateTimerText();
+
+        this.saveGame4State();
+    }
+
+    updateTimerText() {
+
+        const seconds = Math.max(
+            0,
+            this.timeLeft
+        );
+
+        this.timerText.setText(
+            `00:${seconds.toString().padStart(2, '0')}`
+        );
 
     }
 
@@ -388,6 +548,7 @@ export class GameScene4 extends Phaser.Scene {
 
         this.sortedLetters++;
         this.updateCounter();
+        this.saveGame4State();
 
         this.tweens.add({
             targets: sprite,
@@ -428,6 +589,14 @@ export class GameScene4 extends Phaser.Scene {
 
     finishGame() {
 
+        if (this.completed) {
+            return;
+        }
+
+        this.completed = true;
+
+        this.clearGame4Save();
+
         this.add.text(
             this.scale.width / 2,
             this.scale.height / 2,
@@ -456,6 +625,98 @@ export class GameScene4 extends Phaser.Scene {
             );
 
         });
+    }
+
+    loseGame() {
+
+        if (this.completed) {
+            return;
+        }
+
+        this.completed = true;
+
+        this.clearGame4Save();
+
+        if (this.timerEvent) {
+            this.timerEvent.remove(false);
+        }
+
+        this.letters.forEach(letter => {
+            if (letter.sprite) {
+                letter.sprite.disableInteractive();
+            }
+        });
+
+        const panelWidth = 700 * this.gameScale;
+        const panelHeight = 400 * this.gameScale;
+
+        this.add.rectangle(
+            this.scale.width / 2,
+            this.scale.height / 2,
+            panelWidth,
+            panelHeight,
+            0xffffff
+        )
+        .setOrigin(0.5)
+        .setDepth(101);
+
+        this.add.text(
+            this.scale.width / 2,
+            this.scale.height / 2 - 80 * this.gameScale,
+            'Вы проиграли',
+            {
+                fontSize: `${52 * this.gameScale}px`,
+                color: '#000000'
+            }
+        )
+        .setOrigin(0.5)
+        .setDepth(102);
+
+        const restartButton = this.add.rectangle(
+            this.scale.width / 2,
+            this.scale.height / 2 + 80 * this.gameScale,
+            380 * this.gameScale,
+            90 * this.gameScale,
+            0x555555
+        )
+        .setOrigin(0.5)
+        .setInteractive({
+            useHandCursor: true
+        })
+        .setDepth(102);
+
+
+        this.add.text(
+            this.scale.width / 2,
+            this.scale.height / 2 + 80 * this.gameScale,
+            'Начать игру заново',
+            {
+                fontSize: `${30 * this.gameScale}px`,
+                color: '#ffffff'
+            }
+        )
+        .setOrigin(0.5)
+        .setDepth(103);
+
+        restartButton.on('pointerdown', () => {
+            this.restartGame();
+        });
+    }
+
+    restartGame() {
+
+        this.clearGame4Save();
+
+        this.scene.restart({
+            storySceneIndex: this.storySceneIndex,
+            minigameId: this.minigameId
+        });
+    }
+
+    clearGame4Save() {
+
+        localStorage.removeItem(GAME4_SAVE_KEY);
+
     }
 
 }

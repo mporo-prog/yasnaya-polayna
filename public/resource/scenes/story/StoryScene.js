@@ -187,12 +187,18 @@
       });
     }
 
-    toggleHistory() {
+toggleHistory() {
       this.historyVisible = !this.historyVisible;
       this.historyContainer.setVisible(this.historyVisible);
       if (this.historyVisible) {
-        const entries = window.VN.systems.GameState.getHistoryForScene(this.storySceneIndex);
-        this.historyText.setText(entries.map(function (e) { return e.text; }).join('\n\n'));
+                const entries = window.VN.systems.GameState.getFullHistory();
+        this.historyText.setText(
+          entries
+            .map(function (e) {
+              return e.speakerName ? e.speakerName + ':\n' + e.text : e.text;
+            })
+            .join('\n\n')
+        );
       }
     }
 

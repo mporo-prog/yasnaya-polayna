@@ -81,33 +81,77 @@ export class GameScene4 extends Phaser.Scene {
     createLetters() {
 
         this.letters = [
-            { envelope: 'pink', color: 0xff8181 },
-            { envelope: 'pink', color: 0xff8181 },
-            { envelope: 'pink', color: 0xff8181 },
-            { envelope: 'pink', color: 0xff8181 },
-            { envelope: 'pink', color: 0xff8181 },
-
             { envelope: 'blue', color: 0x6e9cff },
-            { envelope: 'blue', color: 0x6e9cff },
-            { envelope: 'blue', color: 0x6e9cff },
-            { envelope: 'blue', color: 0x6e9cff },
-            { envelope: 'blue', color: 0x6e9cff },
-
+            { envelope: 'pink', color: 0xff8181 },
             { envelope: 'yellow', color: 0xf7ff87 },
-            { envelope: 'yellow', color: 0xf7ff87 },
-            { envelope: 'yellow', color: 0xf7ff87 },
-            { envelope: 'yellow', color: 0xf7ff87 },
-            { envelope: 'yellow', color: 0xf7ff87 },
-
             { envelope: 'black', color: 0x000000 },
+            { envelope: 'pink', color: 0xff8181 },
+            { envelope: 'blue', color: 0x6e9cff },
             { envelope: 'black', color: 0x000000 },
+            { envelope: 'yellow', color: 0xf7ff87 },
+            { envelope: 'blue', color: 0x6e9cff },
+            { envelope: 'pink', color: 0xff8181 },
+            { envelope: 'yellow', color: 0xf7ff87 },
             { envelope: 'black', color: 0x000000 },
+            { envelope: 'pink', color: 0xff8181 },
+            { envelope: 'blue', color: 0x6e9cff },
             { envelope: 'black', color: 0x000000 },
-            { envelope: 'black', color: 0x000000 }
+            { envelope: 'yellow', color: 0xf7ff87 },
+            { envelope: 'blue', color: 0x6e9cff },
+            { envelope: 'pink', color: 0xff8181 },
+            { envelope: 'black', color: 0x000000 },
+            { envelope: 'yellow', color: 0xf7ff87 }
         ];
 
-        const letterWidth = 450 * this.gameScale;
-        const letterHeight = 300 * this.gameScale;
+    //     [
+    //     { envelope: 'black', color: 0x000000 },
+    //     { envelope: 'yellow', color: 0xf7ff87 },
+    //     { envelope: 'blue', color: 0x6e9cff },
+    //     { envelope: 'pink', color: 0xff8181 },
+    //     { envelope: 'yellow', color: 0xf7ff87 },
+    //     { envelope: 'black', color: 0x000000 },
+    //     { envelope: 'pink', color: 0xff8181 },
+    //     { envelope: 'blue', color: 0x6e9cff },
+    //     { envelope: 'pink', color: 0xff8181 },
+    //     { envelope: 'black', color: 0x000000 },
+    //     { envelope: 'yellow', color: 0xf7ff87 },
+    //     { envelope: 'blue', color: 0x6e9cff },
+    //     { envelope: 'black', color: 0x000000 },
+    //     { envelope: 'pink', color: 0xff8181 },
+    //     { envelope: 'yellow', color: 0xf7ff87 },
+    //     { envelope: 'blue', color: 0x6e9cff },
+    //     { envelope: 'pink', color: 0xff8181 },
+    //     { envelope: 'yellow', color: 0xf7ff87 },
+    //     { envelope: 'black', color: 0x000000 },
+    //     { envelope: 'blue', color: 0x6e9cff }
+    // ],
+
+    // // Список 3
+    // [
+    //     { envelope: 'yellow', color: 0xf7ff87 },
+    //     { envelope: 'pink', color: 0xff8181 },
+    //     { envelope: 'black', color: 0x000000 },
+    //     { envelope: 'blue', color: 0x6e9cff },
+    //     { envelope: 'black', color: 0x000000 },
+    //     { envelope: 'yellow', color: 0xf7ff87 },
+    //     { envelope: 'blue', color: 0x6e9cff },
+    //     { envelope: 'pink', color: 0xff8181 },
+    //     { envelope: 'yellow', color: 0xf7ff87 },
+    //     { envelope: 'black', color: 0x000000 },
+    //     { envelope: 'pink', color: 0xff8181 },
+    //     { envelope: 'blue', color: 0x6e9cff },
+    //     { envelope: 'yellow', color: 0xf7ff87 },
+    //     { envelope: 'pink', color: 0xff8181 },
+    //     { envelope: 'black', color: 0x000000 },
+    //     { envelope: 'blue', color: 0x6e9cff },
+    //     { envelope: 'pink', color: 0xff8181 },
+    //     { envelope: 'black', color: 0x000000 },
+    //     { envelope: 'blue', color: 0x6e9cff },
+    //     { envelope: 'yellow', color: 0xf7ff87 }
+    // ]
+
+        const letterWidth = 350 * this.gameScale;
+        const letterHeight = 250 * this.gameScale;
 
         const startLetterX = this.scale.width / 2 - letterWidth / 2;
         const startLetterY = this.scale.height * 0.6;

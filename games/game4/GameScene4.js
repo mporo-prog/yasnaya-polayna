@@ -80,75 +80,84 @@ export class GameScene4 extends Phaser.Scene {
 
     createLetters() {
 
-        this.letters = [
-            { envelope: 'blue', color: 0x6e9cff },
-            { envelope: 'pink', color: 0xff8181 },
-            { envelope: 'yellow', color: 0xf7ff87 },
-            { envelope: 'black', color: 0x000000 },
-            { envelope: 'pink', color: 0xff8181 },
-            { envelope: 'blue', color: 0x6e9cff },
-            { envelope: 'black', color: 0x000000 },
-            { envelope: 'yellow', color: 0xf7ff87 },
-            { envelope: 'blue', color: 0x6e9cff },
-            { envelope: 'pink', color: 0xff8181 },
-            { envelope: 'yellow', color: 0xf7ff87 },
-            { envelope: 'black', color: 0x000000 },
-            { envelope: 'pink', color: 0xff8181 },
-            { envelope: 'blue', color: 0x6e9cff },
-            { envelope: 'black', color: 0x000000 },
-            { envelope: 'yellow', color: 0xf7ff87 },
-            { envelope: 'blue', color: 0x6e9cff },
-            { envelope: 'pink', color: 0xff8181 },
-            { envelope: 'black', color: 0x000000 },
-            { envelope: 'yellow', color: 0xf7ff87 }
+        const letterLists = [
+
+            [
+                { envelope: 'blue', color: 0x6e9cff },
+                { envelope: 'pink', color: 0xff8181 },
+                { envelope: 'yellow', color: 0xf7ff87 },
+                { envelope: 'black', color: 0x000000 },
+                { envelope: 'pink', color: 0xff8181 },
+                { envelope: 'blue', color: 0x6e9cff },
+                { envelope: 'black', color: 0x000000 },
+                { envelope: 'yellow', color: 0xf7ff87 },
+                { envelope: 'blue', color: 0x6e9cff },
+                { envelope: 'pink', color: 0xff8181 },
+                { envelope: 'yellow', color: 0xf7ff87 },
+                { envelope: 'black', color: 0x000000 },
+                { envelope: 'pink', color: 0xff8181 },
+                { envelope: 'blue', color: 0x6e9cff },
+                { envelope: 'black', color: 0x000000 },
+                { envelope: 'yellow', color: 0xf7ff87 },
+                { envelope: 'blue', color: 0x6e9cff },
+                { envelope: 'pink', color: 0xff8181 },
+                { envelope: 'black', color: 0x000000 },
+                { envelope: 'yellow', color: 0xf7ff87 }
+            ],
+
+            [
+                { envelope: 'black', color: 0x000000 },
+                { envelope: 'yellow', color: 0xf7ff87 },
+                { envelope: 'blue', color: 0x6e9cff },
+                { envelope: 'pink', color: 0xff8181 },
+                { envelope: 'yellow', color: 0xf7ff87 },
+                { envelope: 'black', color: 0x000000 },
+                { envelope: 'pink', color: 0xff8181 },
+                { envelope: 'blue', color: 0x6e9cff },
+                { envelope: 'pink', color: 0xff8181 },
+                { envelope: 'black', color: 0x000000 },
+                { envelope: 'yellow', color: 0xf7ff87 },
+                { envelope: 'blue', color: 0x6e9cff },
+                { envelope: 'black', color: 0x000000 },
+                { envelope: 'pink', color: 0xff8181 },
+                { envelope: 'yellow', color: 0xf7ff87 },
+                { envelope: 'blue', color: 0x6e9cff },
+                { envelope: 'pink', color: 0xff8181 },
+                { envelope: 'yellow', color: 0xf7ff87 },
+                { envelope: 'black', color: 0x000000 },
+                { envelope: 'blue', color: 0x6e9cff }
+            ],
+
+            [
+                { envelope: 'yellow', color: 0xf7ff87 },
+                { envelope: 'pink', color: 0xff8181 },
+                { envelope: 'black', color: 0x000000 },
+                { envelope: 'blue', color: 0x6e9cff },
+                { envelope: 'black', color: 0x000000 },
+                { envelope: 'yellow', color: 0xf7ff87 },
+                { envelope: 'blue', color: 0x6e9cff },
+                { envelope: 'pink', color: 0xff8181 },
+                { envelope: 'yellow', color: 0xf7ff87 },
+                { envelope: 'black', color: 0x000000 },
+                { envelope: 'pink', color: 0xff8181 },
+                { envelope: 'blue', color: 0x6e9cff },
+                { envelope: 'yellow', color: 0xf7ff87 },
+                { envelope: 'pink', color: 0xff8181 },
+                { envelope: 'black', color: 0x000000 },
+                { envelope: 'blue', color: 0x6e9cff },
+                { envelope: 'pink', color: 0xff8181 },
+                { envelope: 'black', color: 0x000000 },
+                { envelope: 'blue', color: 0x6e9cff },
+                { envelope: 'yellow', color: 0xf7ff87 }
+            ]
         ];
 
-    //     [
-    //     { envelope: 'black', color: 0x000000 },
-    //     { envelope: 'yellow', color: 0xf7ff87 },
-    //     { envelope: 'blue', color: 0x6e9cff },
-    //     { envelope: 'pink', color: 0xff8181 },
-    //     { envelope: 'yellow', color: 0xf7ff87 },
-    //     { envelope: 'black', color: 0x000000 },
-    //     { envelope: 'pink', color: 0xff8181 },
-    //     { envelope: 'blue', color: 0x6e9cff },
-    //     { envelope: 'pink', color: 0xff8181 },
-    //     { envelope: 'black', color: 0x000000 },
-    //     { envelope: 'yellow', color: 0xf7ff87 },
-    //     { envelope: 'blue', color: 0x6e9cff },
-    //     { envelope: 'black', color: 0x000000 },
-    //     { envelope: 'pink', color: 0xff8181 },
-    //     { envelope: 'yellow', color: 0xf7ff87 },
-    //     { envelope: 'blue', color: 0x6e9cff },
-    //     { envelope: 'pink', color: 0xff8181 },
-    //     { envelope: 'yellow', color: 0xf7ff87 },
-    //     { envelope: 'black', color: 0x000000 },
-    //     { envelope: 'blue', color: 0x6e9cff }
-    // ],
+        const randomList = Phaser.Utils.Array.GetRandom(letterLists);
 
-    // // Список 3
-    // [
-    //     { envelope: 'yellow', color: 0xf7ff87 },
-    //     { envelope: 'pink', color: 0xff8181 },
-    //     { envelope: 'black', color: 0x000000 },
-    //     { envelope: 'blue', color: 0x6e9cff },
-    //     { envelope: 'black', color: 0x000000 },
-    //     { envelope: 'yellow', color: 0xf7ff87 },
-    //     { envelope: 'blue', color: 0x6e9cff },
-    //     { envelope: 'pink', color: 0xff8181 },
-    //     { envelope: 'yellow', color: 0xf7ff87 },
-    //     { envelope: 'black', color: 0x000000 },
-    //     { envelope: 'pink', color: 0xff8181 },
-    //     { envelope: 'blue', color: 0x6e9cff },
-    //     { envelope: 'yellow', color: 0xf7ff87 },
-    //     { envelope: 'pink', color: 0xff8181 },
-    //     { envelope: 'black', color: 0x000000 },
-    //     { envelope: 'blue', color: 0x6e9cff },
-    //     { envelope: 'pink', color: 0xff8181 },
-    //     { envelope: 'black', color: 0x000000 },
-    //     { envelope: 'blue', color: 0x6e9cff },
-    //     { envelope: 'yellow', color: 0xf7ff87 }
-    // ]
+        this.letters = randomList.map(letter => ({
+            envelope: letter.envelope,
+            color: letter.color
+        }));
 
         const letterWidth = 350 * this.gameScale;
         const letterHeight = 250 * this.gameScale;

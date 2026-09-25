@@ -369,7 +369,7 @@ export class GameScene1 extends Phaser.Scene {
         ).setOrigin(0.5);
 
         button.setInteractive({ useHandCursor: true });
-        button.on('pointerdown', () => this.togglePause());
+        button.on('pointerdown', () => this.openPauseMenu());
 
         this.root.add([button, label]);
     }
@@ -450,6 +450,14 @@ export class GameScene1 extends Phaser.Scene {
         );
 
         this.introOverlay.setVisible(true);
+    }
+
+    openPauseMenu() {
+        this.scene.pause();
+
+        this.scene.launch('PauseScene', {
+            returnSceneKey: 'GameScene1'
+        });
     }
 
     togglePause() {

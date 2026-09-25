@@ -8,7 +8,6 @@ export class GameScene4 extends Phaser.Scene {
         super('GameScene4');
 
         this.shouldSave = true;
-        this.completed = false;
     }
 
     init(data) {
@@ -17,6 +16,9 @@ export class GameScene4 extends Phaser.Scene {
     }
 
     create() {
+        this.completed = false;
+        this.timeLeft = undefined;
+
         this.calculateScale();
         this.createBackground();
         this.createGameField();
@@ -26,12 +28,6 @@ export class GameScene4 extends Phaser.Scene {
         this.createLetters();
         this.createCounter();
         this.createTimer();
-
-        this.events.once('shutdown', () => {
-            if (this.shouldSave) {
-                this.saveGame4State();
-            }
-        });
     }
 
     calculateScale() {
@@ -211,10 +207,10 @@ export class GameScene4 extends Phaser.Scene {
                 color: letter.color
             }));
 
+            this.totalLetters = this.letters.length;
+            this.sortedLetters = 0;
+            this.timeLeft = 20;
         }
-
-        this.totalLetters = this.letters.length;
-        this.sortedLetters = 0;
 
         const letterWidth = 350 * this.gameScale;
         const letterHeight = 250 * this.gameScale;
@@ -311,7 +307,7 @@ export class GameScene4 extends Phaser.Scene {
         this.counterText = this.add.text(
             this.scale.width / 2,
             40 * this.gameScale,
-            `0/${this.totalLetters}`,
+            `${this.sortedLetters}/${this.totalLetters}`,
             {
                 fontSize: `${36 * this.gameScale}px`,
                 color: '#000000'

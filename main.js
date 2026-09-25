@@ -26,6 +26,7 @@ import { GameScene4 } from './games/game4/GameScene4.js';
     scene: [
       VN.scenes.BootScene,
       VN.scenes.StartScene,
+      VN.scenes.SettingsScene,
       VN.scenes.StoryScene,
       VN.scenes.PauseScene,
       VN.scenes.PlaceholderMinigameScene,
@@ -40,6 +41,13 @@ import { GameScene4 } from './games/game4/GameScene4.js';
 
   // new Phaser.Game(config);
   window.game = new Phaser.Game(config);
+
+  // Единственная точка подключения: false исключает весь модуль из сборки.
+  if (import.meta.env.VITE_DEVELOPER_MODE !== 'false') {
+    import('./src/developer/index.js').then(({ installDeveloperMode }) => {
+      installDeveloperMode(window.game, VN);
+    });
+  }
 
   // Страховка на случай сворачивания/закрытия вкладки: даже если
   // что-то не сохранилось на последнем клике, эти события гарантированно

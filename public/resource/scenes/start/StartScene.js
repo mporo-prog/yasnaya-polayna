@@ -17,7 +17,7 @@
       this.buildBackground();
       this.buildTitle();
       this.buildButtons();
-      this.buildOverlay(); // общий оверлей для "Настройки" и "Авторы"
+      this.buildOverlay(); // оверлей для "Авторы"
     }
 
     buildBackground() {
@@ -65,7 +65,8 @@
       if (action === 'start') {
         this.startGame();
       } else if (action === 'settings') {
-        this.showOverlay(this.menuData.settingsPlaceholderText);
+        this.scene.sleep();
+        this.scene.launch('SettingsScene', { returnSceneKey: 'MainMenuScene' });
       } else if (action === 'credits') {
         this.showOverlay(this.menuData.creditsText);
       }
@@ -82,10 +83,7 @@
       this.scene.start('StoryScene', { storySceneIndex: s.storySceneIndex, screenIndex: s.screenIndex });
     }
 
-    // ---- простой оверлей для "Настройки" / "Авторы" ------------------------
-    // Пока это просто текстовая панель-заглушка. Когда появится реальный
-    // экран настроек — замените showOverlay(settingsPlaceholderText) на
-    // отдельную сцену SettingsScene по такому же принципу, как QuoteMinigameScene.
+    // ---- оверлей для "Авторы" ---------------------------------------------
 
     buildOverlay() {
       this.overlayContainer = this.add.container(0, 0).setDepth(10).setVisible(false);

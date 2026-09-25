@@ -43,9 +43,8 @@
     }
 
     openSettings() {
-      // Заглушка — см. VN.data.startMenuData.settingsPlaceholderText,
-      // тот же текст используется на стартовом экране.
-      console.log('Открыть настройки — TODO');
+      this.scene.sleep();
+      this.scene.launch('SettingsScene', { returnSceneKey: 'PauseScene' });
     }
 
     goToMainMenu() {

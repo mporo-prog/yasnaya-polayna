@@ -19,6 +19,7 @@ export class GameScene4 extends Phaser.Scene {
         this.createButtonMenu();
         this.setupDrag();
         this.createLetters();
+        this.createCounter();
     }
 
     calculateScale() {
@@ -182,6 +183,9 @@ export class GameScene4 extends Phaser.Scene {
             color: letter.color
         }));
 
+        this.totalLetters = this.letters.length;
+        this.sortedLetters = 0;
+
         const letterWidth = 350 * this.gameScale;
         const letterHeight = 250 * this.gameScale;
 
@@ -207,6 +211,26 @@ export class GameScene4 extends Phaser.Scene {
         });
 
         this.activateTopLetter();
+    }
+
+    createCounter() {
+
+        this.counterText = this.add.text(
+            this.scale.width / 2,
+            40 * this.gameScale,
+            `0/${this.totalLetters}`,
+            {
+                fontSize: `${36 * this.gameScale}px`,
+                color: '#000000'
+            }
+        ).setOrigin(0.5);
+
+    }
+
+    updateCounter() {
+
+        this.counterText.setText(`${this.sortedLetters}/${this.totalLetters}`);
+
     }
 
     activateTopLetter() {
@@ -361,6 +385,9 @@ export class GameScene4 extends Phaser.Scene {
         this.letters = this.letters.filter(
             item => item !== letter
         );
+
+        this.sortedLetters++;
+        this.updateCounter();
 
         this.tweens.add({
             targets: sprite,

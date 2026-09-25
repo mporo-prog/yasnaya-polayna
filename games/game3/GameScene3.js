@@ -328,11 +328,13 @@ export class GameScene3 extends Phaser.Scene {
     }
 
     openPauseMenu() {
-        this.scene.pause();
-
         this.scene.launch('PauseScene', {
             returnSceneKey: 'GameScene3'
         });
+
+        this.scene.pause();
+
+        this.scene.bringToTop('PauseScene');
     }
 
     togglePause() {

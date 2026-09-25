@@ -40,17 +40,40 @@ export class GameScene4 extends Phaser.Scene {
     }
 
     createButtonMenu() {
+
         const buttonWidth = 72 * this.gameScale;
         const buttonHeight = 66 * this.gameScale;
-        const buttonX = this.panelX + (this.scale.width - this.panelX) - 0.06 * this.scale.width;
 
-        this.add.rectangle(
+        const buttonX =
+            this.panelX +
+            (this.scale.width - this.panelX) -
+            0.06 * this.scale.width;
+
+        const button = this.add.rectangle(
             buttonX,
             10 * this.gameScale + buttonHeight / 2,
             buttonWidth,
             buttonHeight,
             0x555555
-        ).setOrigin(0)
+        ).setOrigin(0);
+
+        button.setInteractive({
+            useHandCursor: true
+        });
+
+        button.on('pointerdown', () => {
+            this.openPauseMenu();
+        });
+    }
+
+    openPauseMenu() {
+        this.scene.launch('PauseScene', {
+            returnSceneKey: 'GameScene4'
+        });
+
+        this.scene.pause();
+
+        this.scene.bringToTop('PauseScene');
     }
 
     createGameField() {

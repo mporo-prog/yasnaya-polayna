@@ -26,7 +26,10 @@
       this.state.status = 'story';
       this.save();
     },
-
+    getFullHistory: function () {
+      return this.state.history.slice();
+    },
+    
     /** Пометить, что игрок сейчас в мини-игре (на случай ухода со вкладки). */
     markMinigameStarted: function () {
       this.state.status = 'minigame';

@@ -6,6 +6,9 @@ export class GameScene4 extends Phaser.Scene {
 
     constructor() {
         super('GameScene4');
+
+        this.shouldSave = true;
+        this.completed = false;
     }
 
     init(data) {
@@ -25,7 +28,9 @@ export class GameScene4 extends Phaser.Scene {
         this.createTimer();
 
         this.events.once('shutdown', () => {
-            this.saveGame4State();
+            if (this.shouldSave) {
+                this.saveGame4State();
+            }
         });
     }
 
@@ -198,17 +203,15 @@ export class GameScene4 extends Phaser.Scene {
 
         } else {
 
-    const randomList =
-        Phaser.Utils.Array.GetRandom(letterLists);
+            const randomList =
+                Phaser.Utils.Array.GetRandom(letterLists);
 
-    this.letters = randomList.map(letter => ({
-        envelope: letter.envelope,
-        color: letter.color
-    }));
+            this.letters = randomList.map(letter => ({
+                envelope: letter.envelope,
+                color: letter.color
+            }));
 
-    this.totalLetters = this.letters.length;
-    this.sortedLetters = 0;
-}
+        }
 
         this.totalLetters = this.letters.length;
         this.sortedLetters = 0;
@@ -320,7 +323,7 @@ export class GameScene4 extends Phaser.Scene {
     createTimer() {
 
         if (this.timeLeft === undefined) {
-            this.timeLeft = 30;
+            this.timeLeft = 5;
         }
 
         this.timerText = this.add.text(
@@ -595,6 +598,8 @@ export class GameScene4 extends Phaser.Scene {
 
         this.completed = true;
 
+        this.shouldSave = false;
+
         this.clearGame4Save();
 
         this.add.text(
@@ -634,6 +639,8 @@ export class GameScene4 extends Phaser.Scene {
         }
 
         this.completed = true;
+
+        this.shouldSave = false;
 
         this.clearGame4Save();
 
@@ -704,6 +711,8 @@ export class GameScene4 extends Phaser.Scene {
     }
 
     restartGame() {
+
+        this.shouldSave = false;
 
         this.clearGame4Save();
 

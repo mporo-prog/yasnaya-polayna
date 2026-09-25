@@ -453,31 +453,14 @@ export class GameScene1 extends Phaser.Scene {
     }
 
     openPauseMenu() {
-        this.scene.pause();
-
         this.scene.launch('PauseScene', {
             returnSceneKey: 'GameScene1'
         });
+
+        this.scene.pause();
+
+        this.scene.bringToTop('PauseScene');
     }
-
-    togglePause() {
-        if (this.phase === 'intro' || this.phase === 'over') {
-            return;
-        }
-
-        this.paused = !this.paused;
-        this.pauseOverlay.setVisible(this.paused);
-        this.time.paused = this.paused;
-    }
-
-    // finishGame() {
-    //     if (this.completed) {
-    //         return;
-    //     }
-
-    //     this.completed = true;
-    //     this.events.emit('game1:complete');
-    // }
 
     finishGame() {
         if (this.completed) {

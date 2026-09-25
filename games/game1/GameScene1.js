@@ -66,8 +66,6 @@ const COLOR_OVERLAY = 0xd9d9d9;
 const FONT_FAMILY = 'Inter, sans-serif';
 const COLOR_TEXT = '#000000';
 
-const SEQUENCE_LENGTH = 4;
-
 const DEMO_START_DELAY = 700;
 const DEMO_FLASH_DURATION = 500;
 const DEMO_FLASH_GAP = 250;
@@ -93,6 +91,7 @@ export class GameScene1 extends Phaser.Scene {
         this.sequence = [];
         this.inputIndex = 0;
         this.demoStep = 0;
+        this.round_number = 2;
 
         this.calculateScale();
         this.createRoot();
@@ -104,6 +103,7 @@ export class GameScene1 extends Phaser.Scene {
         this.createLoseOverlay();
         this.createWinOverlay();
         this.createIntroOverlay();
+        this.createWinRoundOverlay();
         this.setupInput();
     }
 
@@ -159,10 +159,10 @@ export class GameScene1 extends Phaser.Scene {
         });
     }
 
-    buildSequence() {
+    buildSequence(sequence_len) {
         const sequence = [];
 
-        while (sequence.length < SEQUENCE_LENGTH) {
+        while (sequence.length < sequence_len) {
             const index = Phaser.Math.Between(0, this.birds.length - 1);
 
             // Одна и та же птица подряд читается неоднозначно — пропускаем.
@@ -180,7 +180,7 @@ export class GameScene1 extends Phaser.Scene {
         this.introOverlay.setVisible(false);
         this.resetBirds();
 
-        this.sequence = this.buildSequence();
+        this.sequence = this.buildSequence(this.round_number);
         this.inputIndex = 0;
         this.demoStep = 0;
 
@@ -270,7 +270,11 @@ export class GameScene1 extends Phaser.Scene {
 
     winRound() {
         this.phase = 'over';
-        this.winOverlay.setVisible(true);
+        if (this.round_number == 4){
+            this.winOverlay.setVisible(true);
+            return
+        }
+        this.winRoundOverlay.setVisible(true);
     }
 
     restartRound() {
@@ -425,10 +429,24 @@ export class GameScene1 extends Phaser.Scene {
         );
     }
 
-    createIntroOverlay() {
+    createWinRoundOverlay() {
+        this.winRoundOverlay = this.createOverlay(
+            'Раунд пройден, повышаем сложность...',
+            () => this.nextRound()
+        );
+    }
+
+    nextRound(){
+        this.round_number += 1;
+        this.winRoundOverlay.setVisible(false);
+        this.phase = 'intro';
+        this.introOverlay.setVisible(true)
+    }
+
+    createIntroOverlay(round_number) {
         this.introOverlay = this.createOverlay(
             'Прослушайте песню птиц и попробуйте повторить ее.',
-            () => this.startRound()
+            () => this.startRound(round_number)
         );
 
         this.introOverlay.setVisible(true);

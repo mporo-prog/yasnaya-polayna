@@ -1,5 +1,5 @@
 /**
- * Общая громкость будущего аудио. Сам модуль ничего не загружает и не запускает.
+ * Общая громкость Phaser-звуков и нативных Web Audio узлов.
  * Пути для load/add/play задаются относительно resource/sound, например music/theme.mp3.
  */
 (function () {
@@ -8,6 +8,7 @@
   const FOLDERS = Object.freeze({ music: 'music', ui: 'ui', voice_and_sound: 'voice' });
   const soundRoot = new URL('../sound/', document.currentScript.src);
   const sounds = new Map();
+  const gains = new Map();
 
   function normalize(values) {
     return Object.fromEntries(Object.entries(DEFAULTS).map(([category, fallback]) => {
@@ -54,6 +55,9 @@
     saveSettings(values) {
       settings = normalize(values);
       sounds.forEach((entry, sound) => applyVolume(sound, entry));
+      gains.forEach((entry, node) => {
+        node.gain.setValueAtTime(entry.baseVolume * settings[entry.category] / 100, node.context.currentTime);
+      });
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
         return true;
@@ -65,6 +69,29 @@
 
     getCategory(path) {
       return resolve(path).category;
+    },
+
+    getUrl(path) {
+      return resolve(path).key;
+    },
+
+    // Узел громкости категории отделён от узла фейда в MusicController.
+    // Возвращает подписку, которую владелец освобождает после окончания звука.
+    registerGain(path, node, volume = 1) {
+      const entry = { category: resolve(path).category, baseVolume: normalizeBaseVolume(volume) };
+      const apply = () => node.gain.setValueAtTime(
+        entry.baseVolume * settings[entry.category] / 100, node.context.currentTime,
+      );
+      gains.set(node, entry);
+      apply();
+      return {
+        setVolume(value) {
+          if (!gains.has(node)) return;
+          entry.baseVolume = normalizeBaseVolume(value);
+          apply();
+        },
+        destroy() { gains.delete(node); },
+      };
     },
 
     // Вызывать в preload(). Ключом служит полный URL, общий для всех сцен.

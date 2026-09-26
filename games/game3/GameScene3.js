@@ -50,7 +50,12 @@ export class GameScene3 extends Phaser.Scene {
         this.minigameId = data.minigameId;
     }
 
+    preload() {
+        window.VN?.systems.SceneAudio?.preload(this);
+    }
+
     create() {
+        window.VN?.systems.SceneAudio?.enter(this);
         this.started = false;
         this.paused = false;
         this.finished = false;

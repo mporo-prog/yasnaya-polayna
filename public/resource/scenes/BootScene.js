@@ -5,7 +5,10 @@
     }
 
     preload() {
-      
+      window.VN.systems.SceneAudio.preload(this, [
+        ...window.VN.data.storyAudio,
+        ...Object.values(window.VN.data.sceneAudio),
+      ]);
       const storyBackgrounds = window.VN.data.storyBackgrounds;
       storyBackgrounds.forEach(function (screens) {
         screens.forEach(function (path) {

@@ -25,7 +25,12 @@
       this.gameFinished = false;
     }
 
+    preload() {
+      window.VN.systems.SceneAudio.preload(this);
+    }
+
     create() {
+      window.VN.systems.SceneAudio.enter(this);
       this.buildPortraitPlaceholder();
       this.buildTopButtons();
       this.buildRoundCounter();

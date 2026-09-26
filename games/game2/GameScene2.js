@@ -11,7 +11,12 @@ export class GameScene2 extends Phaser.Scene {
         this.minigameId = data.minigameId;
     }
 
+    preload() {
+        window.VN?.systems.SceneAudio?.preload(this);
+    }
+
     create() {
+        window.VN?.systems.SceneAudio?.enter(this);
         this.calculateScale();
         this.createBackground();
         this.createGameField();

@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<title>Проверка Web Audio</title>
+<h1>Проверка нативных аудиопереходов</h1>
+<p>OfflineAudioContext проверяет реальные отсчёты звука без воспроизведения в динамиках.</p>
+<pre id="results">Проверка…</pre>
+<script src="../resource/core/namespace.js"></script>
+<script src="../resource/systems/AudioManager.js"></script>
+<script src="../resource/systems/MusicController.js"></script>
+<script type="module">
+  const output = document.querySelector('#results');
+  const audio = window.VN.systems.AudioManager;
+  const original = audio.getSettings();
+  const stored = localStorage.getItem('vn_audio_settings_v1');
+  const results = [];
+  function setup() {
+    const context = new OfflineAudioContext(2, 8000 * 4, 8000);
+    const buffer = (channel) => {
+      const value = context.createBuffer(2, 8000, 8000);
+      value.getChannelData(channel).fill(1);
+      return value;
+    };
+    const buffers = { 'music/a.mp3': buffer(0), 'music/b.mp3': buffer(1), 'music/c.mp3': buffer(1) };
+    const controller = new window.VN.systems.MusicController({
+      context, getBuffer: (path) => buffers[path],
+    });
+    return { context, controller };
+  }
+  function check(buffer, channel, time, expected) {
+    const actual = buffer.getChannelData(channel)[Math.round(time * buffer.sampleRate)];
+    if (Math.abs(actual - expected) > 0.002) {
+      throw new Error(`канал ${channel}, t=${time}: ${actual}, ожидалось ${expected}`);
+    }
+  }
+  async function run(name, action) {
+    const f = setup();
+    try {
+      audio.saveSettings({ music: 50, ui: 50, voice: 50 });
+      await action(f);
+      results.push('PASS ' + name);
+    } catch (error) {
+      results.push('FAIL ' + name + ': ' + error.message);
+    } finally {
+      f.controller.destroy();
+      output.textContent = results.join('\n');
+    }
+  }
+  try {
+    await run('crossfade с разными длительностями и задержками', async ({ context, controller }) => {
+      controller.fadeIn('music/a.mp3', { duration: 0 });
+      controller.crossfade('music/b.mp3', {
+        fadeOutDuration: 1, fadeOutDelay: 0.5, fadeInDuration: 2, fadeInDelay: 0.25,
+      });
+      const rendered = await context.startRendering();
+      check(rendered, 0, 0.25, 0.5);
+      check(rendered, 0, 1, 0.25);
+      check(rendered, 1, 1, 0.1875);
+      check(rendered, 0, 2.5, 0);
+      check(rendered, 1, 2.5, 0.5);
+    });
+    await run('отмена отложенного трека при быстром переключении', async ({ context, controller }) => {
+      controller.fadeIn('music/a.mp3', { duration: 0 });
+      controller.crossfade('music/b.mp3', { fadeInDelay: 1 });
+      controller.crossfade('music/c.mp3');
+      const rendered = await context.startRendering();
+      check(rendered, 0, 0.5, 0.25);
+      check(rendered, 1, 0.5, 0.25);
+      check(rendered, 0, 2, 0);
+      check(rendered, 1, 2, 0.5);
+    });
+    await run('изменение настроек до нуля посередине crossfade', async ({ context, controller }) => {
+      controller.fadeIn('music/a.mp3', { duration: 0 });
+      controller.crossfade('music/b.mp3', { fadeOutDuration: 2, fadeInDuration: 2 });
+      const paused = context.suspend(0.512);
+      const rendering = context.startRendering();
+      await paused;
+      audio.saveSettings({ music: 0, ui: 50, voice: 50 });
+      await context.resume();
+      const rendered = await rendering;
+      check(rendered, 0, 0.25, 0.4375);
+      check(rendered, 0, 0.75, 0);
+      check(rendered, 1, 0.75, 0);
+      check(rendered, 1, 3, 0);
+    });
+    await run('прерывание незавершённого fade in без скачка', async ({ context, controller }) => {
+      controller.fadeIn('music/a.mp3', { duration: 2 });
+      const paused = context.suspend(0.512);
+      const rendering = context.startRendering();
+      await paused;
+      const at = context.currentTime;
+      controller.crossfade('music/b.mp3', { fadeOutDuration: 1, fadeInDuration: 1 });
+      await context.resume();
+      const rendered = await rendering;
+      check(rendered, 0, at, 0.5 * at / 2);
+      check(rendered, 0, at + 0.5, 0.5 * at / 2 * 0.5);
+      check(rendered, 1, at + 0.5, 0.25);
+      check(rendered, 0, at + 1.1, 0);
+    });
+  } finally {
+    audio.saveSettings(original);
+    if (stored === null) localStorage.removeItem('vn_audio_settings_v1');
+    else localStorage.setItem('vn_audio_settings_v1', stored);
+    output.textContent = results.join('\n') + `\n\n${results.filter((line) => line.startsWith('PASS')).length}/${results.length} passed`;
+  }
+</script>
+</html>

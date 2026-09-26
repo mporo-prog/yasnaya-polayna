@@ -15,10 +15,20 @@ export class GameScene4 extends Phaser.Scene {
         this.minigameId = data.minigameId;
     }
 
+    preload() {
+        window.VN?.systems.SceneAudio?.preload(this);
+        this.load.image(
+            'table',
+            `${import.meta.env.BASE_URL}images/table.png`
+        );
+    }
+
     create() {
+    
         this.completed = false;
         this.timeLeft = undefined;
-
+        
+        window.VN?.systems.SceneAudio?.enter(this);
         this.calculateScale();
         this.createBackground();
         this.createGameField();

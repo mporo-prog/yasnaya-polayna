@@ -7,46 +7,27 @@ const BIRD_WIDTH = 162;
 const BIRD_HEIGHT = 153;
 
 // Координаты левого верхнего угла каждой птицы взяты из макета.
-// voice — синтезированный голос вместо настоящей записи: набор коротких
-// росчерков, у каждого частота едет от from к to за duration, затем пауза gap.
+// У каждой птицы своя запись относительно resource/sound.
 const BIRDS = [
     {
         x: 709,
         y: 151,
-        // Две нисходящие свистовые ноты.
-        voice: [
-            { from: 4400, to: 3600, duration: 0.10, gap: 0.07 },
-            { from: 4400, to: 3400, duration: 0.12, gap: 0 }
-        ]
+        voice: 'voice_and_sound/test_bird_1.mp3'
     },
     {
         x: 972,
         y: 276,
-        // Быстрая восходящая трель в четыре счёта.
-        voice: [
-            { from: 2900, to: 3500, duration: 0.05, gap: 0.035 },
-            { from: 3100, to: 3800, duration: 0.05, gap: 0.035 },
-            { from: 3300, to: 4100, duration: 0.05, gap: 0.035 },
-            { from: 3500, to: 4400, duration: 0.07, gap: 0 }
-        ]
+        voice: 'voice_and_sound/test_bird_2.mp3'
     },
     {
         x: 960,
         y: 591,
-        // Переливчатый росчерк вверх и обратно вниз.
-        voice: [
-            { from: 2400, to: 4000, duration: 0.11, gap: 0.04 },
-            { from: 4000, to: 2300, duration: 0.13, gap: 0 }
-        ]
+        voice: 'voice_and_sound/test_bird_3.mp3'
     },
     {
         x: 1404,
         y: 525,
-        // Низкое короткое чириканье в два счёта.
-        voice: [
-            { from: 2100, to: 2500, duration: 0.06, gap: 0.05 },
-            { from: 2000, to: 2300, duration: 0.07, gap: 0 }
-        ]
+        voice: 'voice_and_sound/test_bird_4.mp3'
     }
 ];
 
@@ -71,8 +52,6 @@ const DEMO_FLASH_DURATION = 500;
 const DEMO_FLASH_GAP = 250;
 const INPUT_FLASH_DURATION = 300;
 
-const CHIRP_VOLUME = 0.16;
-
 export class GameScene1 extends Phaser.Scene {
 
     constructor() {
@@ -84,7 +63,15 @@ export class GameScene1 extends Phaser.Scene {
         this.minigameId = data.minigameId;
     }
 
+    preload() {
+        window.VN?.systems.SceneAudio?.preload(this);
+        for (const bird of BIRDS) {
+            window.VN.systems.AudioManager.load(this, bird.voice);
+        }
+    }
+
     create() {
+        window.VN?.systems.SceneAudio?.enter(this);
         this.phase = 'intro';
         this.paused = false;
         this.completed = false;
@@ -138,7 +125,7 @@ export class GameScene1 extends Phaser.Scene {
     createBirds() {
         this.birds = BIRDS.map((data, index) => {
             const bird = {
-                voice: data.voice,
+                voice: window.VN.systems.AudioManager.add(this, data.voice),
                 timer: null
             };
 
@@ -205,11 +192,14 @@ export class GameScene1 extends Phaser.Scene {
             return;
         }
 
-        this.flashBird(this.sequence[this.demoStep], DEMO_FLASH_DURATION);
+        const index = this.sequence[this.demoStep];
+        // Следующая птица поёт только после окончания текущей записи.
+        const duration = Math.max(DEMO_FLASH_DURATION, this.birds[index].voice.totalDuration * 1000);
+        this.flashBird(index, duration);
         this.demoStep += 1;
 
         this.time.delayedCall(
-            DEMO_FLASH_DURATION + DEMO_FLASH_GAP,
+            duration + DEMO_FLASH_GAP,
             () => this.playDemoStep()
         );
     }
@@ -258,6 +248,7 @@ export class GameScene1 extends Phaser.Scene {
         this.time.removeAllEvents();
 
         this.birds.forEach(bird => {
+            bird.voice.stop();
             bird.timer = null;
             bird.box.setFillStyle(COLOR_BIRD);
         });
@@ -292,59 +283,14 @@ export class GameScene1 extends Phaser.Scene {
             return;
         }
 
-        this.audioContext = context;
-
         if (context.state === 'suspended') {
             context.resume();
         }
     }
 
-    // Заглушка вместо голосов птиц: настоящих аудиозаписей в проекте пока нет.
     playVoice(index) {
-        const context = this.audioContext;
-
-        if (!context) {
-            return;
-        }
-
-        let startTime = context.currentTime;
-
-        this.birds[index].voice.forEach(chirp => {
-            this.playChirp(context, startTime, chirp);
-            startTime += chirp.duration + chirp.gap;
-        });
-    }
-
-    playChirp(context, startTime, chirp) {
-        const oscillator = context.createOscillator();
-        const gain = context.createGain();
-        const endTime = startTime + chirp.duration;
-
-        // Треугольная волна ярче синуса — ближе к птичьему тембру.
-        oscillator.type = 'triangle';
-        oscillator.frequency.setValueAtTime(chirp.from, startTime);
-        oscillator.frequency.exponentialRampToValueAtTime(chirp.to, endTime);
-
-        // Экспоненциальный спад не умеет приходить в ноль, поэтому берём
-        // пренебрежимо малое значение как тишину.
-        // Держим громкость почти до конца росчерка: именно съезжающая частота
-        // делает звук птичьим, и при быстром затухании её не слышно.
-        gain.gain.setValueAtTime(0.0001, startTime);
-        gain.gain.exponentialRampToValueAtTime(
-            CHIRP_VOLUME,
-            startTime + chirp.duration * 0.12
-        );
-        gain.gain.setValueAtTime(
-            CHIRP_VOLUME,
-            startTime + chirp.duration * 0.75
-        );
-        gain.gain.exponentialRampToValueAtTime(0.0001, endTime);
-
-        oscillator.connect(gain);
-        gain.connect(context.destination);
-
-        oscillator.start(startTime);
-        oscillator.stop(endTime + 0.02);
+        // Только пользовательская громкость AudioManager, без фейдов и эффектов.
+        this.birds[index].voice.play();
     }
 
     createButtonMenu() {
@@ -482,6 +428,7 @@ export class GameScene1 extends Phaser.Scene {
         this.scale.on('resize', this.handleResize, this);
 
         this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+            this.birds.forEach(bird => bird.voice.destroy());
             this.scale.off('resize', this.handleResize, this);
         });
     }

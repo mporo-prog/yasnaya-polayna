@@ -51,6 +51,8 @@
       return window.VN.data.storyLines[this.storySceneIndex];
     }
 
+    
+
     get currentHistoryTexts() {
       return window.VN.data.storyHistoryTexts[this.storySceneIndex];
     }
@@ -94,8 +96,17 @@
     buildBottomBar() {
       this.add.rectangle(0, BAR_Y, WIDTH, HEIGHT - BAR_Y, 0x3f3f3f).setOrigin(0, 0);
       this.add.rectangle(WIDTH / 2, BAR_Y + 130, WIDTH * 0.55, 190, 0xd9d9d9).setOrigin(0.5, 0);
+      // Имя героя, который сейчас говорит — над текстом реплики.
+      this.speakerNameText = this.add
+        .text(WIDTH / 2, BAR_Y + 145, '', {
+          fontSize: '28px',
+          fontStyle: 'bold',
+          color: '#000000',
+          align: 'center',
+        })
+        .setOrigin(0.5, 0);
       this.dialogueText = this.add
-        .text(WIDTH / 2, BAR_Y + 150, '', {
+        .text(WIDTH / 2, BAR_Y + 185, '', {
           fontSize: '34px',
           color: '#000000',
           align: 'center',
@@ -110,8 +121,16 @@
     }
 
     buildTopButtons() {
-      this.makeButton(WIDTH - 95, 45, 'кнопка\nменю', () => this.openPauseMenu(), 150, 80);
+      // depth выше, чем у historyContainer (10) — чтобы кнопки оставались
+      // видимыми и кликабельными поверх открытой вкладки "История"
+      // (крестика для закрытия больше нет, закрывают тем же тумблером).
+      const menuBtn = this.makeButton(WIDTH - 95, 45, 'кнопка\nменю', () => this.openPauseMenu(), 150, 80);
+      menuBtn.bg.setDepth(20);
+      menuBtn.text.setDepth(20);
+
       this.historyBtn = this.makeButton(WIDTH - 95, BAR_Y + 50, 'История', () => this.toggleHistory(), 150, 60);
+      this.historyBtn.bg.setDepth(20);
+      this.historyBtn.text.setDepth(20);
     }
 
     makeButton(x, y, label, onClick, w, h, fontSize) {
@@ -123,17 +142,94 @@
     }
 
     buildHistoryOverlay() {
+      // Видимая область под текст истории — за её пределами текст обрезается
+      // маской, доступ к остальному — прокруткой.
+      const viewport = {
+        x: WIDTH * 0.27,
+        y: 170,
+        width: WIDTH * 0.56,
+        height: HEIGHT - 170 - 90,
+      };
+      this.historyViewport = viewport;
+      this.historyScrollY = 0;
+      this.historyMaxScroll = 0;
+      this.historyDragStartY = null;
+      this.historyDragStartScroll = 0;
+
       this.historyContainer = this.add.container(0, 0).setDepth(10).setVisible(false);
       const panelBg = this.add.rectangle(0, 0, WIDTH, HEIGHT, 0x3f3f3f, 0.98).setOrigin(0, 0).setInteractive();
       const title = this.add.text(WIDTH / 2, 70, 'История', { fontSize: '56px', color: '#ffffff' }).setOrigin(0.5);
-      this.historyText = this.add.text(WIDTH * 0.32, 170, '', {
+
+      // Сам текст — внутри отдельного контейнера, который двигается вверх/
+      // вниз при прокрутке; видна только часть внутри viewport благодаря маске.
+      this.historyText = this.add.text(0, 0, '', {
         fontSize: '30px',
         color: '#ffffff',
-        wordWrap: { width: WIDTH * 0.55 },
+        wordWrap: { width: viewport.width },
         lineSpacing: 26,
       });
-      const closeBtn = this.makeButton(WIDTH - 70, 60, '✕', () => this.toggleHistory(), 60, 60, '36px');
-      this.historyContainer.add([panelBg, title, this.historyText, closeBtn.bg, closeBtn.text]);
+      this.historyContentContainer = this.add.container(viewport.x, viewport.y, [this.historyText]);
+
+      const maskShape = this.make.graphics({ x: 0, y: 0 }, false);
+      maskShape.fillStyle(0xffffff);
+      maskShape.fillRect(viewport.x, viewport.y, viewport.width, viewport.height);
+      this.historyContentContainer.setMask(maskShape.createGeometryMask());
+
+      // Полоса прокрутки справа от текста, как на макете.
+      const trackX = viewport.x + viewport.width + 30;
+      this.historyScrollTrack = this.add.rectangle(trackX, viewport.y, 6, viewport.height, 0x2a2a2a, 0.8).setOrigin(0.5, 0);
+      this.historyScrollThumb = this.add.rectangle(trackX, viewport.y, 10, viewport.height, 0xd9d9d9).setOrigin(0.5, 0);
+
+      this.historyContainer.add([
+        panelBg,
+        title,
+        this.historyContentContainer,
+        this.historyScrollTrack,
+        this.historyScrollThumb,
+      ]);
+
+      // Прокрутка колесом мыши.
+      this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY) => {
+        if (!this.historyVisible) return;
+        this.setHistoryScroll(this.historyScrollY + deltaY);
+      });
+
+      // Прокрутка перетаскиванием (мышь/тач) прямо по области истории.
+      panelBg.on('pointerdown', (pointer) => {
+        if (!this.historyVisible) return;
+        this.historyDragStartY = pointer.y;
+        this.historyDragStartScroll = this.historyScrollY;
+      });
+      panelBg.on('pointermove', (pointer) => {
+        if (!this.historyVisible || this.historyDragStartY === null || !pointer.isDown) return;
+        const delta = this.historyDragStartY - pointer.y;
+        this.setHistoryScroll(this.historyDragStartScroll + delta);
+      });
+      const stopHistoryDrag = () => { this.historyDragStartY = null; };
+      panelBg.on('pointerup', stopHistoryDrag);
+      panelBg.on('pointerupoutside', stopHistoryDrag);
+    }
+
+    /** Двигает содержимое истории на заданную позицию (с ограничением). */
+    setHistoryScroll(scrollY) {
+      this.historyScrollY = Phaser.Math.Clamp(scrollY, 0, this.historyMaxScroll);
+      this.historyContentContainer.y = this.historyViewport.y - this.historyScrollY;
+      this.updateHistoryScrollbar();
+    }
+
+    /** Пересчитывает размер/позицию ползунка полосы прокрутки. */
+    updateHistoryScrollbar() {
+      const viewport = this.historyViewport;
+      const contentHeight = Math.max(this.historyText.height, 1);
+      this.historyMaxScroll = Math.max(0, contentHeight - viewport.height);
+
+      const visibleRatio = Math.min(1, viewport.height / contentHeight);
+      const thumbHeight = Math.max(30, viewport.height * visibleRatio);
+      this.historyScrollThumb.setSize(10, thumbHeight);
+
+      const maxThumbTravel = viewport.height - thumbHeight;
+      const scrollRatio = this.historyMaxScroll > 0 ? this.historyScrollY / this.historyMaxScroll : 0;
+      this.historyScrollThumb.y = viewport.y + maxThumbTravel * scrollRatio;
     }
 
     // ---- логика переключения экранов -----------------------------------------
@@ -141,16 +237,18 @@
     renderCurrentScreen() {
       const GameState = window.VN.systems.GameState;
       const text = this.currentLines[this.screenIndex];
+      const speakerName = this.currentSpeakers ? this.currentSpeakers[this.screenIndex] : '';
       const backgroundPath = this.currentBackgrounds[this.screenIndex];
       const historyOverride = this.currentHistoryTexts[this.screenIndex];
       const historyText = historyOverride != null ? historyOverride : text;
 
       this.debugLabel.setText('Сюжетная сцена ' + (this.storySceneIndex + 1) + ', экран ' + (this.screenIndex + 1));
       this.setBackground(backgroundPath);
+      this.speakerNameText.setText(speakerName || '');
       this.dialogueText.setText(text);
 
       GameState.goToScreen(this.storySceneIndex, this.screenIndex);
-      GameState.addHistoryEntry(this.storySceneIndex, this.screenIndex, historyText);
+      GameState.addHistoryEntry(this.storySceneIndex, this.screenIndex, historyText, speakerName);
 
       const isFirstScreen = this.screenIndex === 0;
       this.backBtn.bg.setAlpha(isFirstScreen ? 0.4 : 1);
@@ -187,11 +285,13 @@
       });
     }
 
-toggleHistory() {
+    toggleHistory() {
       this.historyVisible = !this.historyVisible;
       this.historyContainer.setVisible(this.historyVisible);
       if (this.historyVisible) {
-                const entries = window.VN.systems.GameState.getFullHistory();
+        // Показываем реплики всех сюжетных сцен, пройденных к этому моменту,
+        // а не только текущей — в хронологическом порядке.
+        const entries = window.VN.systems.GameState.getFullHistory();
         this.historyText.setText(
           entries
             .map(function (e) {
@@ -199,6 +299,9 @@ toggleHistory() {
             })
             .join('\n\n')
         );
+        // Каждый раз открываем историю с самого начала и пересчитываем
+        // размер/позицию ползунка под актуальный объём текста.
+        this.setHistoryScroll(0);
       }
     }
 

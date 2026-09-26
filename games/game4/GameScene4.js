@@ -8,6 +8,10 @@ export class GameScene4 extends Phaser.Scene {
         super('GameScene4');
 
         this.shouldSave = true;
+
+        this.handlePageHide = () => {
+            localStorage.removeItem(GAME4_SAVE_KEY);
+        };
     }
 
     init(data) {
@@ -38,6 +42,18 @@ export class GameScene4 extends Phaser.Scene {
         this.createLetters();
         this.createCounter();
         this.createTimer();
+
+        window.addEventListener(
+            'pagehide',
+            this.handlePageHide
+        );
+
+        this.events.once('shutdown', () => {
+            window.removeEventListener(
+                'pagehide',
+                this.handlePageHide
+            );
+        });
     }
 
     calculateScale() {
@@ -691,18 +707,18 @@ export class GameScene4 extends Phaser.Scene {
         .setOrigin(0.5)
         .setDepth(102);
 
-        const restartButton = this.add.rectangle(
-            this.scale.width / 2,
-            this.scale.height / 2 + 80 * this.gameScale,
-            380 * this.gameScale,
-            90 * this.gameScale,
-            0x555555
-        )
-        .setOrigin(0.5)
-        .setInteractive({
-            useHandCursor: true
-        })
-        .setDepth(102);
+        // const restartButton = this.add.rectangle(
+        //     this.scale.width / 2,
+        //     this.scale.height / 2 + 80 * this.gameScale,
+        //     380 * this.gameScale,
+        //     90 * this.gameScale,
+        //     0x555555
+        // )
+        // .setOrigin(0.5)
+        // .setInteractive({
+        //     useHandCursor: true
+        // })
+        // .setDepth(102);
 
 
         // this.add.text(

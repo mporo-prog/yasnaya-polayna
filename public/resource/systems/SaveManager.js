@@ -71,8 +71,8 @@
 
     save: function (state) {
       try {
-        // Каждое сохранение — это и есть "момент активности": именно от
-        // него отсчитываются 30 минут, за которые прогресс должен истечь.
+        // Каждое сохранение — это и есть "момент активности"
+        
         state.lastActiveAt = Date.now();
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       } catch (err) {

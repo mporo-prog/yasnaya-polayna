@@ -23,9 +23,19 @@ export function installDeveloperMode(game, vn) {
     },
   }] : []);
   entries.push({ key: 'SoundTestScene', label: 'Саундтест', data: {} });
+  entries.push({
+    key: 'MainMenuScene',
+    label: 'Сбросить сохранение',
+    description: 'Удалить прогресс и вернуться в главное меню',
+    data: {},
+  });
 
   const screen = createDeveloperScreen(entries);
   const mode = new DeveloperMode(game, screen, entries, (entry) => {
+    if (entry.key === 'MainMenuScene') {
+      vn.systems.GameState.reset();
+      return;
+    }
     if (entry.key === 'SoundTestScene') return;
     vn.systems.GameState.goToScreen(entry.data.storySceneIndex, 0);
     vn.systems.GameState.markMinigameStarted();

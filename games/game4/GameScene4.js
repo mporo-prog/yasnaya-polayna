@@ -1,9 +1,17 @@
 // import Phaser from 'phaser';
 
+const GAME4_SAVE_KEY = 'game4_save_v1';
+
 export class GameScene4 extends Phaser.Scene {
 
     constructor() {
         super('GameScene4');
+
+        this.shouldSave = true;
+
+        this.handlePageHide = () => {
+            localStorage.removeItem(GAME4_SAVE_KEY);
+        };
     }
 
     init(data) {
@@ -11,7 +19,20 @@ export class GameScene4 extends Phaser.Scene {
         this.minigameId = data.minigameId;
     }
 
+    preload() {
+        window.VN?.systems.SceneAudio?.preload(this);
+        this.load.image(
+            'table',
+            `${import.meta.env.BASE_URL}images/table.png`
+        );
+    }
+
     create() {
+    
+        this.completed = false;
+        this.timeLeft = undefined;
+        
+        window.VN?.systems.SceneAudio?.enter(this);
         this.calculateScale();
         this.createBackground();
         this.createGameField();
@@ -19,6 +40,20 @@ export class GameScene4 extends Phaser.Scene {
         this.createButtonMenu();
         this.setupDrag();
         this.createLetters();
+        this.createCounter();
+        this.createTimer();
+
+        window.addEventListener(
+            'pagehide',
+            this.handlePageHide
+        );
+
+        this.events.once('shutdown', () => {
+            window.removeEventListener(
+                'pagehide',
+                this.handlePageHide
+            );
+        });
     }
 
     calculateScale() {
@@ -40,17 +75,40 @@ export class GameScene4 extends Phaser.Scene {
     }
 
     createButtonMenu() {
+
         const buttonWidth = 72 * this.gameScale;
         const buttonHeight = 66 * this.gameScale;
-        const buttonX = this.panelX + (this.scale.width - this.panelX) - 0.06 * this.scale.width;
 
-        this.add.rectangle(
+        const buttonX =
+            this.panelX +
+            (this.scale.width - this.panelX) -
+            0.06 * this.scale.width;
+
+        const button = this.add.rectangle(
             buttonX,
             10 * this.gameScale + buttonHeight / 2,
             buttonWidth,
             buttonHeight,
             0x555555
-        ).setOrigin(0)
+        ).setOrigin(0);
+
+        button.setInteractive({
+            useHandCursor: true
+        });
+
+        button.on('pointerdown', () => {
+            this.openPauseMenu();
+        });
+    }
+
+    openPauseMenu() {
+        this.scene.launch('PauseScene', {
+            returnSceneKey: 'GameScene4'
+        });
+
+        this.scene.pause();
+
+        this.scene.bringToTop('PauseScene');
     }
 
     createGameField() {
@@ -80,75 +138,105 @@ export class GameScene4 extends Phaser.Scene {
 
     createLetters() {
 
-        this.letters = [
-            { envelope: 'blue', color: 0x6e9cff },
-            { envelope: 'pink', color: 0xff8181 },
-            { envelope: 'yellow', color: 0xf7ff87 },
-            { envelope: 'black', color: 0x000000 },
-            { envelope: 'pink', color: 0xff8181 },
-            { envelope: 'blue', color: 0x6e9cff },
-            { envelope: 'black', color: 0x000000 },
-            { envelope: 'yellow', color: 0xf7ff87 },
-            { envelope: 'blue', color: 0x6e9cff },
-            { envelope: 'pink', color: 0xff8181 },
-            { envelope: 'yellow', color: 0xf7ff87 },
-            { envelope: 'black', color: 0x000000 },
-            { envelope: 'pink', color: 0xff8181 },
-            { envelope: 'blue', color: 0x6e9cff },
-            { envelope: 'black', color: 0x000000 },
-            { envelope: 'yellow', color: 0xf7ff87 },
-            { envelope: 'blue', color: 0x6e9cff },
-            { envelope: 'pink', color: 0xff8181 },
-            { envelope: 'black', color: 0x000000 },
-            { envelope: 'yellow', color: 0xf7ff87 }
+        const letterLists = [
+
+            [
+                { envelope: 'blue', color: 0x6e9cff },
+                { envelope: 'pink', color: 0xff8181 },
+                { envelope: 'yellow', color: 0xf7ff87 },
+                { envelope: 'black', color: 0x000000 },
+                { envelope: 'pink', color: 0xff8181 },
+                { envelope: 'blue', color: 0x6e9cff },
+                { envelope: 'black', color: 0x000000 },
+                { envelope: 'yellow', color: 0xf7ff87 },
+                { envelope: 'blue', color: 0x6e9cff },
+                { envelope: 'pink', color: 0xff8181 },
+                { envelope: 'yellow', color: 0xf7ff87 },
+                { envelope: 'black', color: 0x000000 },
+                { envelope: 'pink', color: 0xff8181 },
+                { envelope: 'blue', color: 0x6e9cff },
+                { envelope: 'black', color: 0x000000 },
+                { envelope: 'yellow', color: 0xf7ff87 },
+                { envelope: 'blue', color: 0x6e9cff },
+                { envelope: 'pink', color: 0xff8181 },
+                { envelope: 'black', color: 0x000000 },
+                { envelope: 'yellow', color: 0xf7ff87 }
+            ],
+
+            [
+                { envelope: 'black', color: 0x000000 },
+                { envelope: 'yellow', color: 0xf7ff87 },
+                { envelope: 'blue', color: 0x6e9cff },
+                { envelope: 'pink', color: 0xff8181 },
+                { envelope: 'yellow', color: 0xf7ff87 },
+                { envelope: 'black', color: 0x000000 },
+                { envelope: 'pink', color: 0xff8181 },
+                { envelope: 'blue', color: 0x6e9cff },
+                { envelope: 'pink', color: 0xff8181 },
+                { envelope: 'black', color: 0x000000 },
+                { envelope: 'yellow', color: 0xf7ff87 },
+                { envelope: 'blue', color: 0x6e9cff },
+                { envelope: 'black', color: 0x000000 },
+                { envelope: 'pink', color: 0xff8181 },
+                { envelope: 'yellow', color: 0xf7ff87 },
+                { envelope: 'blue', color: 0x6e9cff },
+                { envelope: 'pink', color: 0xff8181 },
+                { envelope: 'yellow', color: 0xf7ff87 },
+                { envelope: 'black', color: 0x000000 },
+                { envelope: 'blue', color: 0x6e9cff }
+            ],
+
+            [
+                { envelope: 'yellow', color: 0xf7ff87 },
+                { envelope: 'pink', color: 0xff8181 },
+                { envelope: 'black', color: 0x000000 },
+                { envelope: 'blue', color: 0x6e9cff },
+                { envelope: 'black', color: 0x000000 },
+                { envelope: 'yellow', color: 0xf7ff87 },
+                { envelope: 'blue', color: 0x6e9cff },
+                { envelope: 'pink', color: 0xff8181 },
+                { envelope: 'yellow', color: 0xf7ff87 },
+                { envelope: 'black', color: 0x000000 },
+                { envelope: 'pink', color: 0xff8181 },
+                { envelope: 'blue', color: 0x6e9cff },
+                { envelope: 'yellow', color: 0xf7ff87 },
+                { envelope: 'pink', color: 0xff8181 },
+                { envelope: 'black', color: 0x000000 },
+                { envelope: 'blue', color: 0x6e9cff },
+                { envelope: 'pink', color: 0xff8181 },
+                { envelope: 'black', color: 0x000000 },
+                { envelope: 'blue', color: 0x6e9cff },
+                { envelope: 'yellow', color: 0xf7ff87 }
+            ]
         ];
 
-    //     [
-    //     { envelope: 'black', color: 0x000000 },
-    //     { envelope: 'yellow', color: 0xf7ff87 },
-    //     { envelope: 'blue', color: 0x6e9cff },
-    //     { envelope: 'pink', color: 0xff8181 },
-    //     { envelope: 'yellow', color: 0xf7ff87 },
-    //     { envelope: 'black', color: 0x000000 },
-    //     { envelope: 'pink', color: 0xff8181 },
-    //     { envelope: 'blue', color: 0x6e9cff },
-    //     { envelope: 'pink', color: 0xff8181 },
-    //     { envelope: 'black', color: 0x000000 },
-    //     { envelope: 'yellow', color: 0xf7ff87 },
-    //     { envelope: 'blue', color: 0x6e9cff },
-    //     { envelope: 'black', color: 0x000000 },
-    //     { envelope: 'pink', color: 0xff8181 },
-    //     { envelope: 'yellow', color: 0xf7ff87 },
-    //     { envelope: 'blue', color: 0x6e9cff },
-    //     { envelope: 'pink', color: 0xff8181 },
-    //     { envelope: 'yellow', color: 0xf7ff87 },
-    //     { envelope: 'black', color: 0x000000 },
-    //     { envelope: 'blue', color: 0x6e9cff }
-    // ],
+        const saved = this.loadGame4State();
 
-    // // Список 3
-    // [
-    //     { envelope: 'yellow', color: 0xf7ff87 },
-    //     { envelope: 'pink', color: 0xff8181 },
-    //     { envelope: 'black', color: 0x000000 },
-    //     { envelope: 'blue', color: 0x6e9cff },
-    //     { envelope: 'black', color: 0x000000 },
-    //     { envelope: 'yellow', color: 0xf7ff87 },
-    //     { envelope: 'blue', color: 0x6e9cff },
-    //     { envelope: 'pink', color: 0xff8181 },
-    //     { envelope: 'yellow', color: 0xf7ff87 },
-    //     { envelope: 'black', color: 0x000000 },
-    //     { envelope: 'pink', color: 0xff8181 },
-    //     { envelope: 'blue', color: 0x6e9cff },
-    //     { envelope: 'yellow', color: 0xf7ff87 },
-    //     { envelope: 'pink', color: 0xff8181 },
-    //     { envelope: 'black', color: 0x000000 },
-    //     { envelope: 'blue', color: 0x6e9cff },
-    //     { envelope: 'pink', color: 0xff8181 },
-    //     { envelope: 'black', color: 0x000000 },
-    //     { envelope: 'blue', color: 0x6e9cff },
-    //     { envelope: 'yellow', color: 0xf7ff87 }
-    // ]
+        if (saved) {
+
+            this.letters = saved.letters.map(letter => ({
+                envelope: letter.envelope,
+                color: letter.color
+            }));
+
+            this.sortedLetters = saved.sortedLetters;
+            this.totalLetters = saved.totalLetters;
+            this.timeLeft = saved.timeLeft;
+
+        } else {
+
+            const randomList =
+                Phaser.Utils.Array.GetRandom(letterLists);
+
+            this.letters = randomList.map(letter => ({
+                envelope: letter.envelope,
+                color: letter.color
+            }));
+
+            this.totalLetters = this.letters.length;
+            this.sortedLetters = 0;
+            this.timeLeft = 30;
+        }
 
         const letterWidth = 350 * this.gameScale;
         const letterHeight = 250 * this.gameScale;
@@ -175,6 +263,159 @@ export class GameScene4 extends Phaser.Scene {
         });
 
         this.activateTopLetter();
+    }
+
+    saveGame4State() {
+
+        if (!this.letters) {
+            return;
+        }
+
+        const data = {
+            version: 1,
+
+            letters: this.letters.map(letter => ({
+                envelope: letter.envelope,
+                color: letter.color
+            })),
+
+            sortedLetters: this.sortedLetters,
+            totalLetters: this.totalLetters,
+            timeLeft: this.timeLeft,
+
+            savedAt: Date.now()
+        };
+
+        localStorage.setItem(
+            GAME4_SAVE_KEY,
+            JSON.stringify(data)
+        );
+    }
+
+    loadGame4State() {
+
+        const raw = localStorage.getItem(
+            GAME4_SAVE_KEY
+        );
+
+        if (!raw) {
+            return null;
+        }
+
+        try {
+
+            return JSON.parse(raw);
+
+        } catch (error) {
+
+            console.warn(
+                'Не удалось загрузить сохранение Game 4',
+                error
+            );
+
+            localStorage.removeItem(
+                GAME4_SAVE_KEY
+            );
+
+            return null;
+        }
+    }
+
+    clearGame4Save() {
+
+        localStorage.removeItem(
+            GAME4_SAVE_KEY
+        );
+    }
+
+    createCounter() {
+
+        this.counterText = this.add.text(
+            this.scale.width / 2,
+            40 * this.gameScale,
+            `${this.sortedLetters}/${this.totalLetters}`,
+            {
+                fontSize: `${36 * this.gameScale}px`,
+                color: '#000000'
+            }
+        ).setOrigin(0.5);
+
+    }
+
+    createTimer() {
+
+        if (this.timeLeft === undefined) {
+            this.timeLeft = 5;
+        }
+
+        this.timerText = this.add.text(
+            this.scale.width / 2,
+            90 * this.gameScale,
+            '',
+            {
+                fontSize: `${36 * this.gameScale}px`,
+                color: '#000000'
+            }
+        ).setOrigin(0.5);
+
+        this.updateTimerText();
+
+        this.timerEvent = this.time.addEvent({
+            delay: 1000,
+            loop: true,
+            callback: this.updateTimer,
+            callbackScope: this
+        });
+
+        this.saveGame4State();
+    }
+
+    updateTimer() {
+
+        if (this.completed) {
+            return;
+        }
+
+        this.timeLeft--;
+
+        if (this.timeLeft <= 0) {
+
+            this.timeLeft = 0;
+
+            this.saveGame4State();
+            this.updateTimerText();
+
+            if (this.timerEvent) {
+                this.timerEvent.remove(false);
+            }
+
+            this.loseGame();
+
+            return;
+        }
+
+        this.updateTimerText();
+
+        this.saveGame4State();
+    }
+
+    updateTimerText() {
+
+        const seconds = Math.max(
+            0,
+            this.timeLeft
+        );
+
+        this.timerText.setText(
+            `00:${seconds.toString().padStart(2, '0')}`
+        );
+
+    }
+
+    updateCounter() {
+
+        this.counterText.setText(`${this.sortedLetters}/${this.totalLetters}`);
+
     }
 
     activateTopLetter() {
@@ -330,6 +571,10 @@ export class GameScene4 extends Phaser.Scene {
             item => item !== letter
         );
 
+        this.sortedLetters++;
+        this.updateCounter();
+        this.saveGame4State();
+
         this.tweens.add({
             targets: sprite,
             alpha: 0,
@@ -369,34 +614,147 @@ export class GameScene4 extends Phaser.Scene {
 
     finishGame() {
 
-        this.add.text(
-            this.scale.width / 2,
-            this.scale.height / 2,
-            'Ура! Победа!\n\nДалее',
-            {
-                fontSize: '48px',
-                color: '#ffffff',
-                backgroundColor: '#000000',
-                align: 'center',
-                padding: {
-                    x: 30,
-                    y: 20
-                }
-            }
-        )
-        .setOrigin(0.5)
-        .setInteractive({
-            useHandCursor: true
-        })
-        .on('pointerdown', () => {
+        if (this.completed) {
+            return;
+        }
 
-            window.VN.systems.finishMinigameAndAdvance(
+        this.completed = true;
+
+        this.shouldSave = false;
+
+        this.clearGame4Save();
+
+        // this.add.text(
+        //     this.scale.width / 2,
+        //     this.scale.height / 2,
+        //     'Ура! Победа!\n\nДалее',
+        //     {
+        //         fontSize: '48px',
+        //         color: '#ffffff',
+        //         backgroundColor: '#000000',
+        //         align: 'center',
+        //         padding: {
+        //             x: 30,
+        //             y: 20
+        //         }
+        //     }
+        // )
+        // .setOrigin(0.5)
+        // .setInteractive({
+        //     useHandCursor: true
+        // })
+        // .on('pointerdown', () => {
+
+        //     window.VN.systems.finishMinigameAndAdvance(
+        //         this,
+        //         this.storySceneIndex,
+        //         this.minigameId
+        //     );
+
+        // });
+
+        window.VN.systems.finishMinigameAndAdvance(
                 this,
                 this.storySceneIndex,
                 this.minigameId
             );
+    }
 
+    loseGame() {
+
+        if (this.completed) {
+            return;
+        }
+
+        this.completed = true;
+
+        this.shouldSave = false;
+
+        this.clearGame4Save();
+
+        if (this.timerEvent) {
+            this.timerEvent.remove(false);
+        }
+
+        this.letters.forEach(letter => {
+            if (letter.sprite) {
+                letter.sprite.disableInteractive();
+            }
         });
+
+        const panelWidth = 700 * this.gameScale;
+        const panelHeight = 400 * this.gameScale;
+
+        this.add.rectangle(
+            this.scale.width / 2,
+            this.scale.height / 2,
+            panelWidth,
+            panelHeight,
+            0xffffff
+        )
+        .setOrigin(0.5)
+        .setDepth(101);
+
+        this.add.text(
+            this.scale.width / 2,
+            this.scale.height / 2 - 80 * this.gameScale,
+            'Вы проиграли',
+            {
+                fontSize: `${52 * this.gameScale}px`,
+                color: '#000000'
+            }
+        )
+        .setOrigin(0.5)
+        .setDepth(102);
+
+        // const restartButton = this.add.rectangle(
+        //     this.scale.width / 2,
+        //     this.scale.height / 2 + 80 * this.gameScale,
+        //     380 * this.gameScale,
+        //     90 * this.gameScale,
+        //     0x555555
+        // )
+        // .setOrigin(0.5)
+        // .setInteractive({
+        //     useHandCursor: true
+        // })
+        // .setDepth(102);
+
+
+        // this.add.text(
+        //     this.scale.width / 2,
+        //     this.scale.height / 2 + 80 * this.gameScale,
+        //     'Начать игру заново',
+        //     {
+        //         fontSize: `${30 * this.gameScale}px`,
+        //         color: '#ffffff'
+        //     }
+        // )
+        // .setOrigin(0.5)
+        // .setDepth(103);
+
+        this.restartGame();
+        
+        // restartButton.on('pointerdown', () => {
+        // });
+    }
+
+    restartGame() {
+
+        this.shouldSave = false;
+
+        this.clearGame4Save();
+
+        this.scene.restart({
+            storySceneIndex: this.storySceneIndex,
+            minigameId: this.minigameId
+        });
+    }
+
+    clearGame4Save() {
+
+        localStorage.removeItem(GAME4_SAVE_KEY);
+
     }
 
 }

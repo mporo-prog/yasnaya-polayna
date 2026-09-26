@@ -11,7 +11,12 @@ export class GameScene2 extends Phaser.Scene {
         this.minigameId = data.minigameId;
     }
 
+    preload() {
+        window.VN?.systems.SceneAudio?.preload(this);
+    }
+
     create() {
+        window.VN?.systems.SceneAudio?.enter(this);
         this.calculateScale();
         this.createBackground();
         this.createGameField();
@@ -108,17 +113,41 @@ export class GameScene2 extends Phaser.Scene {
     }
 
     createButtonMenu() {
+
         const buttonWidth = 72 * this.gameScale;
         const buttonHeight = 66 * this.gameScale;
-        const buttonX = this.panelX + (this.scale.width - this.panelX) - 0.06 * this.scale.width;
 
-        this.add.rectangle(
+        const buttonX =
+            this.panelX +
+            (this.scale.width - this.panelX) -
+            0.06 * this.scale.width;
+
+        const button = this.add.rectangle(
             buttonX,
             10 * this.gameScale + buttonHeight / 2,
             buttonWidth,
             buttonHeight,
             0x555555
-        ).setOrigin(0)
+        ).setOrigin(0);
+
+        button.setInteractive({
+            useHandCursor: true
+        });
+
+        button.on('pointerdown', () => {
+            this.openPauseMenu();
+        });
+    }
+
+    openPauseMenu() {
+
+        this.scene.pause();
+
+        this.scene.launch('PauseScene', {
+            returnSceneKey: 'GameScene2'
+        });
+
+        this.scene.bringToTop('PauseScene');
     }
 
     createElements() {
@@ -273,36 +302,36 @@ export class GameScene2 extends Phaser.Scene {
 
     showWinMessage() {
 
-        const button = this.add.text(
-            this.scale.width / 2,
-            this.scale.height / 2,
-            'Далее',
-            {
-                fontSize: '48px',
-                color: '#ffffff',
-                backgroundColor: '#000000',
-                padding: {
-                    x: 20,
-                    y: 10
-                }
-            }
-        ).setOrigin(0.5);
+        // const button = this.add.text(
+        //     this.scale.width / 2,
+        //     this.scale.height / 2,
+        //     'Далее',
+        //     {
+        //         fontSize: '48px',
+        //         color: '#ffffff',
+        //         backgroundColor: '#000000',
+        //         padding: {
+        //             x: 20,
+        //             y: 10
+        //         }
+        //     }
+        // ).setOrigin(0.5);
 
 
-        button.setInteractive({
-            useHandCursor: true
-        });
+        // button.setInteractive({
+        //     useHandCursor: true
+        // });
 
 
-        button.on('pointerdown', () => {
+        window.VN.systems.finishMinigameAndAdvance(
+            this,
+            this.storySceneIndex,
+            this.minigameId
+        );
+        // button.on('pointerdown', () => {
 
-            window.VN.systems.finishMinigameAndAdvance(
-                this,
-                this.storySceneIndex,
-                this.minigameId
-            );
 
-        });
+        // });
     }
 
     returnElement(element) {

@@ -38,6 +38,8 @@ const ITEMS = [
 ];
 
 const GROUPS_TOTAL = 3;
+// Время показа подсказок; можно переопределить через hintDurationSeconds в данных сцены.
+const DEFAULT_HINT_DURATION_SECONDS = 2;
 
 export class GameScene3 extends Phaser.Scene {
 
@@ -45,18 +47,27 @@ export class GameScene3 extends Phaser.Scene {
         super('GameScene3');
     }
 
-    init(data) {
+    init(data = {}) {
         this.storySceneIndex = data.storySceneIndex;
         this.minigameId = data.minigameId;
+        this.hintDurationSeconds = Number.isFinite(data.hintDurationSeconds) && data.hintDurationSeconds >= 0
+            ? data.hintDurationSeconds
+            : DEFAULT_HINT_DURATION_SECONDS;
+    }
+
+    preload() {
+        window.VN?.systems.SceneAudio?.preload(this);
     }
 
     create() {
+        window.VN?.systems.SceneAudio?.enter(this);
         this.started = false;
         this.paused = false;
         this.finished = false;
         this.completed = false;
         this.placedCount = 0;
         this.arrivedCount = 0;
+        this.activeHint = null;
 
         this.calculateScale();
         this.createRoot();
@@ -240,12 +251,12 @@ export class GameScene3 extends Phaser.Scene {
     }
 
     checkCompletion() {
-        if (this.arrivedCount < GROUPS_TOTAL) {
+        if (this.finished || this.arrivedCount < GROUPS_TOTAL) {
             return;
         }
 
         this.finished = true;
-        this.winOverlay.setVisible(true);
+        this.showHint(this.winOverlay, () => this.finishGame());
     }
 
     createButtonMenu() {
@@ -270,9 +281,40 @@ export class GameScene3 extends Phaser.Scene {
         ).setOrigin(0.5);
 
         button.setInteractive({ useHandCursor: true });
-        button.on('pointerdown', () => this.togglePause());
+        button.on('pointerdown', () => this.openPauseMenu());
 
         this.root.add([button, label]);
+    }
+
+    showHint(overlay, onDismiss) {
+        this.clearHint();
+        overlay.setVisible(true);
+
+        this.activeHint = {
+            overlay,
+            onDismiss,
+            timer: this.time.delayedCall(this.hintDurationSeconds * 1000, () => this.dismissHint())
+        };
+    }
+
+    clearHint() {
+        if (!this.activeHint) {
+            return;
+        }
+
+        this.activeHint.timer.remove();
+        this.activeHint.overlay.setVisible(false);
+        this.activeHint = null;
+    }
+
+    dismissHint() {
+        const hint = this.activeHint;
+        if (!hint) {
+            return;
+        }
+
+        this.clearHint();
+        hint.onDismiss();
     }
 
     createOverlay(text, onClick) {
@@ -310,21 +352,31 @@ export class GameScene3 extends Phaser.Scene {
     }
 
     createWinOverlay() {
-        this.winOverlay = this.createOverlay('Ура пабеда', () => this.finishGame());
+        this.winOverlay = this.createOverlay('Ура пабеда', () => this.dismissHint());
     }
 
     createIntroOverlay() {
         this.introOverlay = this.createOverlay(
             'Соберите завтрак для Толстого',
-            () => this.startGame()
+            () => this.dismissHint()
         );
 
-        this.introOverlay.setVisible(true);
+        this.showHint(this.introOverlay, () => this.startGame());
     }
 
     startGame() {
         this.started = true;
         this.introOverlay.setVisible(false);
+    }
+
+    openPauseMenu() {
+        this.scene.launch('PauseScene', {
+            returnSceneKey: 'GameScene3'
+        });
+
+        this.scene.pause();
+
+        this.scene.bringToTop('PauseScene');
     }
 
     togglePause() {
@@ -366,11 +418,12 @@ export class GameScene3 extends Phaser.Scene {
     }
 
     setupInput() {
-        this.input.keyboard.on('keydown-ESC', () => this.togglePause());
+        this.input.keyboard.on('keydown-ESC', () => this.openPauseMenu());
 
         this.scale.on('resize', this.handleResize, this);
 
         this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+            this.clearHint();
             this.scale.off('resize', this.handleResize, this);
         });
     }

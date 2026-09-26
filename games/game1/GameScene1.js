@@ -7,46 +7,27 @@ const BIRD_WIDTH = 162;
 const BIRD_HEIGHT = 153;
 
 // Координаты левого верхнего угла каждой птицы взяты из макета.
-// voice — синтезированный голос вместо настоящей записи: набор коротких
-// росчерков, у каждого частота едет от from к to за duration, затем пауза gap.
+// У каждой птицы своя запись относительно resource/sound.
 const BIRDS = [
     {
         x: 709,
         y: 151,
-        // Две нисходящие свистовые ноты.
-        voice: [
-            { from: 4400, to: 3600, duration: 0.10, gap: 0.07 },
-            { from: 4400, to: 3400, duration: 0.12, gap: 0 }
-        ]
+        voice: 'voice_and_sound/test_bird_1.mp3'
     },
     {
         x: 972,
         y: 276,
-        // Быстрая восходящая трель в четыре счёта.
-        voice: [
-            { from: 2900, to: 3500, duration: 0.05, gap: 0.035 },
-            { from: 3100, to: 3800, duration: 0.05, gap: 0.035 },
-            { from: 3300, to: 4100, duration: 0.05, gap: 0.035 },
-            { from: 3500, to: 4400, duration: 0.07, gap: 0 }
-        ]
+        voice: 'voice_and_sound/test_bird_2.mp3'
     },
     {
         x: 960,
         y: 591,
-        // Переливчатый росчерк вверх и обратно вниз.
-        voice: [
-            { from: 2400, to: 4000, duration: 0.11, gap: 0.04 },
-            { from: 4000, to: 2300, duration: 0.13, gap: 0 }
-        ]
+        voice: 'voice_and_sound/test_bird_3.mp3'
     },
     {
         x: 1404,
         y: 525,
-        // Низкое короткое чириканье в два счёта.
-        voice: [
-            { from: 2100, to: 2500, duration: 0.06, gap: 0.05 },
-            { from: 2000, to: 2300, duration: 0.07, gap: 0 }
-        ]
+        voice: 'voice_and_sound/test_bird_4.mp3'
     }
 ];
 
@@ -70,8 +51,8 @@ const DEMO_START_DELAY = 700;
 const DEMO_FLASH_DURATION = 500;
 const DEMO_FLASH_GAP = 250;
 const INPUT_FLASH_DURATION = 300;
-
-const CHIRP_VOLUME = 0.16;
+// Время показа подсказок; можно переопределить через hintDurationSeconds в данных сцены.
+const DEFAULT_HINT_DURATION_SECONDS = 2;
 
 export class GameScene1 extends Phaser.Scene {
 
@@ -79,12 +60,23 @@ export class GameScene1 extends Phaser.Scene {
         super('GameScene1');
     }
 
-    init(data) {
+    init(data = {}) {
         this.storySceneIndex = data.storySceneIndex;
         this.minigameId = data.minigameId;
+        this.hintDurationSeconds = Number.isFinite(data.hintDurationSeconds) && data.hintDurationSeconds >= 0
+            ? data.hintDurationSeconds
+            : DEFAULT_HINT_DURATION_SECONDS;
+    }
+
+    preload() {
+        window.VN?.systems.SceneAudio?.preload(this);
+        for (const bird of BIRDS) {
+            window.VN.systems.AudioManager.load(this, bird.voice);
+        }
     }
 
     create() {
+        window.VN?.systems.SceneAudio?.enter(this);
         this.phase = 'intro';
         this.paused = false;
         this.completed = false;
@@ -92,6 +84,7 @@ export class GameScene1 extends Phaser.Scene {
         this.inputIndex = 0;
         this.demoStep = 0;
         this.round_number = 2;
+        this.activeHint = null;
 
         this.calculateScale();
         this.createRoot();
@@ -138,7 +131,7 @@ export class GameScene1 extends Phaser.Scene {
     createBirds() {
         this.birds = BIRDS.map((data, index) => {
             const bird = {
-                voice: data.voice,
+                voice: window.VN.systems.AudioManager.add(this, data.voice),
                 timer: null
             };
 
@@ -201,15 +194,18 @@ export class GameScene1 extends Phaser.Scene {
 
         if (this.demoStep >= this.sequence.length) {
             this.phase = 'repeat';
-            this.repeatOverlay.setVisible(true);
+            this.showHint(this.repeatOverlay, () => this.startInput());
             return;
         }
 
-        this.flashBird(this.sequence[this.demoStep], DEMO_FLASH_DURATION);
+        const index = this.sequence[this.demoStep];
+        // Следующая птица поёт только после окончания текущей записи.
+        const duration = Math.max(DEMO_FLASH_DURATION, this.birds[index].voice.totalDuration * 1000);
+        this.flashBird(index, duration);
         this.demoStep += 1;
 
         this.time.delayedCall(
-            DEMO_FLASH_DURATION + DEMO_FLASH_GAP,
+            duration + DEMO_FLASH_GAP,
             () => this.playDemoStep()
         );
     }
@@ -258,6 +254,7 @@ export class GameScene1 extends Phaser.Scene {
         this.time.removeAllEvents();
 
         this.birds.forEach(bird => {
+            bird.voice.stop();
             bird.timer = null;
             bird.box.setFillStyle(COLOR_BIRD);
         });
@@ -265,16 +262,16 @@ export class GameScene1 extends Phaser.Scene {
 
     failRound() {
         this.phase = 'over';
-        this.loseOverlay.setVisible(true);
+        this.showHint(this.loseOverlay, () => this.restartRound());
     }
 
     winRound() {
         this.phase = 'over';
         if (this.round_number == 4){
-            this.winOverlay.setVisible(true);
+            this.showHint(this.winOverlay, () => this.finishGame());
             return
         }
-        this.winRoundOverlay.setVisible(true);
+        this.showHint(this.winRoundOverlay, () => this.nextRound());
     }
 
     restartRound() {
@@ -282,7 +279,7 @@ export class GameScene1 extends Phaser.Scene {
         this.resetBirds();
 
         this.phase = 'intro';
-        this.introOverlay.setVisible(true);
+        this.showHint(this.introOverlay, () => this.startRound());
     }
 
     unlockAudio() {
@@ -292,59 +289,14 @@ export class GameScene1 extends Phaser.Scene {
             return;
         }
 
-        this.audioContext = context;
-
         if (context.state === 'suspended') {
             context.resume();
         }
     }
 
-    // Заглушка вместо голосов птиц: настоящих аудиозаписей в проекте пока нет.
     playVoice(index) {
-        const context = this.audioContext;
-
-        if (!context) {
-            return;
-        }
-
-        let startTime = context.currentTime;
-
-        this.birds[index].voice.forEach(chirp => {
-            this.playChirp(context, startTime, chirp);
-            startTime += chirp.duration + chirp.gap;
-        });
-    }
-
-    playChirp(context, startTime, chirp) {
-        const oscillator = context.createOscillator();
-        const gain = context.createGain();
-        const endTime = startTime + chirp.duration;
-
-        // Треугольная волна ярче синуса — ближе к птичьему тембру.
-        oscillator.type = 'triangle';
-        oscillator.frequency.setValueAtTime(chirp.from, startTime);
-        oscillator.frequency.exponentialRampToValueAtTime(chirp.to, endTime);
-
-        // Экспоненциальный спад не умеет приходить в ноль, поэтому берём
-        // пренебрежимо малое значение как тишину.
-        // Держим громкость почти до конца росчерка: именно съезжающая частота
-        // делает звук птичьим, и при быстром затухании её не слышно.
-        gain.gain.setValueAtTime(0.0001, startTime);
-        gain.gain.exponentialRampToValueAtTime(
-            CHIRP_VOLUME,
-            startTime + chirp.duration * 0.12
-        );
-        gain.gain.setValueAtTime(
-            CHIRP_VOLUME,
-            startTime + chirp.duration * 0.75
-        );
-        gain.gain.exponentialRampToValueAtTime(0.0001, endTime);
-
-        oscillator.connect(gain);
-        gain.connect(context.destination);
-
-        oscillator.start(startTime);
-        oscillator.stop(endTime + 0.02);
+        // Только пользовательская громкость AudioManager, без фейдов и эффектов.
+        this.birds[index].voice.play();
     }
 
     createButtonMenu() {
@@ -369,9 +321,40 @@ export class GameScene1 extends Phaser.Scene {
         ).setOrigin(0.5);
 
         button.setInteractive({ useHandCursor: true });
-        button.on('pointerdown', () => this.togglePause());
+        button.on('pointerdown', () => this.openPauseMenu());
 
         this.root.add([button, label]);
+    }
+
+    showHint(overlay, onDismiss) {
+        this.clearHint();
+        overlay.setVisible(true);
+
+        this.activeHint = {
+            overlay,
+            onDismiss,
+            timer: this.time.delayedCall(this.hintDurationSeconds * 1000, () => this.dismissHint())
+        };
+    }
+
+    clearHint() {
+        if (!this.activeHint) {
+            return;
+        }
+
+        this.activeHint.timer.remove();
+        this.activeHint.overlay.setVisible(false);
+        this.activeHint = null;
+    }
+
+    dismissHint() {
+        const hint = this.activeHint;
+        if (!hint) {
+            return;
+        }
+
+        this.clearHint();
+        hint.onDismiss();
     }
 
     createOverlay(text, onClick) {
@@ -411,28 +394,28 @@ export class GameScene1 extends Phaser.Scene {
     createRepeatOverlay() {
         this.repeatOverlay = this.createOverlay(
             'Повторите песню',
-            () => this.startInput()
+            () => this.dismissHint()
         );
     }
 
     createLoseOverlay() {
         this.loseOverlay = this.createOverlay(
             'Попробуйте снова',
-            () => this.restartRound()
+            () => this.dismissHint()
         );
     }
 
     createWinOverlay() {
         this.winOverlay = this.createOverlay(
             'Ура пабеда едем дальше',
-            () => this.finishGame()
+            () => this.dismissHint()
         );
     }
 
     createWinRoundOverlay() {
         this.winRoundOverlay = this.createOverlay(
             'Раунд пройден, повышаем сложность...',
-            () => this.nextRound()
+            () => this.dismissHint()
         );
     }
 
@@ -440,36 +423,27 @@ export class GameScene1 extends Phaser.Scene {
         this.round_number += 1;
         this.winRoundOverlay.setVisible(false);
         this.phase = 'intro';
-        this.introOverlay.setVisible(true)
+        this.showHint(this.introOverlay, () => this.startRound());
     }
 
-    createIntroOverlay(round_number) {
+    createIntroOverlay() {
         this.introOverlay = this.createOverlay(
             'Прослушайте песню птиц и попробуйте повторить ее.',
-            () => this.startRound(round_number)
+            () => this.dismissHint()
         );
 
-        this.introOverlay.setVisible(true);
+        this.showHint(this.introOverlay, () => this.startRound());
     }
 
-    togglePause() {
-        if (this.phase === 'intro' || this.phase === 'over') {
-            return;
-        }
+    openPauseMenu() {
+        this.scene.launch('PauseScene', {
+            returnSceneKey: 'GameScene1'
+        });
 
-        this.paused = !this.paused;
-        this.pauseOverlay.setVisible(this.paused);
-        this.time.paused = this.paused;
+        this.scene.pause();
+
+        this.scene.bringToTop('PauseScene');
     }
-
-    // finishGame() {
-    //     if (this.completed) {
-    //         return;
-    //     }
-
-    //     this.completed = true;
-    //     this.events.emit('game1:complete');
-    // }
 
     finishGame() {
         if (this.completed) {
@@ -491,6 +465,8 @@ export class GameScene1 extends Phaser.Scene {
         this.scale.on('resize', this.handleResize, this);
 
         this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+            this.clearHint();
+            this.birds.forEach(bird => bird.voice.destroy());
             this.scale.off('resize', this.handleResize, this);
         });
     }

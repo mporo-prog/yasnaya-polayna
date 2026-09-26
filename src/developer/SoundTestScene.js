@@ -23,6 +23,8 @@ export class SoundTestScene extends window.VN.scenes.SettingsScene {
   }
 
   create() {
+    // Саундтест начинает с тишины и не смешивает записи с музыкой сюжета.
+    if (this.sound.context) window.VN.systems.MusicController.forScene(this).stop();
     this.loadingText.destroy();
     super.create();
     this.testSounds = [];

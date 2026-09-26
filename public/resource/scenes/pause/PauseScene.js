@@ -38,8 +38,15 @@
     }
 
     resumeGame() {
-      this.scene.stop();
-      this.scene.resume(this.returnSceneKey);
+
+        const scene = this.scene.get(this.returnSceneKey);
+
+        this.scene.stop();
+        this.scene.resume(this.returnSceneKey);
+
+        if (scene) {
+            scene.input.enabled = true;
+        }
     }
 
     openSettings() {

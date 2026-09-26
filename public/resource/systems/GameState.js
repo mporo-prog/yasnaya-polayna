@@ -48,17 +48,12 @@
      * сцены ещё не показывался — иначе при пролистывании Back/Next
      * история будет бесконечно дублироваться.
      */
-    addHistoryEntry: function (storySceneIndex, screenIndex, text, speakerName) {
+    addHistoryEntry: function (storySceneIndex, screenIndex, text) {
       const key = storySceneIndex + '_' + screenIndex;
       if (this.state.visitedScreens.indexOf(key) !== -1) return;
 
       this.state.visitedScreens.push(key);
-      this.state.history.push({
-        storySceneIndex: storySceneIndex,
-        screenIndex: screenIndex,
-        text: text,
-        speakerName: speakerName || null,
-      });
+      this.state.history.push({ storySceneIndex: storySceneIndex, screenIndex: screenIndex, text: text });
       this.save();
     },
 

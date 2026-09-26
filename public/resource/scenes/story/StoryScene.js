@@ -9,6 +9,7 @@
    *   VN.data.storyLines           — реплики
    *   VN.data.storyHistoryTexts    — текст для окна "История"
    *   VN.data.storyBackgrounds     — пути к фонам
+   *   VN.data.storyAudio           — музыка и звуки сцен/экранов
    *   VN.data.storyMinigameLinks   — какая мини-игра идёт после сцены
    */
   class StoryScene extends Phaser.Scene {
@@ -24,7 +25,12 @@
       this.historyVisible = false;
     }
 
+    preload() {
+      window.VN.systems.SceneAudio.preload(this);
+    }
+
     create() {
+      this.sceneAudio = window.VN.systems.SceneAudio.enter(this);
       this.buildBackgroundLayer();
       this.buildBottomBar();
       this.buildNavButtons();
@@ -98,15 +104,16 @@
       // Имя героя, который сейчас говорит — над текстом реплики.
       this.speakerNameText = this.add
         .text(WIDTH / 2, BAR_Y + 145, '', {
-          fontSize: '28px',
-          fontStyle: 'bold',
+          fontFamily: 'Philosopher',
+          fontSize: '48px',
           color: '#000000',
           align: 'center',
-        })
+        }).setOrigin(0.5, 0)
         .setOrigin(0.5, 0);
       this.dialogueText = this.add
         .text(WIDTH / 2, BAR_Y + 185, '', {
-          fontSize: '34px',
+          fontFamily: 'Ysabeau',
+          fontSize: '36px',
           color: '#000000',
           align: 'center',
           wordWrap: { width: WIDTH * 0.5 },
@@ -234,6 +241,7 @@
     // ---- логика переключения экранов -----------------------------------------
 
     renderCurrentScreen() {
+      this.sceneAudio.showScreen(this.screenIndex);
       const GameState = window.VN.systems.GameState;
       const entry = this.currentLines[this.screenIndex];
       const text = entry.text;

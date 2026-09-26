@@ -6,7 +6,7 @@ export function createDeveloperScreen(entries) {
     <div class="developer-mode__content">
       <p class="developer-mode__eyebrow">ИНСТРУМЕНТЫ РАЗРАБОТКИ</p>
       <h1 id="developer-mode-title">Режим разработчика</h1>
-      <p class="developer-mode__intro">Выберите игровую сцену для запуска с начала или откройте саундтест.</p>
+      <p class="developer-mode__intro">Запустите игровую сцену с начала, откройте саундтест или сбросьте сохранение.</p>
       <div class="developer-mode__scenes"></div>
       <footer>
         <button type="button" class="developer-mode__back">Вернуться в игру</button>
@@ -33,7 +33,7 @@ export function createDeveloperScreen(entries) {
     const label = document.createElement('span');
     label.textContent = entry.label;
     const key = document.createElement('small');
-    key.textContent = entry.key;
+    key.textContent = entry.description || entry.key;
     button.append(number, label, key);
     button.addEventListener('click', () => screen.onSelect?.(entry));
     list.append(button);

@@ -219,7 +219,7 @@ export class GameScene4 extends Phaser.Scene {
 
             this.totalLetters = this.letters.length;
             this.sortedLetters = 0;
-            this.timeLeft = 20;
+            this.timeLeft = 30;
         }
 
         const letterWidth = 350 * this.gameScale;

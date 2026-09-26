@@ -26,7 +26,10 @@
       this.state.status = 'story';
       this.save();
     },
-
+    getFullHistory: function () {
+      return this.state.history.slice();
+    },
+    
     /** Пометить, что игрок сейчас в мини-игре (на случай ухода со вкладки). */
     markMinigameStarted: function () {
       this.state.status = 'minigame';
@@ -71,6 +74,16 @@
       SaveManager.clear();
       this.state = SaveManager.load();
     },
+
+    /** Проверка прогресса */
+    checkExpiration: function () {
+      if (SaveManager.isExpired(this.state)) {
+        this.reset();
+        return true;
+      }
+      return false;
+    }
+
   };
 
   window.VN.systems.GameState = GameState;

@@ -13,6 +13,8 @@
       GameState.goToScreen(nextIndex, 0);
       scene.scene.start('StoryScene', { storySceneIndex: nextIndex, screenIndex: 0 });
     } else {
+      //Вызов сброса прогресса
+      GameState.reset();
       scene.add
         .text(scene.scale.width / 2, scene.scale.height / 2, 'Конец прототипа', {
           fontSize: '40px',

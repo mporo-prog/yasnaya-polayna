@@ -104,15 +104,16 @@
       // Имя героя, который сейчас говорит — над текстом реплики.
       this.speakerNameText = this.add
         .text(WIDTH / 2, BAR_Y + 145, '', {
-          fontSize: '28px',
-          fontStyle: 'bold',
+          fontFamily: 'Philosopher',
+          fontSize: '48px',
           color: '#000000',
           align: 'center',
-        })
+        }).setOrigin(0.5, 0)
         .setOrigin(0.5, 0);
       this.dialogueText = this.add
         .text(WIDTH / 2, BAR_Y + 185, '', {
-          fontSize: '34px',
+          fontFamily: 'Ysabeau',
+          fontSize: '36px',
           color: '#000000',
           align: 'center',
           wordWrap: { width: WIDTH * 0.5 },

@@ -7,7 +7,7 @@
   const STORAGE_KEY = 'vn_save_v1';
 
   // Сколько прогресс может "жить" без активности игрока
-  const MAX_INACTIVITY_MS = 30 * 60 * 1000; // 30 минут
+  const MAX_INACTIVITY_MS = 1 * 60 * 1000; // 30 минут
 
   function defaultState() {
     return {

@@ -192,13 +192,20 @@
     }
 
     buildHistoryOverlay() {
+      // Небольшое окно по центру экрана, а не на весь экран — фон сюжетной
+      // сцены остаётся виден (просто слегка притемнён) вокруг него.
+      const panelW = WIDTH * 0.62;
+      const panelH = HEIGHT * 0.82;
+      const panelX = (WIDTH - panelW) / 2;
+      const panelY = (HEIGHT - panelH) / 2;
+
       // Видимая область под текст истории — за её пределами текст обрезается
       // маской, доступ к остальному — прокруткой.
       const viewport = {
-        x: WIDTH * 0.27,
-        y: 170,
-        width: WIDTH * 0.56,
-        height: HEIGHT - 170 - 90,
+        x: panelX + 60,
+        y: panelY + 140,
+        width: panelW - 160,
+        height: panelH - 140 - 60,
       };
       this.historyViewport = viewport;
       this.historyScrollY = 0;
@@ -207,16 +214,27 @@
       this.historyDragStartScroll = 0;
 
       this.historyContainer = this.add.container(0, 0).setDepth(10).setVisible(false);
-      const panelBg = this.add.rectangle(0, 0, WIDTH, HEIGHT, 0x3f3f3f, 0.98).setOrigin(0, 0).setInteractive();
-      const title = this.add.text(WIDTH / 2, 70, 'История', { fontSize: '56px', color: '#ffffff' }).setOrigin(0.5);
+
+      // Затемняющая подложка на весь экран — приглушает фон и перехватывает
+      // клики мимо окна, но сам фон сцены под ней остаётся виден.
+      const dimBg = this.add.rectangle(0, 0, WIDTH, HEIGHT, 0x000000, 0.35).setOrigin(0, 0).setInteractive();
+
+      // Сама панель "История" — небольшая, по центру, бежевая с рамкой.
+      const windowBg = this.add
+        .rectangle(panelX, panelY, panelW, panelH, 0xe8dcc0)
+        .setOrigin(0, 0)
+        .setStrokeStyle(4, 0x5a4632)
+        .setInteractive();
+
+      const title = this.add.text(WIDTH / 2, panelY + 60, 'История', { fontSize: '48px', color: '#3f2f22' }).setOrigin(0.5);
 
       // Сам текст — внутри отдельного контейнера, который двигается вверх/
       // вниз при прокрутке; видна только часть внутри viewport благодаря маске.
       this.historyText = this.add.text(0, 0, '', {
-        fontSize: '30px',
-        color: '#ffffff',
+        fontSize: '28px',
+        color: '#3f2f22',
         wordWrap: { width: viewport.width },
-        lineSpacing: 26,
+        lineSpacing: 24,
       });
       this.historyContentContainer = this.add.container(viewport.x, viewport.y, [this.historyText]);
 
@@ -225,13 +243,14 @@
       maskShape.fillRect(viewport.x, viewport.y, viewport.width, viewport.height);
       this.historyContentContainer.setMask(maskShape.createGeometryMask());
 
-      // Полоса прокрутки справа от текста, как на макете.
+      // Полоса прокрутки справа от текста, внутри панели.
       const trackX = viewport.x + viewport.width + 30;
-      this.historyScrollTrack = this.add.rectangle(trackX, viewport.y, 6, viewport.height, 0x2a2a2a, 0.8).setOrigin(0.5, 0);
-      this.historyScrollThumb = this.add.rectangle(trackX, viewport.y, 10, viewport.height, 0xd9d9d9).setOrigin(0.5, 0);
+      this.historyScrollTrack = this.add.rectangle(trackX, viewport.y, 6, viewport.height, 0x5a4632, 0.5).setOrigin(0.5, 0);
+      this.historyScrollThumb = this.add.rectangle(trackX, viewport.y, 10, viewport.height, 0x5a4632).setOrigin(0.5, 0);
 
       this.historyContainer.add([
-        panelBg,
+        dimBg,
+        windowBg,
         title,
         this.historyContentContainer,
         this.historyScrollTrack,
@@ -244,20 +263,21 @@
         this.setHistoryScroll(this.historyScrollY + deltaY);
       });
 
-      // Прокрутка перетаскиванием (мышь/тач) прямо по области истории.
-      panelBg.on('pointerdown', (pointer) => {
+      // Прокрутка перетаскиванием (мышь/тач) — только внутри самого окна,
+      // а не по всей затемнённой области экрана.
+      windowBg.on('pointerdown', (pointer) => {
         if (!this.historyVisible) return;
         this.historyDragStartY = pointer.y;
         this.historyDragStartScroll = this.historyScrollY;
       });
-      panelBg.on('pointermove', (pointer) => {
+      windowBg.on('pointermove', (pointer) => {
         if (!this.historyVisible || this.historyDragStartY === null || !pointer.isDown) return;
         const delta = this.historyDragStartY - pointer.y;
         this.setHistoryScroll(this.historyDragStartScroll + delta);
       });
       const stopHistoryDrag = () => { this.historyDragStartY = null; };
-      panelBg.on('pointerup', stopHistoryDrag);
-      panelBg.on('pointerupoutside', stopHistoryDrag);
+      windowBg.on('pointerup', stopHistoryDrag);
+      windowBg.on('pointerupoutside', stopHistoryDrag);
     }
 
     /** Двигает содержимое истории на заданную позицию (с ограничением). */

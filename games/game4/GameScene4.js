@@ -12,6 +12,7 @@ export class GameScene4 extends Phaser.Scene {
     }
 
     preload() {
+        window.VN?.systems.SceneAudio?.preload(this);
         this.load.image(
             'table',
             `${import.meta.env.BASE_URL}images/table.png`
@@ -19,6 +20,7 @@ export class GameScene4 extends Phaser.Scene {
     }
 
     create() {
+        window.VN?.systems.SceneAudio?.enter(this);
         this.calculateScale();
         this.createBackground();
         this.createGameField();

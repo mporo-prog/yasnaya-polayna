@@ -1,4 +1,3 @@
-import Phaser from 'phaser';
 import { GameScene1 } from './GameScene1.js';
 import '../../src/styles/reset.css';
 

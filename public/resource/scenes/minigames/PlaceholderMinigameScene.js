@@ -14,7 +14,12 @@
       this.minigameId = data.minigameId;
     }
 
+    preload() {
+      window.VN.systems.SceneAudio.preload(this);
+    }
+
     create() {
+      window.VN.systems.SceneAudio.enter(this);
       const width = this.scale.width;
       const height = this.scale.height;
 

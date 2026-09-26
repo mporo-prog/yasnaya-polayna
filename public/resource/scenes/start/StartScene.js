@@ -8,7 +8,12 @@
       super('MainMenuScene');
     }
 
+    preload() {
+      window.VN.systems.SceneAudio.preload(this);
+    }
+
     create() {
+      window.VN.systems.SceneAudio.enter(this);
       this.menuData = window.VN.data.startMenuData;
       this.style = window.VN.data.startStyle;
 

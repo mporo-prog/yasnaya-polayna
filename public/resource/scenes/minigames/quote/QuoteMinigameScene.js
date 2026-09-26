@@ -21,7 +21,12 @@
       this.style = window.VN.data.quoteStyle;
     }
 
+    preload() {
+      window.VN.systems.SceneAudio.preload(this);
+    }
+
     create() {
+      window.VN.systems.SceneAudio.enter(this);
       this.buildPortraitPlaceholder();
       this.buildTopButtons();
       this.buildQuoteRow();

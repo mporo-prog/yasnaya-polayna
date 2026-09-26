@@ -10,6 +10,7 @@
    *   VN.data.storyLines           — реплики
    *   VN.data.storyHistoryTexts    — текст для окна "История"
    *   VN.data.storyBackgrounds     — пути к фонам
+   *   VN.data.storyAudio           — музыка и звуки сцен/экранов
    *   VN.data.storyMinigameLinks   — какая мини-игра идёт после сцены
    */
   class StoryScene extends Phaser.Scene {
@@ -25,7 +26,12 @@
       this.historyVisible = false;
     }
 
+    preload() {
+      window.VN.systems.SceneAudio.preload(this);
+    }
+
     create() {
+      this.sceneAudio = window.VN.systems.SceneAudio.enter(this);
       this.buildBackgroundLayer();
       this.buildBottomBar();
       this.buildNavButtons();
@@ -139,6 +145,7 @@
     // ---- логика переключения экранов -----------------------------------------
 
     renderCurrentScreen() {
+      this.sceneAudio.showScreen(this.screenIndex);
       const GameState = window.VN.systems.GameState;
       const text = this.currentLines[this.screenIndex];
       const backgroundPath = this.currentBackgrounds[this.screenIndex];

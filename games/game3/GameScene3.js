@@ -275,7 +275,7 @@ export class GameScene3 extends Phaser.Scene {
         ).setOrigin(0.5);
 
         button.setInteractive({ useHandCursor: true });
-        button.on('pointerdown', () => this.togglePause());
+        button.on('pointerdown', () => this.openPauseMenu());
 
         this.root.add([button, label]);
     }
@@ -332,6 +332,16 @@ export class GameScene3 extends Phaser.Scene {
         this.introOverlay.setVisible(false);
     }
 
+    openPauseMenu() {
+        this.scene.launch('PauseScene', {
+            returnSceneKey: 'GameScene3'
+        });
+
+        this.scene.pause();
+
+        this.scene.bringToTop('PauseScene');
+    }
+
     togglePause() {
         if (!this.started || this.finished) {
             return;
@@ -371,7 +381,7 @@ export class GameScene3 extends Phaser.Scene {
     }
 
     setupInput() {
-        this.input.keyboard.on('keydown-ESC', () => this.togglePause());
+        this.input.keyboard.on('keydown-ESC', () => this.openPauseMenu());
 
         this.scale.on('resize', this.handleResize, this);
 

@@ -315,7 +315,7 @@ export class GameScene1 extends Phaser.Scene {
         ).setOrigin(0.5);
 
         button.setInteractive({ useHandCursor: true });
-        button.on('pointerdown', () => this.togglePause());
+        button.on('pointerdown', () => this.openPauseMenu());
 
         this.root.add([button, label]);
     }
@@ -398,28 +398,15 @@ export class GameScene1 extends Phaser.Scene {
         this.introOverlay.setVisible(true);
     }
 
-    togglePause() {
-        if (this.phase === 'intro' || this.phase === 'over') {
-            return;
-        }
-
-        this.paused = !this.paused;
-        this.pauseOverlay.setVisible(this.paused);
-        this.time.paused = this.paused;
-        this.birds.forEach(bird => {
-            if (this.paused) bird.voice.pause();
-            else if (bird.voice.isPaused) bird.voice.resume();
+    openPauseMenu() {
+        this.scene.launch('PauseScene', {
+            returnSceneKey: 'GameScene1'
         });
+
+        this.scene.pause();
+
+        this.scene.bringToTop('PauseScene');
     }
-
-    // finishGame() {
-    //     if (this.completed) {
-    //         return;
-    //     }
-
-    //     this.completed = true;
-    //     this.events.emit('game1:complete');
-    // }
 
     finishGame() {
         if (this.completed) {

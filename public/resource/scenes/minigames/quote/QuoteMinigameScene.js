@@ -4,8 +4,8 @@
 
   /**
    * QuoteMinigameScene — мини-игра "определи правильное начало/продолжение
-   * цитаты". Контент — в data/minigames/quote/quoteData.js, стиль — в
-   * data/minigames/quote/quoteStyle.js, здесь только логика/отрисовка.
+   * цитаты". Три раунда. Контент — в data/minigames/quote/quoteData.js,
+   * стиль — в data/minigames/quote/quoteStyle.js, здесь только логика/отрисовка.
    */
   class QuoteMinigameScene extends Phaser.Scene {
     constructor() {
@@ -15,10 +15,14 @@
     init(data) {
       this.storySceneIndex = data.storySceneIndex;
       this.minigameId = data.minigameId;
-      this.solved = false;
 
       this.quoteData = window.VN.data.quoteData;
       this.style = window.VN.data.quoteStyle;
+      this.rounds = this.quoteData.rounds;
+
+      this.currentRoundIndex = 0;
+      this.roundSolved = false;
+      this.gameFinished = false;
     }
 
     preload() {
@@ -29,8 +33,8 @@
       window.VN.systems.SceneAudio.enter(this);
       this.buildPortraitPlaceholder();
       this.buildTopButtons();
-      this.buildQuoteRow();
-      this.buildAnswerButtons();
+      this.buildRoundCounter();
+      this.startRound(this.currentRoundIndex);
       this.buildContinueButton();
     }
 
@@ -53,9 +57,54 @@
       this.makeButton(WIDTH - 95, 45, 'кнопка\nменю', () => this.openPauseMenu(), 150, 80);
     }
 
+    buildRoundCounter() {
+      this.roundCounterText = this.add
+        .text(WIDTH * 0.465, HEIGHT * 0.10, '', {
+          fontSize: '32px',
+          color: '#333333',
+        })
+        .setOrigin(0, 0.5);
+      this.updateRoundCounter();
+    }
+
+    updateRoundCounter() {
+      this.roundCounterText.setText(
+        'Раунд ' + (this.currentRoundIndex + 1) + ' из ' + this.rounds.length
+      );
+    }
+
+    // ---- логика раунда ------------------------------------------------------
+
+    startRound(index) {
+      this.roundSolved = false;
+      this.currentRound = this.rounds[index];
+
+      this.buildQuoteRow();
+      this.buildAnswerButtons();
+      this.updateRoundCounter();
+    }
+
+    clearRound() {
+      if (this.promptText) this.promptText.destroy();
+      if (this.blankRect) this.blankRect.destroy();
+      if (this.answerText) this.answerText.destroy();
+
+      if (this.answerButtons) {
+        this.answerButtons.forEach(function (b) {
+          b.bg.destroy();
+          b.text.destroy();
+        });
+        this.answerButtons = null;
+      }
+
+      this.promptText = null;
+      this.blankRect = null;
+      this.answerText = null;
+    }
+
     buildQuoteRow() {
-      const mode = this.quoteData.mode;
-      const prompt = this.quoteData.prompt;
+      const mode = this.currentRound.mode;
+      const prompt = this.currentRound.prompt;
       const startX = WIDTH * 0.465;
       const y = HEIGHT * 0.22;
 
@@ -74,19 +123,22 @@
     }
 
     revealAnswerInQuote() {
-      const answer = this.quoteData.answer;
+      const answer = this.currentRound.answer;
       const x = this.blankRect.x;
       const y = this.blankRect.y;
       this.blankRect.destroy();
-      this.answerText = this.add.text(x, y, answer, { fontSize: '40px', color: '#000000' }).setOrigin(0, 0.5);
+      this.blankRect = null;
+      this.answerText = this.add
+        .text(x, y, answer, { fontSize: '40px', color: '#000000' })
+        .setOrigin(0, 0.5);
     }
 
     // ---- варианты ответа ----------------------------------------------------
 
     buildAnswerButtons() {
       const options = this.shuffle(
-        [{ text: this.quoteData.answer, correct: true }].concat(
-          this.quoteData.distractors.map(function (text) {
+        [{ text: this.currentRound.answer, correct: true }].concat(
+          this.currentRound.distractors.map(function (text) {
             return { text: text, correct: false };
           })
         )
@@ -117,13 +169,18 @@
     }
 
     onAnswerClicked(button) {
-      if (this.solved) return;
+      if (this.roundSolved || this.gameFinished) return;
 
       if (button.correct) {
-        this.solved = true;
+        this.roundSolved = true;
         button.bg.setFillStyle(this.style.colorCorrect);
         this.revealAnswerInQuote();
         this.disableAllAnswerButtons();
+
+        if (this.isLastRound()) {
+          this.gameFinished = true;
+          this.continueButton.text.setText('Завершить');
+        }
         this.continueButton.bg.setVisible(true);
         this.continueButton.text.setVisible(true);
       } else {
@@ -135,15 +192,37 @@
     }
 
     disableAllAnswerButtons() {
+      if (!this.answerButtons) return;
       this.answerButtons.forEach(function (b) { b.bg.disableInteractive(); });
     }
 
-    // ---- завершение мини-игры -----------------------------------------------
+    isLastRound() {
+      return this.currentRoundIndex === this.rounds.length - 1;
+    }
+
+    // ---- завершение раунда / мини-игры --------------------------------------
 
     buildContinueButton() {
-      this.continueButton = this.makeButton(WIDTH / 2, HEIGHT * 0.92, 'Далее', () => this.finishMinigame(), 240, 70, '28px');
+      this.continueButton = this.makeButton(WIDTH / 2, HEIGHT * 0.92, 'Далее', () => this.onContinueClicked(), 240, 70, '28px');
       this.continueButton.bg.setVisible(false);
       this.continueButton.text.setVisible(false);
+    }
+
+    onContinueClicked() {
+      if (!this.roundSolved || this.gameFinished) {
+        // Если это последний раунд — завершаем игру
+        if (this.gameFinished) {
+          this.finishMinigame();
+        }
+        return;
+      }
+
+      this.continueButton.bg.setVisible(false);
+      this.continueButton.text.setVisible(false);
+
+      this.clearRound();
+      this.currentRoundIndex++;
+      this.startRound(this.currentRoundIndex);
     }
 
     finishMinigame() {

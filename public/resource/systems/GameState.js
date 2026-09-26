@@ -74,6 +74,16 @@
       SaveManager.clear();
       this.state = SaveManager.load();
     },
+
+    /** Проверка прогресса */
+    checkExpiration: function () {
+      if (SaveManager.isExpired(this.state)) {
+        this.reset();
+        return true;
+      }
+      return false;
+    }
+
   };
 
   window.VN.systems.GameState = GameState;

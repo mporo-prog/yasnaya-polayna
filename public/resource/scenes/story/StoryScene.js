@@ -5,8 +5,7 @@
 
   /**
    * StoryScene — одна универсальная сцена на все сюжетные сцены игры.
-   * Сама она не хранит никакого контента — на каждом шаге берёт нужный
-   * текст/фон/ссылку на мини-игру из общего namespace:
+
    *   VN.data.storyLines           — реплики
    *   VN.data.storyHistoryTexts    — текст для окна "История"
    *   VN.data.storyBackgrounds     — пути к фонам
@@ -236,8 +235,9 @@
 
     renderCurrentScreen() {
       const GameState = window.VN.systems.GameState;
-      const text = this.currentLines[this.screenIndex];
-      const speakerName = this.currentSpeakers ? this.currentSpeakers[this.screenIndex] : '';
+      const entry = this.currentLines[this.screenIndex];
+      const text = entry.text;
+      const speakerName = entry.speaker || '';
       const backgroundPath = this.currentBackgrounds[this.screenIndex];
       const historyOverride = this.currentHistoryTexts[this.screenIndex];
       const historyText = historyOverride != null ? historyOverride : text;

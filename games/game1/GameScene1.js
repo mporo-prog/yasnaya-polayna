@@ -51,6 +51,8 @@ const DEMO_START_DELAY = 700;
 const DEMO_FLASH_DURATION = 500;
 const DEMO_FLASH_GAP = 250;
 const INPUT_FLASH_DURATION = 300;
+// Время показа подсказок; можно переопределить через hintDurationSeconds в данных сцены.
+const DEFAULT_HINT_DURATION_SECONDS = 2;
 
 export class GameScene1 extends Phaser.Scene {
 
@@ -58,9 +60,12 @@ export class GameScene1 extends Phaser.Scene {
         super('GameScene1');
     }
 
-    init(data) {
+    init(data = {}) {
         this.storySceneIndex = data.storySceneIndex;
         this.minigameId = data.minigameId;
+        this.hintDurationSeconds = Number.isFinite(data.hintDurationSeconds) && data.hintDurationSeconds >= 0
+            ? data.hintDurationSeconds
+            : DEFAULT_HINT_DURATION_SECONDS;
     }
 
     preload() {
@@ -79,6 +84,7 @@ export class GameScene1 extends Phaser.Scene {
         this.inputIndex = 0;
         this.demoStep = 0;
         this.round_number = 2;
+        this.activeHint = null;
 
         this.calculateScale();
         this.createRoot();
@@ -188,7 +194,7 @@ export class GameScene1 extends Phaser.Scene {
 
         if (this.demoStep >= this.sequence.length) {
             this.phase = 'repeat';
-            this.repeatOverlay.setVisible(true);
+            this.showHint(this.repeatOverlay, () => this.startInput());
             return;
         }
 
@@ -256,16 +262,16 @@ export class GameScene1 extends Phaser.Scene {
 
     failRound() {
         this.phase = 'over';
-        this.loseOverlay.setVisible(true);
+        this.showHint(this.loseOverlay, () => this.restartRound());
     }
 
     winRound() {
         this.phase = 'over';
         if (this.round_number == 4){
-            this.winOverlay.setVisible(true);
+            this.showHint(this.winOverlay, () => this.finishGame());
             return
         }
-        this.winRoundOverlay.setVisible(true);
+        this.showHint(this.winRoundOverlay, () => this.nextRound());
     }
 
     restartRound() {
@@ -273,7 +279,7 @@ export class GameScene1 extends Phaser.Scene {
         this.resetBirds();
 
         this.phase = 'intro';
-        this.introOverlay.setVisible(true);
+        this.showHint(this.introOverlay, () => this.startRound());
     }
 
     unlockAudio() {
@@ -320,6 +326,37 @@ export class GameScene1 extends Phaser.Scene {
         this.root.add([button, label]);
     }
 
+    showHint(overlay, onDismiss) {
+        this.clearHint();
+        overlay.setVisible(true);
+
+        this.activeHint = {
+            overlay,
+            onDismiss,
+            timer: this.time.delayedCall(this.hintDurationSeconds * 1000, () => this.dismissHint())
+        };
+    }
+
+    clearHint() {
+        if (!this.activeHint) {
+            return;
+        }
+
+        this.activeHint.timer.remove();
+        this.activeHint.overlay.setVisible(false);
+        this.activeHint = null;
+    }
+
+    dismissHint() {
+        const hint = this.activeHint;
+        if (!hint) {
+            return;
+        }
+
+        this.clearHint();
+        hint.onDismiss();
+    }
+
     createOverlay(text, onClick) {
         const background = this.add.rectangle(
             0,
@@ -357,28 +394,28 @@ export class GameScene1 extends Phaser.Scene {
     createRepeatOverlay() {
         this.repeatOverlay = this.createOverlay(
             'Повторите песню',
-            () => this.startInput()
+            () => this.dismissHint()
         );
     }
 
     createLoseOverlay() {
         this.loseOverlay = this.createOverlay(
             'Попробуйте снова',
-            () => this.restartRound()
+            () => this.dismissHint()
         );
     }
 
     createWinOverlay() {
         this.winOverlay = this.createOverlay(
             'Ура пабеда едем дальше',
-            () => this.finishGame()
+            () => this.dismissHint()
         );
     }
 
     createWinRoundOverlay() {
         this.winRoundOverlay = this.createOverlay(
             'Раунд пройден, повышаем сложность...',
-            () => this.nextRound()
+            () => this.dismissHint()
         );
     }
 
@@ -386,16 +423,16 @@ export class GameScene1 extends Phaser.Scene {
         this.round_number += 1;
         this.winRoundOverlay.setVisible(false);
         this.phase = 'intro';
-        this.introOverlay.setVisible(true)
+        this.showHint(this.introOverlay, () => this.startRound());
     }
 
-    createIntroOverlay(round_number) {
+    createIntroOverlay() {
         this.introOverlay = this.createOverlay(
             'Прослушайте песню птиц и попробуйте повторить ее.',
-            () => this.startRound(round_number)
+            () => this.dismissHint()
         );
 
-        this.introOverlay.setVisible(true);
+        this.showHint(this.introOverlay, () => this.startRound());
     }
 
     openPauseMenu() {
@@ -428,6 +465,7 @@ export class GameScene1 extends Phaser.Scene {
         this.scale.on('resize', this.handleResize, this);
 
         this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+            this.clearHint();
             this.birds.forEach(bird => bird.voice.destroy());
             this.scale.off('resize', this.handleResize, this);
         });

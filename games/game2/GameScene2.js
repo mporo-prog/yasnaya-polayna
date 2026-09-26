@@ -302,36 +302,36 @@ export class GameScene2 extends Phaser.Scene {
 
     showWinMessage() {
 
-        const button = this.add.text(
-            this.scale.width / 2,
-            this.scale.height / 2,
-            'Далее',
-            {
-                fontSize: '48px',
-                color: '#ffffff',
-                backgroundColor: '#000000',
-                padding: {
-                    x: 20,
-                    y: 10
-                }
-            }
-        ).setOrigin(0.5);
+        // const button = this.add.text(
+        //     this.scale.width / 2,
+        //     this.scale.height / 2,
+        //     'Далее',
+        //     {
+        //         fontSize: '48px',
+        //         color: '#ffffff',
+        //         backgroundColor: '#000000',
+        //         padding: {
+        //             x: 20,
+        //             y: 10
+        //         }
+        //     }
+        // ).setOrigin(0.5);
 
 
-        button.setInteractive({
-            useHandCursor: true
-        });
+        // button.setInteractive({
+        //     useHandCursor: true
+        // });
 
 
-        button.on('pointerdown', () => {
+        window.VN.systems.finishMinigameAndAdvance(
+            this,
+            this.storySceneIndex,
+            this.minigameId
+        );
+        // button.on('pointerdown', () => {
 
-            window.VN.systems.finishMinigameAndAdvance(
-                this,
-                this.storySceneIndex,
-                this.minigameId
-            );
 
-        });
+        // });
     }
 
     returnElement(element) {

@@ -608,34 +608,40 @@ export class GameScene4 extends Phaser.Scene {
 
         this.clearGame4Save();
 
-        this.add.text(
-            this.scale.width / 2,
-            this.scale.height / 2,
-            'Ура! Победа!\n\nДалее',
-            {
-                fontSize: '48px',
-                color: '#ffffff',
-                backgroundColor: '#000000',
-                align: 'center',
-                padding: {
-                    x: 30,
-                    y: 20
-                }
-            }
-        )
-        .setOrigin(0.5)
-        .setInteractive({
-            useHandCursor: true
-        })
-        .on('pointerdown', () => {
+        // this.add.text(
+        //     this.scale.width / 2,
+        //     this.scale.height / 2,
+        //     'Ура! Победа!\n\nДалее',
+        //     {
+        //         fontSize: '48px',
+        //         color: '#ffffff',
+        //         backgroundColor: '#000000',
+        //         align: 'center',
+        //         padding: {
+        //             x: 30,
+        //             y: 20
+        //         }
+        //     }
+        // )
+        // .setOrigin(0.5)
+        // .setInteractive({
+        //     useHandCursor: true
+        // })
+        // .on('pointerdown', () => {
 
-            window.VN.systems.finishMinigameAndAdvance(
+        //     window.VN.systems.finishMinigameAndAdvance(
+        //         this,
+        //         this.storySceneIndex,
+        //         this.minigameId
+        //     );
+
+        // });
+
+        window.VN.systems.finishMinigameAndAdvance(
                 this,
                 this.storySceneIndex,
                 this.minigameId
             );
-
-        });
     }
 
     loseGame() {
@@ -699,21 +705,22 @@ export class GameScene4 extends Phaser.Scene {
         .setDepth(102);
 
 
-        this.add.text(
-            this.scale.width / 2,
-            this.scale.height / 2 + 80 * this.gameScale,
-            'Начать игру заново',
-            {
-                fontSize: `${30 * this.gameScale}px`,
-                color: '#ffffff'
-            }
-        )
-        .setOrigin(0.5)
-        .setDepth(103);
+        // this.add.text(
+        //     this.scale.width / 2,
+        //     this.scale.height / 2 + 80 * this.gameScale,
+        //     'Начать игру заново',
+        //     {
+        //         fontSize: `${30 * this.gameScale}px`,
+        //         color: '#ffffff'
+        //     }
+        // )
+        // .setOrigin(0.5)
+        // .setDepth(103);
 
-        restartButton.on('pointerdown', () => {
-            this.restartGame();
-        });
+        this.restartGame();
+        
+        // restartButton.on('pointerdown', () => {
+        // });
     }
 
     restartGame() {

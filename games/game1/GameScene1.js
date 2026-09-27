@@ -3,31 +3,41 @@
 const BASE_WIDTH = 1920;
 const BASE_HEIGHT = 1080;
 
-const BIRD_WIDTH = 162;
-const BIRD_HEIGHT = 153;
+const BIRD_WIDTH = 350;
+const BIRD_HEIGHT = 330;
 
 // Координаты левого верхнего угла каждой птицы взяты из макета.
 // У каждой птицы своя запись относительно resource/sound.
 const BIRDS = [
     {
-        x: 709,
-        y: 151,
-        voice: 'voice_and_sound/test_bird_1.mp3'
+        x: 1120,
+        y: 75,
+        image: 'Zyablik',
+        voice: 'voice_and_sound/zyablik_2.wav'
     },
     {
-        x: 972,
-        y: 276,
-        voice: 'voice_and_sound/test_bird_2.mp3'
+        x: 400,
+        y: 0,
+        image: 'Zaryanka',
+        voice: 'voice_and_sound/zaryanka_2.wav'
     },
     {
-        x: 960,
-        y: 591,
-        voice: 'voice_and_sound/test_bird_3.mp3'
+        // Увеличение в 1,3 раза относительно точки опоры между лапками.
+        x: 1311.43,
+        y: 469.96,
+        width: 455,
+        height: 429,
+        image: 'Korostel',
+        voice: 'voice_and_sound/korostel_2.wav'
     },
     {
-        x: 1404,
-        y: 525,
-        voice: 'voice_and_sound/test_bird_4.mp3'
+        // Увеличение в 1,1 раза относительно точки опоры между лапками.
+        x: 159.35,
+        y: 503.65,
+        width: 385,
+        height: 363,
+        image: 'Drozd',
+        voice: 'voice_and_sound/drozd_2.wav'
     }
 ];
 
@@ -39,8 +49,6 @@ const MENU_BUTTON = {
 };
 
 const COLOR_BACKGROUND = 0xe5e5e5;
-const COLOR_BIRD = 0x5bd055;
-const COLOR_BIRD_ACTIVE = 0xff334a;
 const COLOR_MENU = 0x6f6f6f;
 const COLOR_OVERLAY = 0xd9d9d9;
 
@@ -69,8 +77,26 @@ export class GameScene1 extends Phaser.Scene {
     }
 
     preload() {
+        const imagesPath = `${import.meta.env.BASE_URL}images/game1/`;
+
+        this.load.image(
+            'game1-background',
+            `${imagesPath}bacground_game1.png`
+        );
+
         window.VN?.systems.SceneAudio?.preload(this);
+
         for (const bird of BIRDS) {
+            this.load.image(
+                `${bird.image}_idle`,
+                `${imagesPath}${bird.image}_1.png`
+            );
+
+            this.load.image(
+                `${bird.image}_sing`,
+                `${imagesPath}${bird.image}_2.png`
+            );
+
             window.VN.systems.AudioManager.load(this, bird.voice);
         }
     }
@@ -117,13 +143,9 @@ export class GameScene1 extends Phaser.Scene {
     createBackground() {
         this.cameras.main.setBackgroundColor(COLOR_BACKGROUND);
 
-        const background = this.add.rectangle(
-            0,
-            0,
-            BASE_WIDTH,
-            BASE_HEIGHT,
-            COLOR_BACKGROUND
-        ).setOrigin(0);
+        const background = this.add.image(0, 0, 'game1-background')
+            .setOrigin(0)
+            .setDisplaySize(BASE_WIDTH, BASE_HEIGHT);
 
         this.root.add(background);
     }
@@ -132,16 +154,16 @@ export class GameScene1 extends Phaser.Scene {
         this.birds = BIRDS.map((data, index) => {
             const bird = {
                 voice: window.VN.systems.AudioManager.add(this, data.voice),
-                timer: null
+                timer: null,
+                width: data.width ?? BIRD_WIDTH,
+                height: data.height ?? BIRD_HEIGHT,
+                idleKey: `${data.image}_idle`,
+                singKey: `${data.image}_sing`
             };
 
-            bird.box = this.add.rectangle(
-                data.x,
-                data.y,
-                BIRD_WIDTH,
-                BIRD_HEIGHT,
-                COLOR_BIRD
-            ).setOrigin(0);
+            bird.box = this.add.image(data.x, data.y, bird.idleKey)
+                .setOrigin(0)
+                .setDisplaySize(bird.width, bird.height);
 
             bird.box.setInteractive({ useHandCursor: true });
             bird.box.on('pointerdown', () => this.selectBird(index));
@@ -237,15 +259,27 @@ export class GameScene1 extends Phaser.Scene {
     flashBird(index, duration) {
         const bird = this.birds[index];
 
-        this.playVoice(index);
-        bird.box.setFillStyle(COLOR_BIRD_ACTIVE);
-
         if (bird.timer) {
             bird.timer.remove();
         }
 
-        bird.timer = this.time.delayedCall(duration, () => {
-            bird.box.setFillStyle(COLOR_BIRD);
+        this.playVoice(index);
+
+        bird.box
+            .setTexture(bird.singKey)
+            .setDisplaySize(bird.width, bird.height);
+
+        // Показываем поющую птицу как минимум до конца записи.
+        const activeDuration = Math.max(
+            duration,
+            bird.voice.totalDuration * 1000
+        );
+
+        bird.timer = this.time.delayedCall(activeDuration, () => {
+            bird.box
+                .setTexture(bird.idleKey)
+                .setDisplaySize(bird.width, bird.height);
+
             bird.timer = null;
         });
     }
@@ -256,7 +290,7 @@ export class GameScene1 extends Phaser.Scene {
         this.birds.forEach(bird => {
             bird.voice.stop();
             bird.timer = null;
-            bird.box.setFillStyle(COLOR_BIRD);
+            bird.box.setTexture(bird.idleKey).setDisplaySize(bird.width, bird.height);
         });
     }
 

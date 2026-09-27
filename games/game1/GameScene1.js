@@ -194,8 +194,6 @@ export class GameScene1 extends Phaser.Scene {
     }
 
     startRound() {
-        this.input.enabled = true;
-        this.input.keyboard.enabled = true;
         this.introOverlay.setVisible(false);
         this.resetBirds();
 
@@ -263,7 +261,7 @@ export class GameScene1 extends Phaser.Scene {
     finishRound(won) {
         this.phase = 'finishing';
         this.roundWon = won;
-        // Блокируем и птиц, и пропуск подсказок до начала следующей попытки.
+        // Блокируем ввод до окончания пения и появления подсказки.
         this.input.enabled = false;
         this.input.keyboard.enabled = false;
     }
@@ -390,14 +388,16 @@ export class GameScene1 extends Phaser.Scene {
         this.root.add([button, label]);
     }
 
-    showHint(overlay, onDismiss) {
+    showHint(overlay, onDismiss, durationSeconds = this.hintDurationSeconds) {
         this.clearHint();
         overlay.setVisible(true);
+        this.input.enabled = true;
+        this.input.keyboard.enabled = true;
 
         this.activeHint = {
             overlay,
             onDismiss,
-            timer: this.time.delayedCall(this.hintDurationSeconds * 1000, () => this.dismissHint())
+            timer: this.time.delayedCall(durationSeconds * 1000, () => this.dismissHint())
         };
     }
 
@@ -491,12 +491,21 @@ export class GameScene1 extends Phaser.Scene {
     }
 
     createIntroOverlay() {
+        // Первый показ правил нельзя пропустить; повторные показы — можно.
+        let canSkip = false;
         this.introOverlay = this.createOverlay(
             'Прослушайте песню птиц и попробуйте повторить ее.',
-            () => this.dismissHint()
+            () => {
+                if (canSkip) {
+                    this.dismissHint();
+                }
+            }
         );
 
-        this.showHint(this.introOverlay, () => this.startRound());
+        this.showHint(this.introOverlay, () => {
+            canSkip = true;
+            this.startRound();
+        }, 4);
     }
 
     openPauseMenu() {

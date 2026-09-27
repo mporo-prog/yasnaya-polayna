@@ -63,7 +63,7 @@ for (const [label, round, lastBird, overlay] of [
   ['final victory', 4, 1, 'winOverlay'],
   ['mistake', 2, 2, 'loseOverlay'],
 ]) {
-  test(`${label} waits for overlapping songs and ignores further input through the result screen`, () => {
+  test(`${label} waits for overlapping songs and unlocks input when the result appears`, () => {
     const { scene, advance } = fixture(round);
     scene.selectBird(0);
     assert.equal(scene.phase, 'input', 'Partial correct input remains available');
@@ -87,6 +87,8 @@ for (const [label, round, lastBird, overlay] of [
     scene.birds[0].voice.stop();
     scene.update();
     assert.equal(scene[overlay].visible, true);
+    assert.equal(scene.input.enabled, true, 'The visible result can be dismissed by clicking');
+    assert.equal(scene.input.keyboard.enabled, true);
     assert.ok(scene.birds.every((bird) => bird.box.texture === bird.idleKey));
     assert.equal(scene.advances, 0);
 
@@ -94,7 +96,7 @@ for (const [label, round, lastBird, overlay] of [
     assert.deepEqual(scene.birds.map((bird) => bird.voice.plays), plays);
     advance(99);
     assert.equal(scene[overlay].visible, true, 'Result keeps its full display duration after the songs');
-    assert.equal(scene.input.enabled, false);
+    assert.equal(scene.input.enabled, true);
     advance(1);
     assert.equal(scene[overlay].visible, false);
     if (round === 4) {
@@ -107,7 +109,7 @@ for (const [label, round, lastBird, overlay] of [
 
     assert.equal(scene.round_number, lastBird === 1 ? 3 : 2);
     advance(100);
-    assert.equal(scene.input.enabled, true, 'A new round or retry unlocks input');
+    assert.equal(scene.input.enabled, true, 'A new round or retry keeps input enabled');
     assert.equal(scene.input.keyboard.enabled, true);
     assert.equal(scene.phase, 'demo');
     scene.selectBird(3);
@@ -116,6 +118,37 @@ for (const [label, round, lastBird, overlay] of [
     assert.equal(scene.phase, 'input');
     scene.selectBird(0);
     assert.equal(scene.inputIndex, 1);
+  });
+
+  test(`${label} can be dismissed before its timer expires`, () => {
+    const { scene, advance } = fixture(round, false);
+    scene.selectBird(0);
+    scene.selectBird(lastBird);
+    advance(300);
+    assert.equal(scene[overlay].visible, true);
+    assert.equal(scene.input.enabled, true);
+
+    scene.dismissHint();
+    assert.equal(scene[overlay].visible, false);
+    if (round === 4) {
+      assert.equal(scene.advances, 1);
+      advance(1000);
+      assert.equal(scene.advances, 1, 'The cancelled hint timer cannot finish the game again');
+      return;
+    }
+
+    assert.equal(scene.round_number, lastBird === 1 ? 3 : 2);
+    assert.equal(scene.introOverlay.visible, true);
+    assert.equal(scene.input.enabled, true, 'The next hint can also be skipped immediately');
+    scene.dismissHint();
+    assert.equal(scene.introOverlay.visible, false);
+    assert.equal(scene.phase, 'demo');
+    scene.selectBird(3);
+    assert.equal(scene.inputIndex, 0, 'Skipping a hint does not enable answers during the demonstration');
+    advance(100);
+    assert.equal(scene.phase, 'demo');
+    assert.equal(scene.demoStep, 0, 'Cancelled hint timers do not advance the demonstration');
+    assert.equal(scene.round_number, lastBird === 1 ? 3 : 2);
   });
 }
 

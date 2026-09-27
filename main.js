@@ -13,10 +13,13 @@ import { GameScene4 } from './games/game4/GameScene4.js';
 (function () {
   const VN = window.VN;
 
+  const widthScreen = window.innerWidth;
+  const heightScreen = window.innerHeight;
+
   const config = {
     type: Phaser.AUTO,
-    width: 1920,
-    height: 1080,
+    width: widthScreen,
+    height: heightScreen,
     parent: 'app',
     backgroundColor: '#000000',
     scale: {

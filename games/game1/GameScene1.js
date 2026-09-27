@@ -1,7 +1,9 @@
 // import Phaser from 'phaser';
 
-const BASE_WIDTH = 1920;
-const BASE_HEIGHT = 1080;
+// const BASE_WIDTH = 1920;
+// const BASE_HEIGHT = 1080;
+const BASE_WIDTH = window.innerWidth;
+const BASE_HEIGHT = window.innerHeight;
 
 const BIRD_WIDTH = 350;
 const BIRD_HEIGHT = 330;

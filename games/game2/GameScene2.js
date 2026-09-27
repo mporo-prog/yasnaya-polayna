@@ -26,8 +26,10 @@ export class GameScene2 extends Phaser.Scene {
     }
 
     calculateScale() {
-        const baseWidth = 1920;
-        const baseHeight = 1080;
+        // const baseWidth = 1920;
+        // const baseHeight = 1080;
+        const baseWidth = window.innerWidth;
+        const baseHeight = window.innerHeight;
         const scaleX = this.scale.width / baseWidth;
         const scaleY = this.scale.height / baseHeight;
         this.gameScale = Math.min(scaleX, scaleY);

@@ -1,6 +1,8 @@
 (function () {
-  const WIDTH = 1920;
-  const HEIGHT = 1080;
+  // const WIDTH = 1920;
+  // const HEIGHT = 1080;
+  const WIDTH = window.innerWidth;
+  const HEIGHT = window.innerHeight;
   const BAR_Y = HEIGHT;
 
   /**

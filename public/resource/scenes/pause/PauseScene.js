@@ -8,13 +8,21 @@
       this.returnSceneKey = (data && data.returnSceneKey) || 'StoryScene';
     }
 
+    preload() {
+      this.load.image('pauseBackground', 'resource/images/backgrounds/menu_screen.png');
+    }
+
     create() {
+
       const width = this.scale.width;
       const height = this.scale.height;
       const menuData = window.VN.data.pauseMenuData;
       const title = window.VN.data.startMenuData.title; // используем то же название игры, что и на стартовом экране
 
-      this.add.rectangle(0, 0, width, height, 0xffffff, 1).setOrigin(0, 0);
+
+
+
+      this.add.image(0, 0, 'pauseBackground').setOrigin(0, 0).setDisplaySize(width, height);
       this.add.rectangle(width / 2, height * 0.2, width * 0.55, height * 0.18, 0xd9d9d9);
       this.add.text(width / 2, height * 0.2, title, { fontSize: '38px', color: '#000000' }).setOrigin(0.5);
 

@@ -1,7 +1,7 @@
 (function () {
   const WIDTH = 1920;
   const HEIGHT = 1080;
-  const BAR_Y = HEIGHT * 0.75;
+  const BAR_Y = HEIGHT;
 
   /**
    * StoryScene — одна универсальная сцена на все сюжетные сцены игры.
@@ -32,6 +32,7 @@
     create() {
       this.sceneAudio = window.VN.systems.SceneAudio.enter(this);
       this.buildBackgroundLayer();
+      this.buildCharacterLayer();
       this.buildBottomBar();
       this.buildNavButtons();
       this.buildTopButtons();
@@ -81,80 +82,130 @@
       // ещё нет на диске) — просто рисуем серый плейсхолдер с подписью
       // (путь к файлу), чтобы было видно, чего не хватает.
       this.bgImage = this.add.image(0, 0, '__MISSING').setOrigin(0, 0).setVisible(false);
-      this.bgRect = this.add.rectangle(0, 0, WIDTH, BAR_Y, 0xd9d9d9).setOrigin(0, 0);
-      this.bgLabel = this.add.text(WIDTH / 2, BAR_Y / 2, 'Фон', { fontSize: '40px', color: '#000000' }).setOrigin(0.5);
-      this.debugLabel = this.add.text(WIDTH / 2, 40, '', { fontSize: '48px', color: '#000000' }).setOrigin(0.5);
+
+      this.bgLabel = this.add.text(WIDTH / 2, BAR_Y / 2, 'Фон', { fontSize: '40px', color: '#000000' }).setOrigin(0.5).setVisible(false);
     }
 
     setBackground(path) {
       if (this.textures.exists(path)) {
         this.bgImage.setTexture(path).setDisplaySize(WIDTH, BAR_Y).setVisible(true);
-        this.bgRect.setVisible(false);
         this.bgLabel.setVisible(false);
       } else {
         this.bgImage.setVisible(false);
-        this.bgRect.setVisible(true);
         this.bgLabel.setVisible(true).setText('Фон не найден:\n' + path);
       }
     }
 
+    // ---- персонаж на экране (по имени говорящего) ---------------------------
+
+    buildCharacterLayer() {
+      this.characterImage = this.add.image(WIDTH * 0.22, BAR_Y, '__MISSING').setOrigin(0.5, 1).setVisible(false);
+    }
+
+    setCharacter(speakerName) {
+      const portraits = window.VN.data.storyCharacterPortraits || {};
+      const path = portraits[speakerName];
+      if (path && this.textures.exists(path)) {
+        this.characterImage.setTexture(path);
+        // Ограничиваем высоту портрета, чтобы он не перекрывал весь фон.
+        const tex = this.textures.get(path).getSourceImage();
+        const maxHeight = BAR_Y * 0.85;
+        const scale = Math.min(1, maxHeight / tex.height);
+        this.characterImage.setScale(scale).setVisible(true);
+      } else {
+        this.characterImage.setVisible(false);
+      }
+    }
+
     buildBottomBar() {
-      this.add.rectangle(0, BAR_Y, WIDTH, HEIGHT - BAR_Y, 0x3f3f3f).setOrigin(0, 0);
-      this.add.rectangle(WIDTH / 2, BAR_Y + 130, WIDTH * 0.55, 190, 0xd9d9d9).setOrigin(0.5, 0);
-      // Имя героя, который сейчас говорит — над текстом реплики.
+      // Фон теперь на весь экран (BAR_Y === HEIGHT), поэтому плашка
+      // считается не от BAR_Y, а от нижнего края экрана напрямую.
+      // "плажку чуть-чуть приподними" — поднята над самым низом экрана.
+      const panelHeight = 190;
+      const panelY = HEIGHT - panelHeight - 110;
+      const panelWidth = WIDTH * 0.55;
+      const panelLeft = WIDTH / 2 - panelWidth / 2;
+      const panelCenterY = panelY + panelHeight / 2;
+
+      this.panelLeft = panelLeft;
+      this.panelWidth = panelWidth;
+      this.panelCenterY = panelCenterY;
+
+      // Плашка реплики — бежевая, однотонная (без градиента/текстуры).
+      this.add.rectangle(WIDTH / 2, panelY, panelWidth, panelHeight, 0xe8dcc0).setOrigin(0.5, 0);
+
+      // Имя героя — слева, отделено вертикальной чертой от текста реплики
+      // (макет: имя и реплика стоят в один ряд, а не друг под другом).
+      const nameAreaWidth = panelWidth * 0.32;
+      const nameX = panelLeft + 40;
+      const dividerX = panelLeft + nameAreaWidth;
+      const textX = dividerX + 35;
+
       this.speakerNameText = this.add
-        .text(WIDTH / 2, BAR_Y + 145, '', {
+        .text(nameX, panelCenterY, '', {
           fontFamily: 'Philosopher',
-          fontSize: '48px',
+          fontSize: '32px',
           color: '#000000',
-          align: 'center',
-        }).setOrigin(0.5, 0)
-        .setOrigin(0.5, 0);
-      this.dialogueText = this.add
-        .text(WIDTH / 2, BAR_Y + 185, '', {
-          fontFamily: 'Ysabeau',
-          fontSize: '36px',
-          color: '#000000',
-          align: 'center',
-          wordWrap: { width: WIDTH * 0.5 },
+          align: 'left',
+          wordWrap: { width: nameAreaWidth - 55 },
         })
+        .setOrigin(0, 0.5);
+
+      this.dialogueDivider = this.add
+        .rectangle(dividerX, panelY + 28, 3, panelHeight - 56, 0x000000, 0.35)
         .setOrigin(0.5, 0);
+
+      this.dialogueText = this.add
+        .text(textX, panelCenterY, '', {
+          fontFamily: 'Ysabeau',
+          fontSize: '32px',
+          color: '#000000',
+          align: 'left',
+          wordWrap: { width: panelLeft + panelWidth - textX - 40 },
+        })
+        .setOrigin(0, 0.5);
     }
 
     buildNavButtons() {
-      this.backBtn = this.makeButton(WIDTH * 0.16, BAR_Y + 220, 'Back', () => this.goBack());
-      this.nextBtn = this.makeButton(WIDTH * 0.84, BAR_Y + 220, 'Next', () => this.goNext());
+      const y = this.panelCenterY;
+      this.backBtn = this.makeIconButton(this.panelLeft - 100, y, 'resource/images/ui/back_button.png', () => this.goBack());
+      this.nextBtn = this.makeIconButton(this.panelLeft + this.panelWidth + 100, y, 'resource/images/ui/next_button.png', () => this.goNext());
     }
 
     buildTopButtons() {
       // depth выше, чем у historyContainer (10) — чтобы кнопки оставались
       // видимыми и кликабельными поверх открытой вкладки "История"
       // (крестика для закрытия больше нет, закрывают тем же тумблером).
-      const menuBtn = this.makeButton(WIDTH - 95, 45, 'кнопка\nменю', () => this.openPauseMenu(), 150, 80);
+      const menuBtn = this.makeIconButton(100, 90, 'resource/images/ui/pause_button.png', () => this.openPauseMenu(), 110);
       menuBtn.bg.setDepth(20);
-      menuBtn.text.setDepth(20);
 
-      this.historyBtn = this.makeButton(WIDTH - 95, BAR_Y + 50, 'История', () => this.toggleHistory(), 150, 60);
+      this.historyBtn = this.makeIconButton(100, 205, 'resource/images/ui/history_button.png', () => this.toggleHistory(), 70);
       this.historyBtn.bg.setDepth(20);
-      this.historyBtn.text.setDepth(20);
     }
 
-    makeButton(x, y, label, onClick, w, h, fontSize) {
-      w = w || 120; h = h || 40; fontSize = fontSize || '20px';
-      const bg = this.add.rectangle(x, y, w, h, 0xd9d9d9).setInteractive({ useHandCursor: true });
-      const text = this.add.text(x, y, label, { fontSize: fontSize, color: '#000000', align: 'center' }).setOrigin(0.5);
-      bg.on('pointerup', onClick);
-      return { bg: bg, text: text };
+    /** Кнопка-иконка (картинка вместо прямоугольника с текстом). */
+    makeIconButton(x, y, texture, onClick, displaySize) {
+      const img = this.add.image(x, y, texture).setInteractive({ useHandCursor: true });
+      if (displaySize) img.setDisplaySize(displaySize, displaySize);
+      img.on('pointerup', onClick);
+      return { bg: img, text: null };
     }
 
     buildHistoryOverlay() {
+      // Небольшое окно по центру экрана, а не на весь экран — фон сюжетной
+      // сцены остаётся виден (просто слегка притемнён) вокруг него.
+      const panelW = WIDTH * 0.62;
+      const panelH = HEIGHT * 0.82;
+      const panelX = (WIDTH - panelW) / 2;
+      const panelY = (HEIGHT - panelH) / 2;
+
       // Видимая область под текст истории — за её пределами текст обрезается
       // маской, доступ к остальному — прокруткой.
       const viewport = {
-        x: WIDTH * 0.27,
-        y: 170,
-        width: WIDTH * 0.56,
-        height: HEIGHT - 170 - 90,
+        x: panelX + 60,
+        y: panelY + 140,
+        width: panelW - 160,
+        height: panelH - 140 - 60,
       };
       this.historyViewport = viewport;
       this.historyScrollY = 0;
@@ -163,16 +214,27 @@
       this.historyDragStartScroll = 0;
 
       this.historyContainer = this.add.container(0, 0).setDepth(10).setVisible(false);
-      const panelBg = this.add.rectangle(0, 0, WIDTH, HEIGHT, 0x3f3f3f, 0.98).setOrigin(0, 0).setInteractive();
-      const title = this.add.text(WIDTH / 2, 70, 'История', { fontSize: '56px', color: '#ffffff' }).setOrigin(0.5);
+
+      // Затемняющая подложка на весь экран — приглушает фон и перехватывает
+      // клики мимо окна, но сам фон сцены под ней остаётся виден.
+      const dimBg = this.add.rectangle(0, 0, WIDTH, HEIGHT, 0x000000, 0.35).setOrigin(0, 0).setInteractive();
+
+      // Сама панель "История" — небольшая, по центру, бежевая с рамкой.
+      const windowBg = this.add
+        .rectangle(panelX, panelY, panelW, panelH, 0xe8dcc0)
+        .setOrigin(0, 0)
+        .setStrokeStyle(4, 0x5a4632)
+        .setInteractive();
+
+      const title = this.add.text(WIDTH / 2, panelY + 60, 'История', { fontSize: '48px', color: '#3f2f22' }).setOrigin(0.5);
 
       // Сам текст — внутри отдельного контейнера, который двигается вверх/
       // вниз при прокрутке; видна только часть внутри viewport благодаря маске.
       this.historyText = this.add.text(0, 0, '', {
-        fontSize: '30px',
-        color: '#ffffff',
+        fontSize: '28px',
+        color: '#3f2f22',
         wordWrap: { width: viewport.width },
-        lineSpacing: 26,
+        lineSpacing: 24,
       });
       this.historyContentContainer = this.add.container(viewport.x, viewport.y, [this.historyText]);
 
@@ -181,13 +243,14 @@
       maskShape.fillRect(viewport.x, viewport.y, viewport.width, viewport.height);
       this.historyContentContainer.setMask(maskShape.createGeometryMask());
 
-      // Полоса прокрутки справа от текста, как на макете.
+      // Полоса прокрутки справа от текста, внутри панели.
       const trackX = viewport.x + viewport.width + 30;
-      this.historyScrollTrack = this.add.rectangle(trackX, viewport.y, 6, viewport.height, 0x2a2a2a, 0.8).setOrigin(0.5, 0);
-      this.historyScrollThumb = this.add.rectangle(trackX, viewport.y, 10, viewport.height, 0xd9d9d9).setOrigin(0.5, 0);
+      this.historyScrollTrack = this.add.rectangle(trackX, viewport.y, 6, viewport.height, 0x5a4632, 0.5).setOrigin(0.5, 0);
+      this.historyScrollThumb = this.add.rectangle(trackX, viewport.y, 10, viewport.height, 0x5a4632).setOrigin(0.5, 0);
 
       this.historyContainer.add([
-        panelBg,
+        dimBg,
+        windowBg,
         title,
         this.historyContentContainer,
         this.historyScrollTrack,
@@ -200,20 +263,21 @@
         this.setHistoryScroll(this.historyScrollY + deltaY);
       });
 
-      // Прокрутка перетаскиванием (мышь/тач) прямо по области истории.
-      panelBg.on('pointerdown', (pointer) => {
+      // Прокрутка перетаскиванием (мышь/тач) — только внутри самого окна,
+      // а не по всей затемнённой области экрана.
+      windowBg.on('pointerdown', (pointer) => {
         if (!this.historyVisible) return;
         this.historyDragStartY = pointer.y;
         this.historyDragStartScroll = this.historyScrollY;
       });
-      panelBg.on('pointermove', (pointer) => {
+      windowBg.on('pointermove', (pointer) => {
         if (!this.historyVisible || this.historyDragStartY === null || !pointer.isDown) return;
         const delta = this.historyDragStartY - pointer.y;
         this.setHistoryScroll(this.historyDragStartScroll + delta);
       });
       const stopHistoryDrag = () => { this.historyDragStartY = null; };
-      panelBg.on('pointerup', stopHistoryDrag);
-      panelBg.on('pointerupoutside', stopHistoryDrag);
+      windowBg.on('pointerup', stopHistoryDrag);
+      windowBg.on('pointerupoutside', stopHistoryDrag);
     }
 
     /** Двигает содержимое истории на заданную позицию (с ограничением). */
@@ -250,8 +314,8 @@
       const historyOverride = this.currentHistoryTexts[this.screenIndex];
       const historyText = historyOverride != null ? historyOverride : text;
 
-      this.debugLabel.setText('Сюжетная сцена ' + (this.storySceneIndex + 1) + ', экран ' + (this.screenIndex + 1));
       this.setBackground(backgroundPath);
+      this.setCharacter(speakerName);
       this.speakerNameText.setText(speakerName || '');
       this.dialogueText.setText(text);
 

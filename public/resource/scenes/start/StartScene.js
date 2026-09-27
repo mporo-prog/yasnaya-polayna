@@ -10,6 +10,7 @@
 
     preload() {
       window.VN.systems.SceneAudio.preload(this);
+      this.load.image('menuBackground', 'resource/images/backgrounds/menu_screen.png');
     }
 
     create() {
@@ -26,7 +27,7 @@
     }
 
     buildBackground() {
-      this.add.rectangle(0, 0, WIDTH, HEIGHT, this.style.backgroundColor).setOrigin(0, 0);
+      this.add.image(0, 0, 'menuBackground').setOrigin(0, 0).setDisplaySize(WIDTH, HEIGHT);
     }
 
     buildTitle() {

@@ -27,6 +27,10 @@
 
     preload() {
       window.VN.systems.SceneAudio.preload(this);
+      this.load.image('historyModalBg', 'resource/images/ui/history_modal_bg.png');
+      this.load.image('dialogTextBg', 'resource/images/ui/dialog_text_bg.png');
+
+      this.load.image('closeButton', 'resource/images/ui/close_button.png');
     }
 
     create() {
@@ -56,8 +60,6 @@
     get currentLines() {
       return window.VN.data.storyLines[this.storySceneIndex];
     }
-
-    
 
     get currentHistoryTexts() {
       return window.VN.data.storyHistoryTexts[this.storySceneIndex];
@@ -118,42 +120,41 @@
     }
 
     buildBottomBar() {
-      // Фон теперь на весь экран (BAR_Y === HEIGHT), поэтому плашка
-      // считается не от BAR_Y, а от нижнего края экрана напрямую.
-      // "плажку чуть-чуть приподними" — поднята над самым низом экрана.
-      const panelHeight = 190;
+
+      const dialogTex = this.textures.get('dialogTextBg').getSourceImage();
+      const panelWidth = WIDTH * 0.75;
+      const panelHeight = panelWidth * (dialogTex.height / dialogTex.width);
+
+      // "плажку чуть-чуть приподними" — панель поднята над самым низом экрана.
       const panelY = HEIGHT - panelHeight - 110;
-      const panelWidth = WIDTH * 0.55;
       const panelLeft = WIDTH / 2 - panelWidth / 2;
       const panelCenterY = panelY + panelHeight / 2;
+
+      this.panelY = panelY;
+      this.panelHeight = panelHeight;
 
       this.panelLeft = panelLeft;
       this.panelWidth = panelWidth;
       this.panelCenterY = panelCenterY;
 
       // Плашка реплики — бежевая, однотонная (без градиента/текстуры).
-      this.add.rectangle(WIDTH / 2, panelY, panelWidth, panelHeight, 0xe8dcc0).setOrigin(0.5, 0);
-
+      this.add.image(WIDTH / 2, panelY, 'dialogTextBg').setOrigin(0.5, 0).setDisplaySize(panelWidth, panelHeight);
       // Имя героя — слева, отделено вертикальной чертой от текста реплики
       // (макет: имя и реплика стоят в один ряд, а не друг под другом).
       const nameAreaWidth = panelWidth * 0.32;
-      const nameX = panelLeft + 40;
+      const nameX = panelLeft + 65;
       const dividerX = panelLeft + nameAreaWidth;
-      const textX = dividerX + 35;
+      const textX = dividerX - 10;
 
       this.speakerNameText = this.add
         .text(nameX, panelCenterY, '', {
           fontFamily: 'Philosopher',
-          fontSize: '32px',
-          color: '#000000',
+          fontSize: '40px',
+          color: '#6E6056',
           align: 'left',
           wordWrap: { width: nameAreaWidth - 55 },
         })
         .setOrigin(0, 0.5);
-
-      this.dialogueDivider = this.add
-        .rectangle(dividerX, panelY + 28, 3, panelHeight - 56, 0x000000, 0.35)
-        .setOrigin(0.5, 0);
 
       this.dialogueText = this.add
         .text(textX, panelCenterY, '', {
@@ -161,15 +162,28 @@
           fontSize: '32px',
           color: '#000000',
           align: 'left',
-          wordWrap: { width: panelLeft + panelWidth - textX - 40 },
+          wordWrap: { width: panelLeft + panelWidth - textX - 90 },
         })
         .setOrigin(0, 0.5);
     }
 
     buildNavButtons() {
-      const y = this.panelCenterY;
-      this.backBtn = this.makeIconButton(this.panelLeft - 100, y, 'resource/images/ui/back_button.png', () => this.goBack());
-      this.nextBtn = this.makeIconButton(this.panelLeft + this.panelWidth + 100, y, 'resource/images/ui/next_button.png', () => this.goNext());
+      // "Далее" — у правого края плашки, по центру по вертикали.
+      this.nextBtn = this.makeIconButton(
+        this.panelLeft + this.panelWidth,
+        this.panelCenterY,
+        'resource/images/ui/next_button.png',
+        () => this.goNext()
+      );
+
+      // "Назад" — у левого нижнего края плашки, размером поменьше.
+      this.backBtn = this.makeIconButton(
+        this.panelLeft,
+        this.panelY + this.panelHeight,
+        'resource/images/ui/back_button.png',
+        () => this.goBack(),
+        90
+      );
     }
 
     buildTopButtons() {
@@ -202,10 +216,10 @@
       // Видимая область под текст истории — за её пределами текст обрезается
       // маской, доступ к остальному — прокруткой.
       const viewport = {
-        x: panelX + 60,
-        y: panelY + 140,
-        width: panelW - 160,
-        height: panelH - 140 - 60,
+        x: panelX + 90,
+        y: panelY + 150,
+        width: panelW - 200,
+        height: panelH - 150 - 100,
       };
       this.historyViewport = viewport;
       this.historyScrollY = 0;
@@ -219,14 +233,25 @@
       // клики мимо окна, но сам фон сцены под ней остаётся виден.
       const dimBg = this.add.rectangle(0, 0, WIDTH, HEIGHT, 0x000000, 0.35).setOrigin(0, 0).setInteractive();
 
-      // Сама панель "История" — небольшая, по центру, бежевая с рамкой.
+      // Сама панель "История" — небольшая, по центру, картинка-рамка.
       const windowBg = this.add
-        .rectangle(panelX, panelY, panelW, panelH, 0xe8dcc0)
+        .image(panelX, panelY, 'historyModalBg')
         .setOrigin(0, 0)
-        .setStrokeStyle(4, 0x5a4632)
+        .setDisplaySize(panelW, panelH)
         .setInteractive();
 
-      const title = this.add.text(WIDTH / 2, panelY + 60, 'История', { fontSize: '48px', color: '#3f2f22' }).setOrigin(0.5);
+      const title = this.add.text(WIDTH / 2, panelY + 90, 'История', { fontFamily: 'Philosopher', fontSize: '48px', color: '#3f2f22' }).setOrigin(0.5);
+
+      /**
+       * Крестик для закрытия вкладки "История" — часть самого окна истории,
+       * поэтому создаётся здесь и добавляется в тот же historyContainer,
+       * чтобы появляться и исчезать вместе с окном, а не жить отдельно.
+       */
+      const closeBtn = this.add
+        .image(panelX + panelW - 50, panelY + 50, 'closeButton')
+        .setDisplaySize(60, 60)
+        .setInteractive({ useHandCursor: true });
+      closeBtn.on('pointerup', () => this.toggleHistory());
 
       // Сам текст — внутри отдельного контейнера, который двигается вверх/
       // вниз при прокрутке; видна только часть внутри viewport благодаря маске.
@@ -252,6 +277,7 @@
         dimBg,
         windowBg,
         title,
+        closeBtn,
         this.historyContentContainer,
         this.historyScrollTrack,
         this.historyScrollThumb,
@@ -360,6 +386,10 @@
     toggleHistory() {
       this.historyVisible = !this.historyVisible;
       this.historyContainer.setVisible(this.historyVisible);
+      // Иконка "История" пропадает, пока открыто окно, и появляется снова
+      // при закрытии — один toggle, без повторного переключения.
+      this.historyBtn.bg.setVisible(!this.historyVisible);
+
       if (this.historyVisible) {
         // Показываем реплики всех сюжетных сцен, пройденных к этому моменту,
         // а не только текущей — в хронологическом порядке.

@@ -64,11 +64,12 @@
         const bg = this.add.image(x, y, texture).setInteractive({ useHandCursor: true });
         const scale = w / bg.width;
         bg.setScale(scale);
-        this.add
+        const label = this.add
           .text(x, y, buttonData.label, { fontFamily: 'Philosopher', fontSize: this.style.buttonFontSize, color: this.style.textColor })
           .setOrigin(0.5);
 
         bg.on('pointerup', () => this.onButtonClick(buttonData.action));
+        window.VN.systems.ButtonFx.applyHoverLift(this, bg, [bg, label]);
       });
     }
 

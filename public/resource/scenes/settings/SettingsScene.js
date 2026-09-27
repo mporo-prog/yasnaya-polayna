@@ -63,10 +63,11 @@
 
     makeButton(x, y, width, label, callback) {
       const button = this.add.rectangle(x, y, width, 82, 0xd9d9d9).setInteractive({ useHandCursor: true });
-      this.add.text(x, y, label, { fontSize: '38px', color: '#000000' }).setOrigin(0.5);
+      const text = this.add.text(x, y, label, { fontSize: '38px', color: '#000000' }).setOrigin(0.5);
       button.on('pointerover', () => button.setFillStyle(0xc9c9c9));
       button.on('pointerout', () => button.setFillStyle(0xd9d9d9));
       button.on('pointerup', callback);
+      window.VN.systems.ButtonFx.applyHoverLift(this, button, [button, text]);
     }
 
     makeSlider(row, y) {

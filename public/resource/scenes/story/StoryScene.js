@@ -179,7 +179,7 @@
       // "Назад" — у левого нижнего края плашки, размером поменьше.
       this.backBtn = this.makeIconButton(
         this.panelLeft,
-        this.panelY + this.panelHeight,
+        this.panelY + this.panelHeight - 80,
         'resource/images/ui/back_button.png',
         () => this.goBack(),
         90

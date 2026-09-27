@@ -13,12 +13,11 @@
       GameState.goToScreen(nextIndex, 0);
       scene.scene.start('StoryScene', { storySceneIndex: nextIndex, screenIndex: 0 });
     } else {
-      scene.add
-        .text(scene.scale.width / 2, scene.scale.height / 2, 'Конец прототипа', {
-          fontSize: '40px',
-          color: '#ffffff',
-        })
-        .setOrigin(0.5);
+    
+      //Вызов сброса прогресса
+      GameState.reset();
+      //  кнопка "Завершить" ведёт в главное меню
+      scene.scene.start('MainMenuScene');
     }
   };
 })();

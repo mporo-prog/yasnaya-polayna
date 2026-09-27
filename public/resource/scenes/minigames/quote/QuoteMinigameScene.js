@@ -103,34 +103,96 @@
     }
 
     buildQuoteRow() {
-      const mode = this.currentRound.mode;
-      const prompt = this.currentRound.prompt;
-      const startX = WIDTH * 0.465;
-      const y = HEIGHT * 0.22;
+        const mode = this.currentRound.mode;
+        const prompt = this.currentRound.prompt;
 
-      if (mode === 'prefix') {
-        this.blankRect = this.add.rectangle(startX, y, 480, 60, this.style.colorWrong).setOrigin(0, 0.5);
-        this.promptText = this.add
-          .text(startX + 500, y, ' ' + prompt, { fontSize: '40px', color: '#000000' })
-          .setOrigin(0, 0.5);
-      } else {
-        this.promptText = this.add
-          .text(startX, y, prompt + ' ', { fontSize: '40px', color: '#000000' })
-          .setOrigin(0, 0.5);
-        const blankX = startX + this.promptText.width;
-        this.blankRect = this.add.rectangle(blankX, y, 480, 60, this.style.colorWrong).setOrigin(0, 0.5);
-      }
+        const startX = WIDTH * 0.465;
+        const y = HEIGHT * 0.22;
+
+        const rightMargin = 60;
+        const maxBlankWidth = 480;
+        const minBlankWidth = 220;
+
+        if (mode === 'prefix') {
+
+            this.blankRect = this.add.rectangle(
+                startX,
+                y,
+                maxBlankWidth,
+                60,
+                this.style.colorWrong
+            ).setOrigin(0, 0.5);
+
+            this.promptText = this.add.text(
+                startX + maxBlankWidth + 20,
+                y,
+                prompt,
+                {
+                    fontSize: '40px',
+                    color: '#000000',
+                    wordWrap: {
+                        width: WIDTH - (startX + maxBlankWidth + 20) - rightMargin
+                    }
+                }
+            ).setOrigin(0, 0.5);
+
+        } else {
+
+            this.promptText = this.add.text(
+                startX,
+                y,
+                prompt,
+                {
+                    fontSize: '40px',
+                    color: '#000000',
+                    wordWrap: {
+                        width: WIDTH - startX - maxBlankWidth - rightMargin
+                    }
+                }
+            ).setOrigin(0, 0.5);
+
+            const blankX = startX + this.promptText.width + 20;
+
+            const availableWidth =
+                WIDTH - blankX - rightMargin;
+
+            const blankWidth = Math.min(
+                maxBlankWidth,
+                Math.max(minBlankWidth, availableWidth)
+            );
+
+            this.blankRect = this.add.rectangle(
+                blankX,
+                y,
+                blankWidth,
+                60,
+                this.style.colorWrong
+            ).setOrigin(0, 0.5);
+        }
     }
 
     revealAnswerInQuote() {
-      const answer = this.currentRound.answer;
-      const x = this.blankRect.x;
-      const y = this.blankRect.y;
-      this.blankRect.destroy();
-      this.blankRect = null;
-      this.answerText = this.add
-        .text(x, y, answer, { fontSize: '40px', color: '#000000' })
-        .setOrigin(0, 0.5);
+        const answer = this.currentRound.answer;
+
+        const x = this.blankRect.x;
+        const y = this.blankRect.y;
+        const width = this.blankRect.width;
+
+        this.blankRect.destroy();
+        this.blankRect = null;
+
+        this.answerText = this.add.text(
+            x,
+            y,
+            answer,
+            {
+                fontSize: '40px',
+                color: '#000000',
+                wordWrap: {
+                    width: width - 20
+                }
+            }
+        ).setOrigin(0, 0.5);
     }
 
     // ---- варианты ответа ----------------------------------------------------

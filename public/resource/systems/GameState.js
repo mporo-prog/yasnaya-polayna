@@ -26,7 +26,10 @@
       this.state.status = 'story';
       this.save();
     },
-
+    getFullHistory: function () {
+      return this.state.history.slice();
+    },
+    
     /** Пометить, что игрок сейчас в мини-игре (на случай ухода со вкладки). */
     markMinigameStarted: function () {
       this.state.status = 'minigame';
@@ -45,12 +48,17 @@
      * сцены ещё не показывался — иначе при пролистывании Back/Next
      * история будет бесконечно дублироваться.
      */
-    addHistoryEntry: function (storySceneIndex, screenIndex, text) {
+    addHistoryEntry: function (storySceneIndex, screenIndex, text, speakerName) {
       const key = storySceneIndex + '_' + screenIndex;
       if (this.state.visitedScreens.indexOf(key) !== -1) return;
 
       this.state.visitedScreens.push(key);
-      this.state.history.push({ storySceneIndex: storySceneIndex, screenIndex: screenIndex, text: text });
+      this.state.history.push({
+        storySceneIndex: storySceneIndex,
+        screenIndex: screenIndex,
+        text: text,
+        speakerName: speakerName || null,
+      });
       this.save();
     },
 
@@ -71,6 +79,30 @@
       SaveManager.clear();
       this.state = SaveManager.load();
     },
+
+    /** Проверка прогресса */
+    // checkExpiration: function () {
+    //   if (SaveManager.isExpired(this.state)) {
+    //     this.reset();
+    //     return true;
+    //   }
+    //   return false;
+    // }
+
+    checkExpiration: function () {
+
+      if (window.VN.systems.SaveManager.isExpired(rhis.state)) {
+
+        window.VN.systems.SaveManager.clear();
+
+        this.state = window.VN.systems.SaveManager.load();
+
+        return true;
+      }
+
+      return false;
+    }
+
   };
 
   window.VN.systems.GameState = GameState;

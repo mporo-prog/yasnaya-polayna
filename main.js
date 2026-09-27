@@ -54,4 +54,21 @@ import { GameScene4 } from './games/game4/GameScene4.js';
   // сбросят актуальное состояние в localStorage.
   window.addEventListener('pagehide', function () { VN.systems.GameState.save(); });
   window.addEventListener('beforeunload', function () { VN.systems.GameState.save(); });
+
+  // Слушатель, который считает время ухода если игрок ушёл с вкладки игры
+  //  После 30 минут сбрасывает прогресс и возвращает игрока на стартовый экран.
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) {
+      VN.systems.GameState.save();
+      return;
+    }
+
+    const expired = VN.systems.GameState.checkExpiration();
+    if (expired) {
+      window.game.scene.getScenes(true).forEach(function (scene) {
+        window.game.scene.stop(scene.scene.key);
+      });
+      window.game.scene.start('StartScene');
+    }
+  });
 })();

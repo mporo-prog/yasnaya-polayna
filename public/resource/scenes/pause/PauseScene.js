@@ -31,8 +31,9 @@
     makeMenuButton(x, y, label, onClick) {
       const buttonWidth = this.scale.width * 0.28;
       const bg = this.add.rectangle(x, y, buttonWidth, 100, 0xd9d9d9).setInteractive({ useHandCursor: true });
-      this.add.text(x, y, label, { fontSize: '30px', color: '#000000' }).setOrigin(0.5);
+      const text = this.add.text(x, y, label, { fontSize: '30px', color: '#000000' }).setOrigin(0.5);
       bg.on('pointerup', onClick);
+      window.VN.systems.ButtonFx.applyHoverLift(this, bg, [bg, text]);
     }
 
     onButtonClick(action) {
@@ -50,6 +51,10 @@
 
         if (scene) {
             scene.input.enabled = true;
+            // Если пауза открывалась во время озвучки реплики (StoryScene) —
+            // проиграть её заново с начала, а не оставлять текст "замершим"
+            // на середине. Другие сцены этот метод не реализуют.
+            if (typeof scene.resumeVoiceIfNeeded === 'function') scene.resumeVoiceIfNeeded();
         }
     }
 

@@ -229,6 +229,7 @@
 
       const button = { bg: bg, text: text, correct: option.correct, wasWrong: false };
       bg.on('pointerup', () => this.onAnswerClicked(button));
+      window.VN.systems.ButtonFx.applyHoverLift(this, bg, [bg, text]);
       return button;
     }
 
@@ -305,6 +306,7 @@
       const bg = this.add.rectangle(x, y, w, h, 0xd9d9d9).setInteractive({ useHandCursor: true });
       const text = this.add.text(x, y, label, { fontSize: fontSize, color: '#000000', align: 'center' }).setOrigin(0.5);
       bg.on('pointerup', onClick);
+      window.VN.systems.ButtonFx.applyHoverLift(this, bg, [bg, text]);
       return { bg: bg, text: text };
     }
 

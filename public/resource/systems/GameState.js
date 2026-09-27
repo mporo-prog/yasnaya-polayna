@@ -81,11 +81,25 @@
     },
 
     /** Проверка прогресса */
+    // checkExpiration: function () {
+    //   if (SaveManager.isExpired(this.state)) {
+    //     this.reset();
+    //     return true;
+    //   }
+    //   return false;
+    // }
+
     checkExpiration: function () {
-      if (SaveManager.isExpired(this.state)) {
-        this.reset();
+
+      if (window.VN.systems.SaveManager.isExpired(rhis.state)) {
+
+        window.VN.systems.SaveManager.clear();
+
+        this.state = window.VN.systems.SaveManager.load();
+
         return true;
       }
+
       return false;
     }
 

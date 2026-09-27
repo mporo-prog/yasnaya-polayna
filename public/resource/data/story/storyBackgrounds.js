@@ -6,11 +6,11 @@
 window.VN.data.storyBackgrounds = [
   // Сюжетная сцена 1
   [
-    'public/resource/images/backgrounds/screen_1.png',
-    'public/resource/images/backgrounds/screen_1.png',
-    'public/resource/images/backgrounds/screen_1.png',
-    'public/resource/images/backgrounds/screen_1.png',
-    'public/resource/images/backgrounds/screen_1.png',
+    'resource/images/backgrounds/menu_screen.png',
+    'resource/images/backgrounds/screen_1.png',
+    'resource/images/backgrounds/screen_1.png',
+    'resource/images/backgrounds/screen_1.png',
+    'resource/images/backgrounds/screen_1.png',
   ],
   // Сюжетная сцена 2
   [

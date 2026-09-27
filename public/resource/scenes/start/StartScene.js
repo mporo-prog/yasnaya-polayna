@@ -11,6 +11,8 @@
     preload() {
       window.VN.systems.SceneAudio.preload(this);
       this.load.image('menuBackground', 'resource/images/backgrounds/menu_screen.png');
+      this.load.image('mainButtonBg', 'resource/images/ui/main_button.png');
+      this.load.image('saveButtonBg', 'resource/images/ui/main_button.png');
     }
 
     create() {
@@ -58,9 +60,12 @@
         const w = WIDTH * slot.wFrac;
         const h = HEIGHT * slot.hFrac;
 
-        const bg = this.add.rectangle(x, y, w, h, this.style.panelColor).setInteractive({ useHandCursor: true });
+        const texture = buttonData.action === 'start' ? 'mainButtonBg' : 'saveButtonBg';
+        const bg = this.add.image(x, y, texture).setInteractive({ useHandCursor: true });
+        const scale = w / bg.width;
+        bg.setScale(scale);
         this.add
-          .text(x, y, buttonData.label, { fontSize: this.style.buttonFontSize, color: this.style.textColor })
+          .text(x, y, buttonData.label, { fontFamily: 'Philosopher', fontSize: this.style.buttonFontSize, color: this.style.textColor })
           .setOrigin(0.5);
 
         bg.on('pointerup', () => this.onButtonClick(buttonData.action));

@@ -12,7 +12,7 @@
       window.VN.systems.SceneAudio.preload(this);
       this.load.image('menuBackground', 'resource/images/backgrounds/menu_screen.png');
       this.load.image('mainButtonBg', 'resource/images/ui/main_button.png');
-      this.load.image('saveButtonBg', 'resource/images/ui/main_button.png');
+      this.load.image('saveButtonBg', 'resource/images/ui/save_button.png');
     }
 
     create() {

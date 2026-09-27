@@ -4,7 +4,7 @@
  *
  */
 window.VN.data.storyBackgrounds = [
-  // Сюжетная сцена 1
+  // Сюжетная сцена 1: 6 реплик на 3 фонах; реплики 2–5 идут на одном фоне.
   [
     'resource/images/backgrounds/screen_1.png',
     'resource/images/backgrounds/screen_1.png',

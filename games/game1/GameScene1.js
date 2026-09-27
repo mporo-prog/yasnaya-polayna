@@ -106,6 +106,8 @@ export class GameScene1 extends Phaser.Scene {
         this.phase = 'intro';
         this.paused = false;
         this.completed = false;
+        this.input.enabled = true;
+        this.input.keyboard.enabled = true;
         this.sequence = [];
         this.inputIndex = 0;
         this.demoStep = 0;
@@ -192,6 +194,8 @@ export class GameScene1 extends Phaser.Scene {
     }
 
     startRound() {
+        this.input.enabled = true;
+        this.input.keyboard.enabled = true;
         this.introOverlay.setVisible(false);
         this.resetBirds();
 
@@ -245,14 +249,40 @@ export class GameScene1 extends Phaser.Scene {
         this.flashBird(index, INPUT_FLASH_DURATION);
 
         if (index !== this.sequence[this.inputIndex]) {
-            this.failRound();
+            this.finishRound(false);
             return;
         }
 
         this.inputIndex += 1;
 
         if (this.inputIndex >= this.sequence.length) {
+            this.finishRound(true);
+        }
+    }
+
+    finishRound(won) {
+        this.phase = 'finishing';
+        this.roundWon = won;
+        // Блокируем и птиц, и пропуск подсказок до начала следующей попытки.
+        this.input.enabled = false;
+        this.input.keyboard.enabled = false;
+    }
+
+    update() {
+        if (this.phase !== 'finishing' || this.paused) {
+            return;
+        }
+
+        // При быстрых нажатиях могут одновременно допевать несколько птиц.
+        // Ждём реального окончания звуков и возврата птиц в обычное состояние.
+        if (this.birds.some(bird => bird.timer || bird.voice.isPlaying || bird.voice.isPaused)) {
+            return;
+        }
+
+        if (this.roundWon) {
             this.winRound();
+        } else {
+            this.failRound();
         }
     }
 

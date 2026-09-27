@@ -5,7 +5,9 @@ window.VN.data.sceneAudio = {
     type: 'fadeout',
     duration: 1,
     delay: 0,
-  },},
+    },
+    sounds: [{path: "voice_and_sound/gameplay1_rasskazchik.mp3", loop: false}]
+  },
   GameScene2: { music: null },
   GameScene3: { music: null },
   GameScene4: { music: null },

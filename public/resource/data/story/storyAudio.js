@@ -2,7 +2,8 @@
  * Аудио сюжетных сцен, в том же порядке, что storyBackgrounds/storyLines.
  * Пути — относительно resource/sound; все времена — в секундах.
  * music: null — затухание до тишины; без поля music — продолжать текущую музыку.
- * Реальные записи пока не назначены. Пример заполнения есть в docs/audio.md.
+ * Один элемент screens соответствует одной реплике в storyLines.
+ * Пример заполнения есть в docs/audio.md.
  */
 window.VN.data.storyAudio = [
   // Сюжетная сцена 1
@@ -18,9 +19,12 @@ window.VN.data.storyAudio = [
     transitionSound: null, // { path: 'ui/transition.mp3', volume: 0.6, delay: 0 }
     sounds: [], // Звуки при входе в сцену, например { path: 'voice_and_sound/intro.mp3' }
     screens: [
-      { sounds: [] }, // Экран 1
-      { sounds: [] }, // Экран 2; можно также задать music и transition
-      { sounds: [] }, // Экран 3
+      { sounds: [{path: "voice_and_sound/screen1_scene1_rasskazchik.wav", loop: false}] }, // Экран 1
+      { sounds: [{path: "voice_and_sound/screen2_scene1_sadovnik1.wav", loop: false,transition: {type: 'fadeout', duration: 0.1, delay: 0 }}]}, // Экран 2; можно также задать music и transition
+      { sounds: [{path: "voice_and_sound/screen2_scene1_posetitel1.mp3", loop: false,transition: {type: 'fadeout', duration: 0.1, delay: 0 }}] }, // Экран 3
+      { sounds: [{path: "voice_and_sound/screen2_scene1_sadovnik2.wav", loop: false,transition: {type: 'fadeout', duration: 0.1, delay: 0 }}] },
+      { sounds: [{path: "voice_and_sound/screen2_scene1_posetitel2.mp3", loop: false,transition: {type: 'fadeout', duration: 0.1, delay: 0 }}] },
+      { sounds: [{path: "voice_and_sound/screen_3_scene_1_sadovnik.wav", loop: false,transition: {type: 'fadeout', duration: 0.1, delay: 0 }}] },
     ],
   },
   // Сюжетная сцена 2

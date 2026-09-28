@@ -10,9 +10,9 @@
 
     create() {
 
-      // const width = this.scale.width;
+      const width = this.scale.width;
       // const height = this.scale.height;
-      const width = window.innerWidth;
+      // const width = window.innerWidth;
       const height = window.innerHeight;
       const menuData = window.VN.data.pauseMenuData;
       const title = window.VN.data.startMenuData.title; // используем то же название игры, что и на стартовом экране

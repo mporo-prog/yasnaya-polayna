@@ -25,10 +25,10 @@
 
       // Иконки интерфейса (пауза, история/инфо, назад/вперёд).
       const uiIcons = [
-        'resource/images/ui/pause_button.png',
-        'resource/images/ui/history_button.png',
-        'resource/images/ui/back_button.png',
-        'resource/images/ui/next_button.png',
+        'images/icon_UI/pause_button.png',
+        'images/icon_UI/history_button.png',
+        'images/icon_UI/back_button.png',
+        'images/icon_UI/next_button.png',
       ];
       uiIcons.forEach(function (path) {
         this.load.image(path, path);

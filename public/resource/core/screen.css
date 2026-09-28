@@ -1,0 +1,101 @@
+/*
+ * Общие стили экрана игры (основная страница и отдельные страницы мини-игр).
+ * Холст Phaser (режим Scale.EXPAND) заполняет #app целиком.
+ */
+
+:root {
+  /* Отступы системных вырезов (чёлка, скругления, «полоска» iOS).
+     Их читает resource/systems/Layout.js, чтобы кнопки не прятались под вырез. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  overflow: hidden;
+  /* без масштабирования двойным тапом, без «резинки» и pull-to-refresh */
+  touch-action: none;
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/*
+ * Область игры: весь экран, но с ограничением соотношения сторон
+ * от 4:3 до 2.4:1. Всё, что за пределами (очень узкое окно браузера
+ * или ультраширокий монитор 32:9), остаётся чёрными полями.
+ * dvh — высота без учёта выезжающей адресной строки мобильных браузеров;
+ * строки с vh — запасной вариант для старых браузеров.
+ */
+#app {
+  width: 100vw;
+  height: 100vh;
+  width: min(100vw, calc(100vh * 2.4));
+  height: min(100vh, calc(100vw * 0.75));
+  width: min(100vw, calc(100dvh * 2.4));
+  height: min(100dvh, calc(100vw * 0.75));
+  overflow: hidden;
+}
+
+#app canvas {
+  display: block;
+}
+
+/* ---- «Поверните устройство» ------------------------------------------------ */
+
+#rotate-device {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  padding: 24px;
+  background: #1f1a15;
+  color: #efe6d8;
+  font-family: 'Philosopher', Georgia, serif;
+  font-size: 22px;
+  line-height: 1.35;
+  text-align: center;
+}
+
+#rotate-device .rotate-device__phone {
+  width: 56px;
+  height: 96px;
+  border: 4px solid currentColor;
+  border-radius: 12px;
+  animation: rotate-device 2.4s ease-in-out infinite;
+}
+
+@keyframes rotate-device {
+  0%, 20% { transform: rotate(0deg); }
+  50%, 80% { transform: rotate(-90deg); }
+  100% { transform: rotate(0deg); }
+}
+
+/* Только на сенсорных устройствах: на компьютере узкое окно не блокируем. */
+@media (orientation: portrait) and (pointer: coarse) {
+  #rotate-device {
+    display: flex;
+  }
+}

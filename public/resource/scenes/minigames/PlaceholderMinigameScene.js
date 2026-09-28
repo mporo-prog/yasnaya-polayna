@@ -15,7 +15,7 @@
     }
 
     preload() {
-      window.VN.systems.SceneAudio.preload(this);
+      window.VN.systems.SceneAssets.preload(this);
     }
 
     create() {
@@ -23,7 +23,7 @@
       const width = this.scale.width;
       const height = this.scale.height;
 
-      this.add.rectangle(0, 0, width, height, 0x222222).setOrigin(0, 0);
+      window.VN.systems.Layout.fill(this, this.add.rectangle(0, 0, width, height, 0x222222).setOrigin(0, 0));
       this.add
         .text(width / 2, height / 2 - 60, 'Мини-игра ещё не готова\n(' + this.minigameId + ')', {
           fontSize: '36px',
@@ -37,6 +37,7 @@
         .setInteractive({ useHandCursor: true });
       this.add.text(width / 2, height / 2 + 80, 'Завершить', { fontSize: '28px', color: '#000000' }).setOrigin(0.5);
       btn.on('pointerup', () => this.finishMinigame());
+      window.VN.systems.SceneAssets.prefetchNext(this);
     }
 
     finishMinigame() {

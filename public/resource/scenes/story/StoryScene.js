@@ -1,6 +1,8 @@
 (function () {
   const WIDTH = 1920;
   const HEIGHT = 1080;
+  // const WIDTH = window.innerWidth;
+  // const HEIGHT = window.innerHeight;
   const BAR_Y = HEIGHT;
 
   /**
@@ -17,6 +19,16 @@
       super('StoryScene');
     }
 
+    getAssetManifest() {
+      return {
+        images: [
+          { key: 'dialogTextBg', url: 'images/icon_UI/dialog_text_bg.png' },
+          { key: 'historyModalBg', url: 'images/icon_UI/history_modal_bg.png' },
+          { key: 'closeButton', url: 'images/icon_UI/close_button.png' },
+        ],
+      };
+    }
+
     init(data) {
       data = data || {};
       const GameState = window.VN.systems.GameState;
@@ -26,27 +38,29 @@
     }
 
     preload() {
-      window.VN.systems.SceneAudio.preload(this);
-      this.load.image('historyModalBg', 'resource/images/ui/history_modal_bg.png');
-      this.load.image('dialogTextBg', 'resource/images/ui/dialog_text_bg.png');
-
-      this.load.image('closeButton', 'resource/images/ui/close_button.png');
-
-      // SceneAudio.preload() уже поставил все пути storyAudio (включая
-      // screen.voice) в очередь загрузки — здесь ничего дополнительно
-      // грузить не нужно.
+      window.VN.systems.SceneAssets.preload(this);
     }
 
     create() {
       this.sceneAudio = window.VN.systems.SceneAudio.enter(this);
+      this.layout = window.VN.systems.Layout;
       this.buildBackgroundLayer();
+      // Персонаж, плашка реплики и кнопки «далее/назад» живут в одной
+      // группе, прижатой к нижнему краю экрана (на планшете 4:3 экран выше
+      // макета — без этого плашка «висела» бы посреди экрана).
+      this.bottomGroup = this.add.container(0, 0);
       this.buildCharacterLayer();
       this.buildBottomBar();
       this.buildNavButtons();
       this.buildTopButtons();
       this.buildHistoryOverlay();
 
+      this.layout.onLayout(this, (visible, ui) => {
+        this.bottomGroup.y = ui.bottom - HEIGHT;
+      });
+
       this.renderCurrentScreen();
+      window.VN.systems.SceneAssets.prefetchNext(this);
 
       // Дополнительная страховка: если вкладку скрыли — сохраняемся
       // немедленно, не дожидаясь следующего клика.
@@ -101,17 +115,18 @@
       // Если для этого экрана реальная картинка не загрузилась (её
       // ещё нет на диске) — просто рисуем серый плейсхолдер с подписью
       // (путь к файлу), чтобы было видно, чего не хватает.
-      this.bgImage = this.add.image(0, 0, '__MISSING').setOrigin(0, 0).setVisible(false);
+      // Фон растягивается на весь экран (Layout.addBackground).
+      this.background = this.layout.addBackground(this, null);
 
       this.bgLabel = this.add.text(WIDTH / 2, BAR_Y / 2, 'Фон', { fontSize: '40px', color: '#000000' }).setOrigin(0.5).setVisible(false);
     }
 
     setBackground(path) {
       if (this.textures.exists(path)) {
-        this.bgImage.setTexture(path).setDisplaySize(WIDTH, BAR_Y).setVisible(true);
+        this.background.setTexture(path);
         this.bgLabel.setVisible(false);
       } else {
-        this.bgImage.setVisible(false);
+        this.background.setTexture(null);
         this.bgLabel.setVisible(true).setText('Фон не найден:\n' + path);
       }
     }
@@ -120,6 +135,7 @@
 
     buildCharacterLayer() {
       this.characterImage = this.add.image(WIDTH * 0.22, BAR_Y, '__MISSING').setOrigin(0.5, 1).setVisible(false);
+      this.bottomGroup.add(this.characterImage);
     }
 
     setCharacter(speakerName) {
@@ -156,7 +172,7 @@
       this.panelCenterY = panelCenterY;
 
       // Плашка реплики — бежевая, однотонная (без градиента/текстуры).
-      this.add.image(WIDTH / 2, panelY, 'dialogTextBg').setOrigin(0.5, 0).setDisplaySize(panelWidth, panelHeight);
+      const panelBg = this.add.image(WIDTH / 2, panelY, 'dialogTextBg').setOrigin(0.5, 0).setDisplaySize(panelWidth, panelHeight);
       // Имя героя — слева, отделено вертикальной чертой от текста реплики
       // (макет: имя и реплика стоят в один ряд, а не друг под другом).
       const nameAreaWidth = panelWidth * 0.32;
@@ -185,7 +201,7 @@
       // нижний — "непроговорённый" цвет на всю длину сразу, верхний —
       // "проговорённый" цвет, растущий по мере воспроизведения озвучки.
       // Если у реплики нет озвучки, верхний текст сразу выставляется
-      // на всю длину — получается обычное мгновенное появление, как раньше.
+      // на всю длину — получается обычное мгновенное появление.
       //
       // Оба текста выровнены по верхнему краю (setOrigin(0, 0)), а не по
       // центру: при побуквенном заполнении "проговорённый" текст короче и
@@ -193,6 +209,9 @@
       // верх "плавал" бы ниже верха светлого текста. Единая верхняя точка
       // Y пересчитывается в renderCurrentScreen() по высоте полного текста
       // и применяется к обоим слоям — они всегда начинаются с одной строки.
+      //
+      // Оба слоя живут в bottomGroup вместе с плашкой, поэтому на любых
+      // пропорциях экрана (Layout) они двигаются вместе с ней.
       this.dialogueText = this.add
         .text(textX, panelCenterY, '', { ...dialogueTextStyle, color: '#E3D8CA' })
         .setOrigin(0, 0);
@@ -200,6 +219,8 @@
       this.dialogueRevealedText = this.add
         .text(textX, panelCenterY, '', { ...dialogueTextStyle, color: '#1B1A19' })
         .setOrigin(0, 0);
+
+      this.bottomGroup.add([panelBg, this.speakerNameText, this.dialogueText, this.dialogueRevealedText]);
     }
 
     buildNavButtons() {
@@ -207,7 +228,7 @@
       this.nextBtn = this.makeIconButton(
         this.panelLeft + this.panelWidth,
         this.panelCenterY,
-        'resource/images/ui/next_button.png',
+        'images/icon_UI/next_button.png',
         () => this.goNext()
       );
 
@@ -215,21 +236,28 @@
       this.backBtn = this.makeIconButton(
         this.panelLeft,
         this.panelY + this.panelHeight - 80,
-        'resource/images/ui/back_button.png',
+        'images/icon_UI/back_button.png',
         () => this.goBack(),
         90
       );
+
+      this.bottomGroup.add([this.nextBtn.bg, this.backBtn.bg]);
     }
 
     buildTopButtons() {
       // depth выше, чем у historyContainer (10) — чтобы кнопки оставались
       // видимыми и кликабельными поверх открытой вкладки "История"
       // (крестика для закрытия больше нет, закрывают тем же тумблером).
-      const menuBtn = this.makeIconButton(1920 * 0.015 + 75, 1080 * 0.023 + 75, 'images/icon_UI/pause_button.png', () => this.openPauseMenu(), 150);
+      const menuBtn = this.makeIconButton(100, 90, 'images/icon_UI/pause_button.png', () => this.openPauseMenu(), 110);
       menuBtn.bg.setDepth(20);
 
-      this.historyBtn = this.makeIconButton(100, 205, 'resource/images/ui/history_button.png', () => this.toggleHistory(), 70);
+      this.historyBtn = this.makeIconButton(100, 205, 'images/icon_UI/history_button.png', () => this.toggleHistory(), 70);
       this.historyBtn.bg.setDepth(20);
+
+      // Прижимаем к левому верхнему углу экрана (с учётом выреза телефона),
+      // а не к углу макета — на широком экране они уходят на поле.
+      this.layout.pin(this, menuBtn.bg, { left: 100, top: 90 });
+      this.layout.pin(this, this.historyBtn.bg, { left: 100, top: 205 });
     }
 
     /** Кнопка-иконка (картинка вместо прямоугольника с текстом). */
@@ -237,7 +265,6 @@
       const img = this.add.image(x, y, texture).setInteractive({ useHandCursor: true });
       if (displaySize) img.setDisplaySize(displaySize, displaySize);
       img.on('pointerup', onClick);
-      window.VN.systems.ButtonFx.applyHoverLift(this, img, img);
       return { bg: img, text: null };
     }
 
@@ -268,6 +295,7 @@
       // Затемняющая подложка на весь экран — приглушает фон и перехватывает
       // клики мимо окна, но сам фон сцены под ней остаётся виден.
       const dimBg = this.add.rectangle(0, 0, WIDTH, HEIGHT, 0x000000, 0.35).setOrigin(0, 0).setInteractive();
+      this.layout.fill(this, dimBg); // затемнение — на весь экран, включая поля
 
       // Сама панель "История" — небольшая, по центру, картинка-рамка.
       const windowBg = this.add
@@ -288,7 +316,6 @@
         .setDisplaySize(60, 60)
         .setInteractive({ useHandCursor: true });
       closeBtn.on('pointerup', () => this.toggleHistory());
-      window.VN.systems.ButtonFx.applyHoverLift(this, closeBtn, closeBtn);
 
       // Сам текст — внутри отдельного контейнера, который двигается вверх/
       // вниз при прокрутке; видна только часть внутри viewport благодаря маске.
@@ -375,9 +402,7 @@
     renderCurrentScreen(options = {}) {
       const skipVoice = options.skipVoice === true;
 
-      // Реплика предыдущего экрана могла ещё озвучиваться — обрываем её
-      // молча (без ускоренного дозаполнения текста, оно тут ни на что не
-      // влияет: экран и так уже полностью меняется).
+      // Реплика предыдущего экрана могла ещё озвучиваться — обрываем её.
       this.stopVoice();
 
       this.sceneAudio.showScreen(this.screenIndex);
@@ -398,8 +423,7 @@
 
       // Общая верхняя точка для обоих слоёв текста реплики — считаем её по
       // высоте ПОЛНОГО текста (dialogueText), чтобы блок был вертикально
-      // центрирован в панели так же, как раньше, но верх был фиксирован и
-      // общий для светлого и тёмного слоя (см. buildBottomBar()).
+      // центрирован в панели, но верх был общий для светлого и тёмного слоя.
       const textTopY = this.panelCenterY - this.dialogueText.height / 2;
       this.dialogueText.setY(textTopY);
       this.dialogueRevealedText.setY(textTopY);
@@ -410,12 +434,10 @@
       this._textForCurrentScreen = text;
 
       if (voiceConfig && !skipVoice) {
-        // Есть озвучка — реплика "проговаривается" побуквенно синхронно с ней;
-        // startVoiceReveal сама очищает dialogueRevealedText.
+        // Есть озвучка — реплика "проговаривается" побуквенно синхронно с ней.
         this.startVoiceReveal(voiceConfig, text);
       } else {
-        // Озвучки нет, либо это возврат "Назад" (skipVoice) — реплика
-        // показывается сразу целиком тёмным текстом, без звука и анимации.
+        // Озвучки нет, либо это возврат "Назад" — реплика сразу целиком.
         this.dialogueRevealedText.setText(text);
       }
 
@@ -431,7 +453,6 @@
     goNext() {
       // Пока играет озвучка — первый клик "Далее" только обрывает её и
       // сразу дозаполняет текст реплики целиком, экран пока не меняется.
-      // Только следующий клик "Далее" переводит реплику дальше.
       if (this.voiceActive) {
         this.skipVoice();
         return;
@@ -448,8 +469,7 @@
     goBack() {
       if (this.screenIndex > 0) {
         this.screenIndex -= 1;
-        // "Назад" не переслушивает реплику: ни звук, ни анимация не
-        // запускаются — текст сразу показывается целиком тёмным.
+        // "Назад" не переслушивает реплику: текст сразу целиком тёмным.
         this.renderCurrentScreen({ skipVoice: true });
       }
     }
@@ -458,25 +478,22 @@
 
     /**
      * Запускает воспроизведение озвучки реплики и побуквенную анимацию текста.
-     * voiceConfig — путь строкой, либо { path, delay, margin }:
+     * voiceConfig — путь строкой, либо { path, delay, margin, volume }:
      *   delay  — задержка в секундах перед стартом анимации текста (звук
-     *            при этом стартует сразу, без задержки);
+     *            при этом стартует сразу);
      *   margin — "погрешность" в секундах (по умолчанию 0): дополнительно
      *            вычитается из времени на анимацию, как и delay.
-     * Сама анимация укладывается в (duration - delay - margin) секунд, то
-     * есть скорость проявления текста — (duration - delay - margin) /
-     * количество символов реплики — чтобы дозаполнение всё равно
-     * заканчивалось ровно к концу дорожки, а не позже.
+     * Анимация укладывается в (duration - delay - margin) секунд, чтобы
+     * текст заканчивал проявляться к концу дорожки, а не позже.
+     *
+     * Файл озвучки к этому моменту уже в кэше: SceneAudio.paths() включает
+     * screen.voice, поэтому SceneAssets грузит его через общую очередь
+     * (в preload сцены и заранее через prefetchNext предыдущей сцены).
      */
     startVoiceReveal(voiceConfig, text, nowMs) {
       // nowMs передаётся явно только при отложенном перезапуске после
-      // паузы/истории (см. update()) — там важно использовать "живое" time
-      // из update(), а не this.time.now, которое сразу после scene.resume()
-      // ещё не обновилось (обновится только на следующем кадре) и было бы
-      // "устаревшим": расчёт voiceStartTime на его основе давал бы момент,
-      // который к следующему кадру уже в прошлом — из-за этого задержка и
-      // анимация после выхода из паузы фактически проскакивали вперёд,
-      // вместо того чтобы начаться с нуля.
+      // паузы/истории (см. update()): this.time.now сразу после
+      // scene.resume() ещё "застывший" и дал бы проскок анимации.
       const now = nowMs != null ? nowMs : this.time.now;
       const config = typeof voiceConfig === 'string' ? { path: voiceConfig } : voiceConfig;
       const delay = config.delay || 0;
@@ -487,7 +504,7 @@
         const controller = window.VN.systems.MusicController.forScene(this);
         // Аудио запускаем сразу, без delay — задержка и погрешность влияют
         // только на анимацию текста.
-        track = controller.playSound({ path: config.path });
+        track = controller.playSound({ path: config.path, volume: config.volume, loop: false });
       } catch (error) {
         // Файл не загрузился/не декодировался — не должно ломать сюжет,
         // просто показываем реплику как обычно, без анимации.
@@ -499,62 +516,44 @@
       const duration = track.source.buffer ? track.source.buffer.duration : 0;
       this.voiceTrack = track;
       this.voiceFullText = text;
-      this.voiceDuration = duration;
       // Полный текст, разбитый на строки ТАК ЖЕ, как его уже разбил
-      // wordWrap светлого слоя (dialogueText) — с реальными переносами
-      // строк вместо пробелов на местах переноса. По мере проявления мы
-      // режем именно эту версию, а не исходную строку: тогда "проговорённый"
-      // текст с самого первого символа появляется на своей окончательной
-      // строке, а не сначала на предыдущей и потом "перескакивает" на
-      // следующую при добавлении новых букв (сравните с обычным словом,
-      // которое из-за собственного wordWrap короткого фрагмента иногда
-      // сперва помещается на первой строке, а на 3–4 букве вдруг уезжает
-      // на вторую — так и выглядела эта проблема).
+      // wordWrap светлого слоя — с реальными переносами. Режем именно эту
+      // версию: тогда слово не "перескакивает" на следующую строку, пока
+      // проявляется по буквам.
       this.voiceRevealText = this.dialogueText.getWrappedText(text).join('\n');
-      // У анимации на дозаполнение текста остаётся не вся длительность
-      // дорожки, а (duration - delay - margin): она стартует позже звука,
-      // но должна закончиться в тот же момент — иначе текст "доедет" уже
-      // после того, как реплика замолчала.
       this.voiceRevealDuration = Math.max(0, duration - delay - margin);
-      // Анимация текста стартует не сразу, а через delay секунд после запуска
-      // аудио. Пока идёт задержка — текст полностью непроговорённый.
       this.voiceStartTime = now + delay * 1000;
       this.voiceActive = duration > 0;
-      this.dialogueRevealedText.setText('');
-
-      if (!this.voiceActive) {
-        this.dialogueRevealedText.setText(text);
-      }
+      this.dialogueRevealedText.setText(this.voiceActive ? '' : text);
     }
 
     /** Вызывается из update(): подсвечивает "проговорённую" часть текста. */
     updateVoiceReveal(time) {
       if (!this.voiceActive) return;
 
-      // Пока идёт задержка перед стартом анимации — текст остаётся пустым.
+      // Пока идёт задержка перед стартом анимации — тёмного текста нет.
       if (time < this.voiceStartTime) {
-        this.dialogueRevealedText.setText('');
+        if (this.dialogueRevealedText.text !== '') this.dialogueRevealedText.setText('');
         return;
       }
 
       const elapsedSeconds = (time - this.voiceStartTime) / 1000;
       if (elapsedSeconds >= this.voiceRevealDuration) {
         this.dialogueRevealedText.setText(this.voiceFullText);
-        this.stopVoice();
+        // Текст дописан, но звук мог ещё не закончиться (margin) — не
+        // обрываем его, просто завершаем анимацию.
+        this.voiceActive = false;
         return;
       }
 
-      // Скорость дозаполнения текста считается от voiceRevealDuration
-      // (длительность дорожки за вычетом задержки и погрешности), а не от
-      // полной длительности — иначе анимация не успевала бы закончиться
-      // к концу звука.
       const ratio = this.voiceRevealDuration > 0
         ? Phaser.Math.Clamp(elapsedSeconds / this.voiceRevealDuration, 0, 1)
         : 1;
-      const revealCount = Math.floor(ratio * this.voiceFullText.length);
-      // Режем предварительно перенесённый по строкам текст (voiceRevealText),
-      // а не исходную строку — см. комментарий в startVoiceReveal().
-      this.dialogueRevealedText.setText(this.voiceRevealText.slice(0, revealCount));
+      const revealCount = Math.floor(ratio * this.voiceRevealText.length);
+      const revealed = this.voiceRevealText.slice(0, revealCount);
+      // setText перерисовывает canvas текста — вызываем только при реальном
+      // изменении, а не каждый кадр (важно для слабых телефонов).
+      if (revealed !== this.dialogueRevealedText.text) this.dialogueRevealedText.setText(revealed);
     }
 
     /**
@@ -567,9 +566,8 @@
     }
 
     /**
-     * Молча останавливает текущую озвучку без завершения текста —
-     * используется при переходе на другой экран, "Назад", открытии
-     * паузы/истории, чтобы звук не продолжал играть фоном.
+     * Молча останавливает текущую озвучку — при переходе на другой экран,
+     * "Назад", открытии паузы/истории, уходе со сцены.
      */
     stopVoice() {
       if (this.voiceTrack) {
@@ -580,28 +578,13 @@
     }
 
     /**
-     * Возобновляет озвучку и анимацию текущей реплики после того, как её
-     * прервали открытием паузы или "Истории" (см. openPauseMenu()/
-     * toggleHistory()). Веб-звук нельзя поставить на паузу и продолжить с
-     * того же места без лишней сложности с отслеживанием смещения — поэтому
-     * при возврате реплика проигрывается заново с начала, как и при повторном
-     * заходе на экран вперёд. Если реплика к моменту прерывания уже была
-     * озвучена целиком (voiceActive был false), ничего не перезапускаем.
+     * Возобновляет озвучку и анимацию текущей реплики после паузы или
+     * "Истории". Реплика проигрывается заново с начала. Если к моменту
+     * прерывания текст уже был проявлен целиком — ничего не перезапускаем.
+     * Сам запуск откладывается до update() (см. startVoiceReveal()).
      */
     resumeVoiceIfNeeded() {
       if (this.voiceInterruptedByOverlay && this._voiceConfigForCurrentScreen) {
-        // Не запускаем startVoiceReveal() прямо здесь: это вызывается
-        // синхронно из обработчика клика (PauseScene.resumeGame() /
-        // toggleHistory()), а this.time.now в этот момент — особенно после
-        // паузы — ещё не обновилось до реального текущего времени (Phaser
-        // не вызывает update()/preUpdate() для сцены, пока она на паузе,
-        // поэтому this.time.now всё это время "застывший"). Если запустить
-        // отсюда, voiceStartTime посчитается от устаревшего времени, а на
-        // следующем кадре this.time.now скачком "догонит" реальное — из-за
-        // этого задержка перед текстом и сама анимация фактически
-        // проскакивали вперёд вместо честного перезапуска с нуля. Поэтому
-        // просто помечаем "нужен перезапуск", а сам запуск — в update(),
-        // на первом кадре после возобновления, когда time уже актуально.
         this._pendingVoiceResume = true;
       }
       this.voiceInterruptedByOverlay = false;
@@ -621,12 +604,12 @@
     }
 
     toggleHistory() {
-      // Открытие "Истории" останавливает текущую озвучку — иначе она
-      // продолжила бы играть поверх текста реплики, ушедшего под окно.
-      // Запоминаем, была ли озвучка прервана именно этим открытием, чтобы
-      // при закрытии окна корректно возобновить её (resumeVoiceIfNeeded).
-      if (!this.historyVisible) this.voiceInterruptedByOverlay = this.voiceActive;
-      if (!this.historyVisible) this.stopVoice();
+      // Открытие "Истории" останавливает текущую озвучку; запоминаем, была ли
+      // она прервана, чтобы при закрытии окна проиграть реплику заново.
+      if (!this.historyVisible) {
+        this.voiceInterruptedByOverlay = this.voiceActive;
+        this.stopVoice();
+      }
 
       this.historyVisible = !this.historyVisible;
       this.historyContainer.setVisible(this.historyVisible);
@@ -649,18 +632,13 @@
         // размер/позицию ползунка под актуальный объём текста.
         this.setHistoryScroll(0);
       } else {
-        // Закрыли "Историю" — если она прервала озвучку, проигрываем реплику
-        // заново с начала (см. комментарий в resumeVoiceIfNeeded()).
         this.resumeVoiceIfNeeded();
       }
     }
 
     openPauseMenu() {
-      // Пока сцена на паузе, её update() (а значит и анимация текста) не
-      // выполняется, но Web Audio продолжил бы играть в фоне — останавливаем.
-      // Запоминаем, была ли озвучка активна именно в момент открытия паузы,
-      // чтобы при возврате из паузы (см. PauseScene.resumeGame()) корректно
-      // решить, нужно ли проигрывать реплику заново.
+      // Пока сцена на паузе, её update() не выполняется, но Web Audio
+      // продолжил бы играть в фоне — останавливаем озвучку.
       this.voiceInterruptedByOverlay = this.voiceActive;
       this.stopVoice();
       this.scene.pause();

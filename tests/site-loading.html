@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<title>Проверка игрового маршрута</title>
+<h1>Проверка загрузки реальных игровых сцен</h1>
+<pre id="results">Проверка…</pre>
+<iframe id="site" title="Тестируемая игра" width="960" height="540"></iframe>
+<script type="module">
+  const output = document.querySelector('#results');
+  const frame = document.querySelector('#site');
+  const saved = localStorage.getItem('vn_save_v1');
+  const lines = [];
+  let game;
+  const waitFor = async (condition) => {
+    const deadline = performance.now() + 20000;
+    while (!condition()) {
+      if (performance.now() > deadline) {
+        const states = game?.scene.scenes.map((scene) => ({ key: scene.sys.settings.key, status: scene.sys.settings.status }));
+        throw new Error('Timeout ' + JSON.stringify(states));
+      }
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+  };
+  const check = async (name, action) => {
+    await action();
+    lines.push('PASS ' + name);
+    output.textContent = lines.join('\n');
+  };
+  const assert = (condition, message) => { if (!condition) throw new Error(message); };
+  const findTexture = (objects, key) => {
+    for (const object of objects) {
+      if (object.texture?.key === key) return object;
+      const nested = Array.isArray(object.list) && findTexture(object.list, key);
+      if (nested) return nested;
+    }
+  };
+  try {
+    frame.src = '../';
+    await waitFor(() => frame.contentWindow.game?.scene.isActive('MainMenuScene'));
+    await waitFor(() => !frame.contentDocument.getElementById('startup-loading'));
+    game = frame.contentWindow.game;
+    game.sound.mute = true;
+    const assets = frame.contentWindow.VN.systems.SceneAssets;
+    await check('Фоны кнопок меню готовы к первому показу', async () => {
+      const menu = game.scene.getScene('MainMenuScene');
+      for (const key of ['mainButtonBg', 'saveButtonBg']) {
+        assert(game.textures.exists(key), 'Загружена текстура ' + key);
+        assert(findTexture(menu.children.list, key), 'Кнопка использует ' + key);
+      }
+    });
+    await check('Меню -> сюжет -> мини-игра 1', async () => {
+      game.scene.getScene('MainMenuScene').startGame();
+      await waitFor(() => game.scene.isActive('StoryScene'));
+      const scene = game.scene.getScene('StoryScene');
+      for (const key of ['dialogTextBg', 'historyModalBg', 'closeButton']) {
+        assert(game.textures.exists(key), 'Загружена текстура ' + key);
+      }
+      assert(findTexture(scene.children.list, 'dialogTextBg'), 'Плашка реплики использует свою текстуру');
+      scene.toggleHistory();
+      assert(scene.historyContainer.visible, 'История открывается');
+      assert(scene.historyContainer.list.some((object) => object.texture?.key === 'historyModalBg'), 'История использует свою текстуру');
+      const close = scene.historyContainer.list.find((object) => object.texture?.key === 'closeButton');
+      assert(close, 'Крестик истории использует свою текстуру');
+      close.emit('pointerup');
+      assert(!scene.historyContainer.visible, 'История закрывается');
+      for (let i = 0; i < scene.totalScreensInThisScene; i++) scene.goNext();
+      await waitFor(() => game.scene.isActive('GameScene1'));
+      assert(game.scene.getScene('GameScene1').birds.length === 4, 'Птицы созданы');
+    });
+    await check('Переход в следующую сюжетную сцену при отсутствующих фонах', async () => {
+      const mini = game.scene.getScene('GameScene1');
+      frame.contentWindow.VN.systems.finishMinigameAndAdvance(mini, 0, 'asset-loading-test');
+      await waitFor(() => game.scene.isActive('StoryScene'));
+      assert(game.scene.getScene('StoryScene').storySceneIndex === 1, 'Открыта следующая сцена');
+    });
+    await check('Холодный вход и возврат в меню для всех мини-игр', async () => {
+      for (const [index, key] of ['GameScene2', 'GameScene3', 'GameScene4', 'QuoteMinigameScene'].entries()) {
+        const current = game.scene.getScenes(true).find((scene) => !scene.isAssetLoader);
+        current.scene.start(key, { storySceneIndex: index + 1, minigameId: 'asset-test-' + key });
+        await waitFor(() => game.scene.isActive(key));
+        await waitFor(() => !frame.contentDocument.getElementById('startup-loading'));
+        assert(game.scene.isActive('AssetLoaderScene'), 'Служебный загрузчик работает');
+        game.scene.getScene(key).scene.start('MainMenuScene');
+        await waitFor(() => game.scene.isActive('MainMenuScene'));
+      }
+    });
+    await check('Полный перезапуск страницы с ?game=1…5', async () => {
+      for (let i = 1; i <= 5; i++) {
+        const key = i === 5 ? 'QuoteMinigameScene' : 'GameScene' + i;
+        const oldGame = game;
+        frame.src = '../?game=' + i;
+        await waitFor(() => frame.contentWindow.game && frame.contentWindow.game !== oldGame);
+        game = frame.contentWindow.game;
+        game.sound.mute = true;
+        await waitFor(() => game.scene.isActive(key));
+        await waitFor(() => !frame.contentDocument.getElementById('startup-loading'));
+      }
+    });
+    output.textContent += '\nDONE: ' + lines.length + ' проверок пройдено';
+  } catch (error) {
+    output.textContent += '\nFAIL ' + error.stack;
+  } finally {
+    frame.remove();
+    if (saved === null) localStorage.removeItem('vn_save_v1');
+    else localStorage.setItem('vn_save_v1', saved);
+  }
+</script>
+</html>

@@ -2,6 +2,8 @@
 
 const BASE_WIDTH = 1920;
 const BASE_HEIGHT = 1080;
+// const BASE_WIDTH = window.innerWidth;
+// const BASE_HEIGHT = window.innerHeight;
 
 const BIRD_WIDTH = 350;
 const BIRD_HEIGHT = 330;
@@ -41,6 +43,11 @@ const BIRDS = [
     }
 ];
 
+// Область, которую нельзя обрезать ни на каком экране: все птицы
+// (в поющем состоянии они крупнее) с запасом 10px. Фон при этом
+// растягивается на весь экран, насколько позволяет эта область.
+const BIRDS_AREA = { x: 197, y: 15, width: 1539, height: 894 };
+
 const MENU_BUTTON = {
     x: 1830,
     y: 14,
@@ -76,29 +83,30 @@ export class GameScene1 extends Phaser.Scene {
             : DEFAULT_HINT_DURATION_SECONDS;
     }
 
-    preload() {
+    getAssetManifest() {
         const imagesPath = `${import.meta.env.BASE_URL}images/game1/`;
+        return {
+            images: [
+                { key: 'game1-background', url: `${imagesPath}bacground_game1.png` },
+                ...BIRDS.flatMap((bird) => [
+                    { key: `${bird.image}_idle`, url: `${imagesPath}${bird.image}_1.png` },
+                    { key: `${bird.image}_sing`, url: `${imagesPath}${bird.image}_2.png` },
+                ]),
+            ],
+            audio: BIRDS.map((bird) => bird.voice),
+        };
+    }
 
-        this.load.image(
-            'game1-background',
-            `${imagesPath}bacground_game1.png`
-        );
-
-        window.VN?.systems.SceneAudio?.preload(this);
-
-        for (const bird of BIRDS) {
-            this.load.image(
-                `${bird.image}_idle`,
-                `${imagesPath}${bird.image}_1.png`
-            );
-
-            this.load.image(
-                `${bird.image}_sing`,
-                `${imagesPath}${bird.image}_2.png`
-            );
-
-            window.VN.systems.AudioManager.load(this, bird.voice);
+    preload() {
+        if (window.VN?.systems.SceneAssets) {
+            window.VN.systems.SceneAssets.preload(this);
+            return;
         }
+        // Сохраняем отдельный запуск games/game1/index.html.
+        const assets = this.getAssetManifest();
+        for (const { key, url } of assets.images) this.load.image(key, url);
+        window.VN?.systems.SceneAudio?.preload(this);
+        for (const path of assets.audio) window.VN.systems.AudioManager.load(this, path);
     }
 
     create() {
@@ -114,8 +122,7 @@ export class GameScene1 extends Phaser.Scene {
         this.round_number = 2;
         this.activeHint = null;
 
-        this.calculateScale();
-        this.createRoot();
+        this.layout = window.VN.systems.Layout;
         this.createBackground();
         this.createBirds();
         this.createPauseOverlay();
@@ -126,30 +133,20 @@ export class GameScene1 extends Phaser.Scene {
         this.createIntroOverlay();
         this.createWinRoundOverlay();
         this.setupInput();
-    }
-
-    calculateScale() {
-        const width = this.scale.width || BASE_WIDTH;
-        const height = this.scale.height || BASE_HEIGHT;
-
-        this.gameScale = Math.min(width / BASE_WIDTH, height / BASE_HEIGHT);
-        this.offsetX = (width - BASE_WIDTH * this.gameScale) / 2;
-        this.offsetY = (height - BASE_HEIGHT * this.gameScale) / 2;
-    }
-
-    createRoot() {
-        this.root = this.add.container(this.offsetX, this.offsetY);
-        this.root.setScale(this.gameScale);
+        window.VN?.systems.SceneAssets?.prefetchNext(this);
     }
 
     createBackground() {
         this.cameras.main.setBackgroundColor(COLOR_BACKGROUND);
 
-        const background = this.add.image(0, 0, 'game1-background')
-            .setOrigin(0)
-            .setDisplaySize(BASE_WIDTH, BASE_HEIGHT);
-
-        this.root.add(background);
+        // Фон на весь экран. Птицы сидят на ветках фона, поэтому кладём их
+        // в тот же контейнер (stage) — они двигаются и масштабируются
+        // вместе с фоном и не «съезжают» с веток ни на каком экране.
+        const { Rectangle } = Phaser.Geom;
+        this.background = this.layout.addBackground(this, 'game1-background', {
+            keep: new Rectangle(BIRDS_AREA.x, BIRDS_AREA.y, BIRDS_AREA.width, BIRDS_AREA.height)
+        });
+        this.stage = this.background.stage;
     }
 
     createBirds() {
@@ -170,7 +167,7 @@ export class GameScene1 extends Phaser.Scene {
             bird.box.setInteractive({ useHandCursor: true });
             bird.box.on('pointerdown', () => this.selectBird(index));
 
-            this.root.add(bird.box);
+            this.stage.add(bird.box);
 
             return bird;
         });
@@ -385,7 +382,12 @@ export class GameScene1 extends Phaser.Scene {
         button.setInteractive({ useHandCursor: true });
         button.on('pointerdown', () => this.openPauseMenu());
 
-        this.root.add([button, label]);
+        // Кнопка меню — в правом верхнем углу экрана (с учётом выреза).
+        this.layout.pin(this, button, { right: BASE_WIDTH - MENU_BUTTON.x, top: MENU_BUTTON.y });
+        this.layout.pin(this, label, {
+            right: BASE_WIDTH - MENU_BUTTON.x - MENU_BUTTON.width / 2,
+            top: MENU_BUTTON.y + MENU_BUTTON.height / 2
+        });
     }
 
     showHint(overlay, onDismiss, durationSeconds = this.hintDurationSeconds) {
@@ -446,7 +448,8 @@ export class GameScene1 extends Phaser.Scene {
         const overlay = this.add.container(0, 0, [background, label]);
         overlay.setVisible(false);
 
-        this.root.add(overlay);
+        // Подложка подсказки закрывает весь экран, текст — по центру.
+        this.layout.fill(this, background);
 
         return overlay;
     }
@@ -533,21 +536,14 @@ export class GameScene1 extends Phaser.Scene {
     }
 
     setupInput() {
-        this.input.keyboard.on('keydown-ESC', () => this.togglePause());
+        // Раньше здесь вызывался несуществующий this.togglePause() —
+        // Esc ронял сцену. Открываем то же меню паузы, что и кнопка.
+        this.input.keyboard.on('keydown-ESC', () => this.openPauseMenu());
 
-        this.scale.on('resize', this.handleResize, this);
-
+        // Подстройку под размер экрана делает Layout (подписка и отписка — внутри).
         this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
             this.clearHint();
             this.birds.forEach(bird => bird.voice.destroy());
-            this.scale.off('resize', this.handleResize, this);
         });
-    }
-
-    handleResize() {
-        this.calculateScale();
-
-        this.root.setPosition(this.offsetX, this.offsetY);
-        this.root.setScale(this.gameScale);
     }
 }

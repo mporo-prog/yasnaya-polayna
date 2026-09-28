@@ -15,17 +15,44 @@
   <meta name="theme-color" content="#000000" />
   <title>Один день Льва Николаевича</title>
 
+  <!-- Этот экран доступен ещё до скачивания и запуска Phaser. -->
+  <style>
+    #startup-loading {
+      position: fixed;
+      inset: 0;
+      z-index: 900;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      background: #e8dcc0;
+      color: #3f2f22;
+      font: 24px/1.4 system-ui, sans-serif;
+      text-align: center;
+    }
+    #startup-loading p { margin: 0; }
+    #startup-progress { width: min(320px, 80vw); accent-color: #3f2f22; }
+  </style>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
+    id="game-fonts"
     href="https://fonts.googleapis.com/css2?family=Philosopher&family=Ysabeau:wght@400;500;600&display=swap"
     rel="stylesheet"
+    media="print"
+    onload="this.media='all'"
   >
 
   <!-- Экран игры: холст на всю область, safe-area, заглушка «поверните устройство» -->
   <link rel="stylesheet" href="resource/core/screen.css">
 </head>
 <body>
+  <div id="startup-loading" role="status" aria-live="polite">
+    <p id="startup-label">Запускаем игру…</p>
+    <progress id="startup-progress" max="100" aria-labelledby="startup-label"></progress>
+  </div>
   <div id="app"></div>
 
   <!-- Показывается только на телефоне/планшете в вертикальной ориентации -->
@@ -51,6 +78,7 @@
   <script src="resource/systems/Layout.js"></script>
   <script src="resource/systems/MobileScreen.js"></script>
   <script src="resource/systems/AssetQueue.js"></script>
+  <script src="resource/systems/StartupScreen.js"></script>
   <script src="resource/systems/SceneAssets.js"></script>
   <script src="resource/data/sceneAudio.js"></script>
 

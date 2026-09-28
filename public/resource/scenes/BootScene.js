@@ -4,38 +4,8 @@
       super('BootScene');
     }
 
-    preload() {
-      window.VN.systems.SceneAudio.preload(this, [
-        ...window.VN.data.storyAudio,
-        ...Object.values(window.VN.data.sceneAudio),
-      ]);
-      const storyBackgrounds = window.VN.data.storyBackgrounds;
-      storyBackgrounds.forEach(function (screens) {
-        screens.forEach(function (path) {
-          this.load.image(path, path);
-        }, this);
-      }, this);
-
-      // Портреты персонажей сюжетных сцен.
-      const portraits = window.VN.data.storyCharacterPortraits || {};
-      Object.keys(portraits).forEach(function (name) {
-        const path = portraits[name];
-        this.load.image(path, path);
-      }, this);
-
-      // Иконки интерфейса (пауза, история/инфо, назад/вперёд).
-      const uiIcons = [
-        'images/icon_UI/pause_button.png',
-        'images/icon_UI/history_button.png',
-        'images/icon_UI/back_button.png',
-        'images/icon_UI/next_button.png',
-      ];
-      uiIcons.forEach(function (path) {
-        this.load.image(path, path);
-      }, this);
-    }
-
     create() {
+      // Ресурсы загружает целевая сцена: Boot не задерживает первый экран.
       this.scene.launch('AssetLoaderScene');
       const params = new URLSearchParams(window.location.search);
       const game = params.get('game');

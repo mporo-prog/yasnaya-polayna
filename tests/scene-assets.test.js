@@ -26,8 +26,12 @@ function fixture(concurrency = 4) {
   const queue = new window.VN.systems.AssetQueue({
     concurrency,
     isCached: ({ type, key }) => cached.has(type + ':' + key),
-    loadBatch: (assets) => new Promise((resolve) => batches.push({
+    loadBatch: (assets, onFileComplete) => new Promise((resolve) => batches.push({
       assets,
+      complete(asset) {
+        cached.add(asset.type + ':' + asset.key);
+        onFileComplete(asset);
+      },
       finish(failed = []) {
         for (const asset of assets) if (!failed.includes(asset.key)) cached.add(asset.type + ':' + asset.key);
         resolve();
@@ -105,6 +109,28 @@ test('a requested scene takes priority over queued speculation without duplicati
   assert.equal(f.batches[2].assets[0].key, 'b');
   f.batches[2].finish();
   await background;
+});
+
+test('progress advances per decoded file while a slower file in the same batch is pending', async () => {
+  const f = fixture();
+  const progress = [];
+  let finished = false;
+  const ready = f.queue.ensure(['fast', 'medium', 'slow'].map(picture), {
+    onProgress: (value) => progress.push(value),
+  }).then(() => { finished = true; });
+  f.queue.pump();
+  await tick();
+  f.batches[0].complete(picture('fast'));
+  await tick();
+  assert.deepEqual(progress, [0, 1 / 3]);
+  assert.equal(finished, false);
+  f.batches[0].complete(picture('fast'));
+  f.batches[0].complete(picture('medium'));
+  await tick();
+  assert.deepEqual(progress, [0, 1 / 3, 2 / 3], 'A repeated event cannot count a file twice');
+  f.batches[0].finish();
+  await ready;
+  assert.deepEqual(progress, [0, 1 / 3, 2 / 3, 1]);
 });
 
 test('failed files settle, may retry on demand, and do not evict successful resources', async () => {

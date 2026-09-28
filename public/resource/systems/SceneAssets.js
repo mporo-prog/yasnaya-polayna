@@ -9,7 +9,7 @@
   // Файл-барьер сохраняет обычный контракт Phaser: preload -> create.
   // Сам он ничего не скачивает, а ожидает общую очередь и декодирование.
   class AssetBarrier extends Phaser.Loader.File {
-    constructor(scene, queue, assets) {
+    constructor(scene, queue, assets, onProgress) {
       super(scene.load, { type: 'scene-assets', key: 'scene-assets', url: '' });
       this.owner = scene;
       this.queue = queue;
@@ -22,11 +22,15 @@
       this.onShutdown = () => { this.cancelled = true; this.detach(); };
       scene.events.once('shutdown', this.onShutdown);
       scene.events.once('destroy', this.onShutdown);
-      const { width, height } = scene.scale;
-      this.panel = scene.add.rectangle(0, 0, width, height, 0xe8dcc0).setOrigin(0);
-      this.label = scene.add.text(width / 2, height / 2, 'Загрузка…', {
-        fontFamily: 'sans-serif', fontSize: '32px', color: '#3f2f22',
-      }).setOrigin(0.5);
+      this.showProgress = onProgress;
+      if (!this.showProgress) {
+        const { width, height } = scene.scale;
+        this.panel = scene.add.rectangle(0, 0, width, height, 0xe8dcc0).setOrigin(0);
+        this.label = scene.add.text(width / 2, height / 2, 'Загрузка…', {
+          fontFamily: 'sans-serif', fontSize: '32px', color: '#3f2f22',
+        }).setOrigin(0.5);
+        this.showProgress = (progress) => this.label.setText('Загрузка… ' + Math.round(progress * 100) + '%');
+      }
     }
 
     load() {
@@ -34,12 +38,12 @@
       this.queue.ensure(this.assets, {
         priority: 1,
         onProgress: (progress) => {
-          if (!this.cancelled) this.label.setText('Загрузка… ' + Math.round(progress * 100) + '%');
+          if (!this.cancelled) this.showProgress(progress);
         },
       }).then(() => {
         if (this.cancelled || !this.loader) return;
-        this.panel.destroy();
-        this.label.destroy();
+        this.panel?.destroy();
+        this.label?.destroy();
         this.detach();
         this.loader.nextFile(this, true);
       });
@@ -86,10 +90,14 @@
     },
 
     preload(scene, options) {
+      const onProgress = window.VN.systems.StartupScreen?.track(scene);
       const queue = this.queueFor(scene);
       const assets = this.assetsFor(scene.game, scene.sys.settings.key, scene.sys.settings.data, options);
-      if (assets.every((asset) => queue.isCached(asset))) return;
-      scene.load.addFile(new AssetBarrier(scene, queue, assets));
+      if (assets.every((asset) => queue.isCached(asset))) {
+        onProgress?.(1);
+        return;
+      }
+      scene.load.addFile(new AssetBarrier(scene, queue, assets, onProgress));
     },
 
     prefetch(scene, key, data = {}) {

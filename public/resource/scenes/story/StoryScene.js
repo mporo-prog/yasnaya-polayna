@@ -43,12 +43,21 @@
 
     create() {
       this.sceneAudio = window.VN.systems.SceneAudio.enter(this);
+      this.layout = window.VN.systems.Layout;
       this.buildBackgroundLayer();
+      // Персонаж, плашка реплики и кнопки «далее/назад» живут в одной
+      // группе, прижатой к нижнему краю экрана (на планшете 4:3 экран выше
+      // макета — без этого плашка «висела» бы посреди экрана).
+      this.bottomGroup = this.add.container(0, 0);
       this.buildCharacterLayer();
       this.buildBottomBar();
       this.buildNavButtons();
       this.buildTopButtons();
       this.buildHistoryOverlay();
+
+      this.layout.onLayout(this, (visible, ui) => {
+        this.bottomGroup.y = ui.bottom - HEIGHT;
+      });
 
       this.renderCurrentScreen();
       window.VN.systems.SceneAssets.prefetchNext(this);
@@ -92,17 +101,18 @@
       // Если для этого экрана реальная картинка не загрузилась (её
       // ещё нет на диске) — просто рисуем серый плейсхолдер с подписью
       // (путь к файлу), чтобы было видно, чего не хватает.
-      this.bgImage = this.add.image(0, 0, '__MISSING').setOrigin(0, 0).setVisible(false);
+      // Фон растягивается на весь экран (Layout.addBackground).
+      this.background = this.layout.addBackground(this, null);
 
       this.bgLabel = this.add.text(WIDTH / 2, BAR_Y / 2, 'Фон', { fontSize: '40px', color: '#000000' }).setOrigin(0.5).setVisible(false);
     }
 
     setBackground(path) {
       if (this.textures.exists(path)) {
-        this.bgImage.setTexture(path).setDisplaySize(WIDTH, BAR_Y).setVisible(true);
+        this.background.setTexture(path);
         this.bgLabel.setVisible(false);
       } else {
-        this.bgImage.setVisible(false);
+        this.background.setTexture(null);
         this.bgLabel.setVisible(true).setText('Фон не найден:\n' + path);
       }
     }
@@ -111,6 +121,7 @@
 
     buildCharacterLayer() {
       this.characterImage = this.add.image(WIDTH * 0.22, BAR_Y, '__MISSING').setOrigin(0.5, 1).setVisible(false);
+      this.bottomGroup.add(this.characterImage);
     }
 
     setCharacter(speakerName) {
@@ -147,7 +158,7 @@
       this.panelCenterY = panelCenterY;
 
       // Плашка реплики — бежевая, однотонная (без градиента/текстуры).
-      this.add.image(WIDTH / 2, panelY, 'dialogTextBg').setOrigin(0.5, 0).setDisplaySize(panelWidth, panelHeight);
+      const panelBg = this.add.image(WIDTH / 2, panelY, 'dialogTextBg').setOrigin(0.5, 0).setDisplaySize(panelWidth, panelHeight);
       // Имя героя — слева, отделено вертикальной чертой от текста реплики
       // (макет: имя и реплика стоят в один ряд, а не друг под другом).
       const nameAreaWidth = panelWidth * 0.32;
@@ -174,6 +185,8 @@
           wordWrap: { width: panelLeft + panelWidth - textX - 90 },
         })
         .setOrigin(0, 0.5);
+
+      this.bottomGroup.add([panelBg, this.speakerNameText, this.dialogueText]);
     }
 
     buildNavButtons() {
@@ -193,6 +206,8 @@
         () => this.goBack(),
         90
       );
+
+      this.bottomGroup.add([this.nextBtn.bg, this.backBtn.bg]);
     }
 
     buildTopButtons() {
@@ -204,6 +219,11 @@
 
       this.historyBtn = this.makeIconButton(100, 205, 'images/icon_UI/history_button.png', () => this.toggleHistory(), 70);
       this.historyBtn.bg.setDepth(20);
+
+      // Прижимаем к левому верхнему углу экрана (с учётом выреза телефона),
+      // а не к углу макета — на широком экране они уходят на поле.
+      this.layout.pin(this, menuBtn.bg, { left: 100, top: 90 });
+      this.layout.pin(this, this.historyBtn.bg, { left: 100, top: 205 });
     }
 
     /** Кнопка-иконка (картинка вместо прямоугольника с текстом). */
@@ -241,6 +261,7 @@
       // Затемняющая подложка на весь экран — приглушает фон и перехватывает
       // клики мимо окна, но сам фон сцены под ней остаётся виден.
       const dimBg = this.add.rectangle(0, 0, WIDTH, HEIGHT, 0x000000, 0.35).setOrigin(0, 0).setInteractive();
+      this.layout.fill(this, dimBg); // затемнение — на весь экран, включая поля
 
       // Сама панель "История" — небольшая, по центру, картинка-рамка.
       const windowBg = this.add

@@ -24,6 +24,8 @@
     }
 
     create() {
+      window.VN.systems.SceneAudio.enter(this);
+      this.layout = window.VN.systems.Layout;
       this.menuData = window.VN.data.startMenuData;
       this.style = window.VN.data.startStyle;
 
@@ -37,7 +39,8 @@
     }
 
     buildBackground() {
-      this.add.image(0, 0, 'menuBackground').setOrigin(0, 0).setDisplaySize(WIDTH, HEIGHT);
+      // Фон растягивается на весь экран (поля по краям тоже закрыты фоном).
+      this.layout.addBackground(this, 'menuBackground');
     }
 
     buildTitle() {
@@ -107,7 +110,9 @@
     buildOverlay() {
       this.overlayContainer = this.add.container(0, 0).setDepth(10).setVisible(false);
 
+      // Подложка закрывает весь экран, включая поля.
       const panelBg = this.add.rectangle(0, 0, WIDTH, HEIGHT, 0x3f3f3f, 0.98).setOrigin(0, 0).setInteractive();
+      this.layout.fill(this, panelBg);
       this.overlayText = this.add.text(WIDTH * 0.2, HEIGHT * 0.25, '', {
         fontSize: '32px',
         color: '#ffffff',
@@ -121,6 +126,9 @@
         .setInteractive({ useHandCursor: true });
       const closeText = this.add.text(WIDTH - 70, 60, '✕', { fontSize: '36px', color: '#000000' }).setOrigin(0.5);
       closeBtn.on('pointerup', () => this.hideOverlay());
+      // Крестик — в правом верхнем углу экрана, а не макета.
+      this.layout.pin(this, closeBtn, { right: 70, top: 60 });
+      this.layout.pin(this, closeText, { right: 70, top: 60 });
 
       this.overlayContainer.add([panelBg, this.overlayText, closeBtn, closeText]);
     }

@@ -21,7 +21,8 @@
       this.audio = window.VN.systems.AudioManager;
       this.draft = this.audio.getSettings();
       this.selectedRow = 0;
-      this.add.rectangle(0, 0, WIDTH, HEIGHT, 0xffffff).setOrigin(0);
+      // Белая подложка — на весь экран, включая поля по краям.
+      window.VN.systems.Layout.fill(this, this.add.rectangle(0, 0, 1920, 1080, 0xffffff).setOrigin(0));
       this.add.rectangle(55, 60, 780, 122, 0xd9d9d9).setOrigin(0);
       this.add.text(80, 121, this.settingsTitle || 'НАСТРОЙКИ', { fontSize: '40px', color: '#000000' }).setOrigin(0, 0.5);
       this.makeButton(1055, 120, 210, 'НАЗАД', () => this.goBack());
@@ -85,7 +86,9 @@
       this.input.setDraggable(hitArea);
       const update = (pointer) => {
         this.selectRow(ROWS.findIndex((item) => item.category === row.category));
-        this.setValue(slider, (pointer.x - TRACK_X) / TRACK_WIDTH * 100);
+        // worldX, а не x: камера сдвинута на поле слева, экранная координата
+        // больше не совпадает с координатой макета.
+        this.setValue(slider, (pointer.worldX - TRACK_X) / TRACK_WIDTH * 100);
       };
       hitArea.on('pointerdown', update);
       hitArea.on('drag', update);

@@ -1,5 +1,10 @@
 // import Phaser from 'phaser';
 
+// Все координаты — в пикселях макета 1920×1080 (безопасная зона).
+// Растягивание на экран и поля по краям — resource/systems/Layout.js.
+const BASE_WIDTH = 1920;
+const BASE_HEIGHT = 1080;
+
 export class GameScene2 extends Phaser.Scene {
 
     constructor() {
@@ -17,7 +22,7 @@ export class GameScene2 extends Phaser.Scene {
 
     create() {
         window.VN?.systems.SceneAudio?.enter(this);
-        this.calculateScale();
+        this.layout = window.VN.systems.Layout;
         this.createBackground();
         this.createGameField();
         this.createZones();
@@ -25,27 +30,22 @@ export class GameScene2 extends Phaser.Scene {
         this.createButtonMenu();
     }
 
-    calculateScale() {
-        const baseWidth = 1920;
-        const baseHeight = 1080;
-        const scaleX = this.scale.width / baseWidth;
-        const scaleY = this.scale.height / baseHeight;
-        this.gameScale = Math.min(scaleX, scaleY);
-    }
-
     createBackground() {
-        this.add.rectangle(
+        const background = this.add.rectangle(
             0,
             0,
-            this.scale.width,
-            this.scale.height,
+            BASE_WIDTH,
+            BASE_HEIGHT,
             0x3a3a3a
         ).setOrigin(0);
+
+        // Фон — на весь экран, включая поля по краям.
+        this.layout.fill(this, background);
     }
 
     createGameField() {
-        const width = this.scale.width;
-        const height = this.scale.height;
+        const width = BASE_WIDTH;
+        const height = BASE_HEIGHT;
         this.mapWidth = width * 0.9;
         this.panelX = this.mapWidth;
 
@@ -65,38 +65,38 @@ export class GameScene2 extends Phaser.Scene {
     }
 
     createZones() {
-        const zoneWidth = 134 * this.gameScale;
-        const zoneHeight = 126 * this.gameScale;
+        const zoneWidth = 134;
+        const zoneHeight = 126;
 
         this.zones = [
             {
                 id: 'red',
                 x: this.mapWidth * 0.4,
-                y: this.scale.height * 0.2,
+                y: BASE_HEIGHT * 0.2,
                 color: 0xd12626
             },
             {
                 id: 'green',
                 x: this.mapWidth * 0.5,
-                y: this.scale.height * 0.45,
+                y: BASE_HEIGHT * 0.45,
                 color: 0x8eb41b
             },
             {
                 id: 'emerald',
                 x: this.mapWidth * 0.7,
-                y: this.scale.height * 0.4,
+                y: BASE_HEIGHT * 0.4,
                 color: 0x17937b
             },
             {
                 id: 'blue',
                 x: this.mapWidth * 0.6,
-                y: this.scale.height * 0.8,
+                y: BASE_HEIGHT * 0.8,
                 color: 0x17249b
             },
             {
                 id: 'purple',
                 x: this.mapWidth * 0.9,
-                y: this.scale.height * 0.6,
+                y: BASE_HEIGHT * 0.6,
                 color: 0x8d187f
             }
         ];
@@ -114,17 +114,17 @@ export class GameScene2 extends Phaser.Scene {
 
     createButtonMenu() {
 
-        const buttonWidth = 72 * this.gameScale;
-        const buttonHeight = 66 * this.gameScale;
+        const buttonWidth = 72;
+        const buttonHeight = 66;
 
         const buttonX =
             this.panelX +
-            (this.scale.width - this.panelX) -
-            0.06 * this.scale.width;
+            (BASE_WIDTH - this.panelX) -
+            0.06 * BASE_WIDTH;
 
         const button = this.add.rectangle(
             buttonX,
-            10 * this.gameScale + buttonHeight / 2,
+            10 + buttonHeight / 2,
             buttonWidth,
             buttonHeight,
             0x555555
@@ -137,6 +137,9 @@ export class GameScene2 extends Phaser.Scene {
         button.on('pointerdown', () => {
             this.openPauseMenu();
         });
+
+        // Кнопка меню — в правом верхнем углу экрана (с учётом выреза).
+        this.layout.pin(this, button, { right: BASE_WIDTH - buttonX, top: button.y });
     }
 
     openPauseMenu() {
@@ -151,7 +154,7 @@ export class GameScene2 extends Phaser.Scene {
     }
 
     createElements() {
-        const elementSize = 115 * this.gameScale;
+        const elementSize = 115;
 
         this.elements = [
             {
@@ -181,11 +184,11 @@ export class GameScene2 extends Phaser.Scene {
             }
         ];
 
-        const panelCenterX = this.panelX + (this.scale.width - this.panelX) / 2;
-        const gap = 40 * this.gameScale;
+        const panelCenterX = this.panelX + (BASE_WIDTH - this.panelX) / 2;
+        const gap = 40;
         const countElements = this.elements.length
         const totalHeight = elementSize * countElements + gap * (countElements - 1);
-        const startY = (this.scale.height - totalHeight) / 2 + 0.08 * this.scale.height;
+        const startY = (BASE_HEIGHT - totalHeight) / 2 + 0.08 * BASE_HEIGHT;
         
         this.elements.forEach((element, index) => {
 
@@ -285,8 +288,8 @@ export class GameScene2 extends Phaser.Scene {
     // showWinMessage() {
 
     //     this.add.text(
-    //         this.scale.width / 2,
-    //         this.scale.height / 2,
+    //         BASE_WIDTH / 2,
+    //         BASE_HEIGHT / 2,
     //         'Далее',
     //         {
     //             fontSize: '48px',
@@ -303,8 +306,8 @@ export class GameScene2 extends Phaser.Scene {
     showWinMessage() {
 
         // const button = this.add.text(
-        //     this.scale.width / 2,
-        //     this.scale.height / 2,
+        //     BASE_WIDTH / 2,
+        //     BASE_HEIGHT / 2,
         //     'Далее',
         //     {
         //         fontSize: '48px',

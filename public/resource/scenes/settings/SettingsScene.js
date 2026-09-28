@@ -21,7 +21,8 @@
       this.audio = window.VN.systems.AudioManager;
       this.draft = this.audio.getSettings();
       this.selectedRow = 0;
-      this.add.rectangle(0, 0, 1920, 1080, 0xffffff).setOrigin(0);
+      // Белая подложка — на весь экран, включая поля по краям.
+      window.VN.systems.Layout.fill(this, this.add.rectangle(0, 0, 1920, 1080, 0xffffff).setOrigin(0));
       this.add.rectangle(55, 60, 780, 122, 0xd9d9d9).setOrigin(0);
       this.add.text(80, 121, this.settingsTitle || 'НАСТРОЙКИ', { fontSize: '40px', color: '#000000' }).setOrigin(0, 0.5);
       this.makeButton(1055, 120, 210, 'НАЗАД', () => this.goBack());
@@ -63,11 +64,10 @@
 
     makeButton(x, y, width, label, callback) {
       const button = this.add.rectangle(x, y, width, 82, 0xd9d9d9).setInteractive({ useHandCursor: true });
-      const text = this.add.text(x, y, label, { fontSize: '38px', color: '#000000' }).setOrigin(0.5);
+      this.add.text(x, y, label, { fontSize: '38px', color: '#000000' }).setOrigin(0.5);
       button.on('pointerover', () => button.setFillStyle(0xc9c9c9));
       button.on('pointerout', () => button.setFillStyle(0xd9d9d9));
       button.on('pointerup', callback);
-      window.VN.systems.ButtonFx.applyHoverLift(this, button, [button, text]);
     }
 
     makeSlider(row, y) {
@@ -86,7 +86,9 @@
       this.input.setDraggable(hitArea);
       const update = (pointer) => {
         this.selectRow(ROWS.findIndex((item) => item.category === row.category));
-        this.setValue(slider, (pointer.x - TRACK_X) / TRACK_WIDTH * 100);
+        // worldX, а не x: камера сдвинута на поле слева, экранная координата
+        // больше не совпадает с координатой макета.
+        this.setValue(slider, (pointer.worldX - TRACK_X) / TRACK_WIDTH * 100);
       };
       hitArea.on('pointerdown', update);
       hitArea.on('drag', update);

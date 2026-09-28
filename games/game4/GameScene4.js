@@ -1,5 +1,10 @@
 // import Phaser from 'phaser';
 
+// Все координаты — в пикселях макета 1920×1080 (безопасная зона).
+// Растягивание на экран и поля по краям — resource/systems/Layout.js.
+const BASE_WIDTH = 1920;
+const BASE_HEIGHT = 1080;
+
 const GAME4_SAVE_KEY = 'game4_save_v1';
 
 export class GameScene4 extends Phaser.Scene {
@@ -33,7 +38,7 @@ export class GameScene4 extends Phaser.Scene {
         this.timeLeft = undefined;
         
         window.VN?.systems.SceneAudio?.enter(this);
-        this.calculateScale();
+        this.layout = window.VN.systems.Layout;
         this.createBackground();
         this.createGameField();
         this.createEnvelopes();
@@ -56,37 +61,32 @@ export class GameScene4 extends Phaser.Scene {
         });
     }
 
-    calculateScale() {
-        const baseWidth = 1920;
-        const baseHeight = 1080;
-        const scaleX = this.scale.width / baseWidth;
-        const scaleY = this.scale.height / baseHeight;
-        this.gameScale = Math.min(scaleX, scaleY);
-    }
-
     createBackground() {
-        this.add.rectangle(
+        const background = this.add.rectangle(
             0,
             0,
-            this.scale.width,
-            this.scale.height,
+            BASE_WIDTH,
+            BASE_HEIGHT,
             0x3a3a3a
         ).setOrigin(0);
+
+        // Фон — на весь экран, включая поля по краям.
+        this.layout.fill(this, background);
     }
 
     createButtonMenu() {
 
-        const buttonWidth = 72 * this.gameScale;
-        const buttonHeight = 66 * this.gameScale;
+        const buttonWidth = 72;
+        const buttonHeight = 66;
 
         const buttonX =
             this.panelX +
-            (this.scale.width - this.panelX) -
-            0.06 * this.scale.width;
+            (BASE_WIDTH - this.panelX) -
+            0.06 * BASE_WIDTH;
 
         const button = this.add.rectangle(
             buttonX,
-            10 * this.gameScale + buttonHeight / 2,
+            10 + buttonHeight / 2,
             buttonWidth,
             buttonHeight,
             0x555555
@@ -99,6 +99,9 @@ export class GameScene4 extends Phaser.Scene {
         button.on('pointerdown', () => {
             this.openPauseMenu();
         });
+
+        // Кнопка меню — в правом верхнем углу экрана (с учётом выреза).
+        this.layout.pin(this, button, { right: BASE_WIDTH - buttonX, top: button.y });
     }
 
     openPauseMenu() {
@@ -112,14 +115,14 @@ export class GameScene4 extends Phaser.Scene {
     }
 
     createGameField() {
-        const width = this.scale.width;
-        const height = this.scale.height;
+        const width = BASE_WIDTH;
+        const height = BASE_HEIGHT;
         const tableWidth = width * 0.8;
         const tableHeight = height * 0.5;
         this.panelX = width / 2 - tableWidth / 2;
         this.panelY = height - tableHeight;
 
-        this.add.rectangle(
+        const field = this.add.rectangle(
             0,
             0,
             width,
@@ -127,13 +130,21 @@ export class GameScene4 extends Phaser.Scene {
             0xd9d9d9
         ).setOrigin(0);
 
-        this.add.rectangle(
+        const table = this.add.rectangle(
             this.panelX,
             this.panelY,
             tableWidth,
             tableHeight,
             0x6f6f6f
         ).setOrigin(0);
+
+        // Поле — на весь экран; стол той же ширины, но до нижнего края экрана.
+        this.layout.fill(this, field);
+        this.layout.fill(this, table, {
+            left: this.panelX,
+            right: this.panelX + tableWidth,
+            top: this.panelY
+        });
     }
 
     createLetters() {
@@ -238,11 +249,11 @@ export class GameScene4 extends Phaser.Scene {
             this.timeLeft = 30;
         }
 
-        const letterWidth = 350 * this.gameScale;
-        const letterHeight = 250 * this.gameScale;
+        const letterWidth = 350;
+        const letterHeight = 250;
 
-        const startLetterX = this.scale.width / 2 - letterWidth / 2;
-        const startLetterY = this.scale.height * 0.6;
+        const startLetterX = BASE_WIDTH / 2 - letterWidth / 2;
+        const startLetterY = BASE_HEIGHT * 0.6;
 
         this.letters.forEach((letter, index) => {
 
@@ -331,11 +342,11 @@ export class GameScene4 extends Phaser.Scene {
     createCounter() {
 
         this.counterText = this.add.text(
-            this.scale.width / 2,
-            40 * this.gameScale,
+            BASE_WIDTH / 2,
+            40,
             `${this.sortedLetters}/${this.totalLetters}`,
             {
-                fontSize: `${36 * this.gameScale}px`,
+                fontSize: '36px',
                 color: '#000000'
             }
         ).setOrigin(0.5);
@@ -349,11 +360,11 @@ export class GameScene4 extends Phaser.Scene {
         }
 
         this.timerText = this.add.text(
-            this.scale.width / 2,
-            90 * this.gameScale,
+            BASE_WIDTH / 2,
+            90,
             '',
             {
-                fontSize: `${36 * this.gameScale}px`,
+                fontSize: '36px',
                 color: '#000000'
             }
         ).setOrigin(0.5);
@@ -441,11 +452,11 @@ export class GameScene4 extends Phaser.Scene {
 
     createEnvelopes(){
         const sizeEnvelopes = 240;
-        const envelopesWidthAndHeight = sizeEnvelopes * this.gameScale;
-        const gap = 80 * this.gameScale;
+        const envelopesWidthAndHeight = sizeEnvelopes;
+        const gap = 80;
         const widthContainer = envelopesWidthAndHeight * 4 + gap * 3;
-        const startContainerX = this.scale.width / 2 - widthContainer / 2;
-        const startContainerY = this.scale.height * 0.15;
+        const startContainerX = BASE_WIDTH / 2 - widthContainer / 2;
+        const startContainerY = BASE_HEIGHT * 0.15;
 
         this.envelopes = [
             {
@@ -625,8 +636,8 @@ export class GameScene4 extends Phaser.Scene {
         this.clearGame4Save();
 
         // this.add.text(
-        //     this.scale.width / 2,
-        //     this.scale.height / 2,
+        //     BASE_WIDTH / 2,
+        //     BASE_HEIGHT / 2,
         //     'Ура! Победа!\n\nДалее',
         //     {
         //         fontSize: '48px',
@@ -682,12 +693,12 @@ export class GameScene4 extends Phaser.Scene {
             }
         });
 
-        const panelWidth = 700 * this.gameScale;
-        const panelHeight = 400 * this.gameScale;
+        const panelWidth = 700;
+        const panelHeight = 400;
 
         this.add.rectangle(
-            this.scale.width / 2,
-            this.scale.height / 2,
+            BASE_WIDTH / 2,
+            BASE_HEIGHT / 2,
             panelWidth,
             panelHeight,
             0xffffff
@@ -696,11 +707,11 @@ export class GameScene4 extends Phaser.Scene {
         .setDepth(101);
 
         this.add.text(
-            this.scale.width / 2,
-            this.scale.height / 2 - 80 * this.gameScale,
+            BASE_WIDTH / 2,
+            BASE_HEIGHT / 2 - 80,
             'Вы проиграли',
             {
-                fontSize: `${52 * this.gameScale}px`,
+                fontSize: '52px',
                 color: '#000000'
             }
         )
@@ -708,10 +719,10 @@ export class GameScene4 extends Phaser.Scene {
         .setDepth(102);
 
         // const restartButton = this.add.rectangle(
-        //     this.scale.width / 2,
-        //     this.scale.height / 2 + 80 * this.gameScale,
-        //     380 * this.gameScale,
-        //     90 * this.gameScale,
+        //     BASE_WIDTH / 2,
+        //     BASE_HEIGHT / 2 + 80,
+        //     380,
+        //     90,
         //     0x555555
         // )
         // .setOrigin(0.5)
@@ -722,11 +733,11 @@ export class GameScene4 extends Phaser.Scene {
 
 
         // this.add.text(
-        //     this.scale.width / 2,
-        //     this.scale.height / 2 + 80 * this.gameScale,
+        //     BASE_WIDTH / 2,
+        //     BASE_HEIGHT / 2 + 80,
         //     'Начать игру заново',
         //     {
-        //         fontSize: `${30 * this.gameScale}px`,
+        //         fontSize: '30px',
         //         color: '#ffffff'
         //     }
         // )

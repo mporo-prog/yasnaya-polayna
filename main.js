@@ -15,14 +15,11 @@ import { GameScene4 } from './games/game4/GameScene4.js';
 
   const config = {
     type: Phaser.AUTO,
-    width: 1920,
-    height: 1080,
-    parent: 'app',
     backgroundColor: '#000000',
-    scale: {
-      mode: Phaser.Scale.FIT,
-      autoCenter: Phaser.Scale.CENTER_BOTH,
-    },
+    // Scale.EXPAND: холст заполняет весь экран, координаты макета
+    // 1920×1080 — «безопасная зона» по центру, лишнее место — поля.
+    // механика работы будет в resource/systems/Layout.js.
+    scale: VN.systems.Layout.getScaleConfig('app'),
     scene: [
       VN.scenes.BootScene,
       VN.scenes.StartScene,
@@ -41,6 +38,9 @@ import { GameScene4 } from './games/game4/GameScene4.js';
 
   // new Phaser.Game(config);
   window.game = new Phaser.Game(config);
+
+  // Телефоны/планшеты: пауза в вертикальной ориентации, полноэкранный режим.
+  VN.systems.MobileScreen.install(window.game);
 
   // Единственная точка подключения: false исключает весь модуль из сборки.
   if (import.meta.env.VITE_DEVELOPER_MODE !== 'false') {

@@ -17,7 +17,8 @@
 
       // Полупрозрачная тёмная подложка на весь экран — сцена под паузой
       // (например, StoryScene) остаётся видна, просто притемнена.
-      this.add.rectangle(0, 0, width, height, 0x000000, 0.6).setOrigin(0, 0);
+      // Растягивается на весь экран, включая поля (Layout.fill).
+      window.VN.systems.Layout.fill(this, this.add.rectangle(0, 0, width, height, 0x000000, 0.6).setOrigin(0, 0));
 
       this.add.rectangle(width / 2, height * 0.2, width * 0.55, height * 0.18, 0xd9d9d9);
       this.add.text(width / 2, height * 0.2, title, { fontSize: '38px', color: '#000000' }).setOrigin(0.5);
@@ -31,9 +32,8 @@
     makeMenuButton(x, y, label, onClick) {
       const buttonWidth = this.scale.width * 0.28;
       const bg = this.add.rectangle(x, y, buttonWidth, 100, 0xd9d9d9).setInteractive({ useHandCursor: true });
-      const text = this.add.text(x, y, label, { fontSize: '30px', color: '#000000' }).setOrigin(0.5);
+      this.add.text(x, y, label, { fontSize: '30px', color: '#000000' }).setOrigin(0.5);
       bg.on('pointerup', onClick);
-      window.VN.systems.ButtonFx.applyHoverLift(this, bg, [bg, text]);
     }
 
     onButtonClick(action) {
@@ -51,10 +51,6 @@
 
         if (scene) {
             scene.input.enabled = true;
-            // Если пауза открывалась во время озвучки реплики (StoryScene) —
-            // проиграть её заново с начала, а не оставлять текст "замершим"
-            // на середине. Другие сцены этот метод не реализуют.
-            if (typeof scene.resumeVoiceIfNeeded === 'function') scene.resumeVoiceIfNeeded();
         }
     }
 

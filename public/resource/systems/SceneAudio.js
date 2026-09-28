@@ -19,7 +19,7 @@
       const paths = new Set();
       const visit = (cue) => {
         if (!cue) return;
-        for (const value of [cue.music, cue.transitionSound, cue.voice, ...(cue.sounds ?? [])]) {
+        for (const value of [cue.music, cue.transitionSound, ...(cue.sounds ?? [])]) {
           if (value) paths.add(asSound(value).path);
         }
         for (const screen of cue.screens ?? []) visit(screen);

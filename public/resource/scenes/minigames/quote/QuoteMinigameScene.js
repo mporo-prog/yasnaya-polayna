@@ -41,7 +41,8 @@
     // ---- статичные части экрана ------------------------------------------
 
     buildPortraitPlaceholder() {
-      this.add.rectangle(0, 0, WIDTH, HEIGHT, this.style.backgroundColor).setOrigin(0, 0);
+      // Фон — на весь экран, включая поля.
+      window.VN.systems.Layout.fill(this, this.add.rectangle(0, 0, WIDTH, HEIGHT, this.style.backgroundColor).setOrigin(0, 0));
 
       this.add.rectangle(WIDTH * 0.04, HEIGHT * 0.08, WIDTH * 0.35, HEIGHT * 0.83, this.style.portraitColor).setOrigin(0, 0);
       this.add
@@ -54,7 +55,10 @@
     }
 
     buildTopButtons() {
-      this.makeButton(WIDTH - 95, 45, 'кнопка\nменю', () => this.openPauseMenu(), 150, 80);
+      const menu = this.makeButton(WIDTH - 95, 45, 'кнопка\nменю', () => this.openPauseMenu(), 150, 80);
+      // Кнопка меню — в правом верхнем углу экрана (с учётом выреза телефона).
+      window.VN.systems.Layout.pin(this, menu.bg, { right: 95, top: 45 });
+      window.VN.systems.Layout.pin(this, menu.text, { right: 95, top: 45 });
     }
 
     buildRoundCounter() {
@@ -229,7 +233,6 @@
 
       const button = { bg: bg, text: text, correct: option.correct, wasWrong: false };
       bg.on('pointerup', () => this.onAnswerClicked(button));
-      window.VN.systems.ButtonFx.applyHoverLift(this, bg, [bg, text]);
       return button;
     }
 
@@ -306,7 +309,6 @@
       const bg = this.add.rectangle(x, y, w, h, 0xd9d9d9).setInteractive({ useHandCursor: true });
       const text = this.add.text(x, y, label, { fontSize: fontSize, color: '#000000', align: 'center' }).setOrigin(0.5);
       bg.on('pointerup', onClick);
-      window.VN.systems.ButtonFx.applyHoverLift(this, bg, [bg, text]);
       return { bg: bg, text: text };
     }
 

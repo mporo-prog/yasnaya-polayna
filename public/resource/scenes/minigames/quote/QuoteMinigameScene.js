@@ -1,6 +1,8 @@
 (function () {
   const WIDTH = 1920;
   const HEIGHT = 1080;
+  // const WIDTH = window.innerWidth;
+  // const HEIGHT = window.innerHeight;
 
   /**
    * QuoteMinigameScene — мини-игра "определи правильное начало/продолжение
@@ -10,6 +12,17 @@
   class QuoteMinigameScene extends Phaser.Scene {
     constructor() {
       super('QuoteMinigameScene');
+    }
+
+    getAssetManifest() {
+      return {
+        images: [
+          { key: 'quotePlug', url: 'images/backgrounds/plug.png' },
+          { key: 'quoteHero', url: 'images/hero/Толстой_1.png' },
+          { key: 'quotePlazka', url: 'images/ui/plazka_game_5.png' },
+          { key: 'quoteNextBtn', url: 'images/icon_UI/next_button.png' },
+        ],
+      };
     }
 
     init(data) {
@@ -26,35 +39,43 @@
     }
 
     preload() {
-      window.VN.systems.SceneAudio.preload(this);
+      window.VN.systems.SceneAssets.preload(this);
     }
 
     create() {
       window.VN.systems.SceneAudio.enter(this);
-      this.buildPortraitPlaceholder();
+      this.layout = window.VN.systems.Layout;
+      this.buildBackground();
+      this.buildHero();
       this.buildTopButtons();
       this.buildRoundCounter();
+      this.buildReplyPanel();
       this.startRound(this.currentRoundIndex);
-      this.buildContinueButton();
+      window.VN.systems.SceneAssets.prefetchNext(this);
     }
 
     // ---- статичные части экрана ------------------------------------------
 
-    buildPortraitPlaceholder() {
-      this.add.rectangle(0, 0, WIDTH, HEIGHT, this.style.backgroundColor).setOrigin(0, 0);
+    buildBackground() {
+      // Фон — на весь экран, включая поля (Layout.addBackground сам
+      // растягивает картинку 1920×1080 под любые пропорции экрана).
+      this.layout.addBackground(this, 'quotePlug');
+    }
 
-      this.add.rectangle(WIDTH * 0.04, HEIGHT * 0.08, WIDTH * 0.35, HEIGHT * 0.83, this.style.portraitColor).setOrigin(0, 0);
-      this.add
-        .text(WIDTH * 0.12, HEIGHT * 0.28, 'здесь будет\nизображение\n' + this.quoteData.characterLabel, {
-          fontSize: '46px',
-          color: '#ffffff',
-          lineSpacing: 10,
-        })
-        .setOrigin(0, 0);
+    buildHero() {
+      // Портрет героя — прижат к левому краю, снизу; масштабируется, чтобы
+      // не перекрывать весь фон (тот же приём, что и в StoryScene.setCharacter()).
+      const tex = this.textures.get('quoteHero').getSourceImage();
+      const maxHeight = HEIGHT * 0.83;
+      const scale = Math.min(1, maxHeight / tex.height);
+      this.add.image(WIDTH * 0.045, HEIGHT * 0.91, 'quoteHero').setOrigin(0, 1).setScale(scale);
     }
 
     buildTopButtons() {
-      this.makeButton(WIDTH - 95, 45, 'кнопка\nменю', () => this.openPauseMenu(), 150, 80);
+      const menu = this.makeButton(WIDTH - 95, 45, 'кнопка\nменю', () => this.openPauseMenu(), 150, 80);
+      // Кнопка меню — в правом верхнем углу экрана (с учётом выреза телефона).
+      window.VN.systems.Layout.pin(this, menu.bg, { right: 95, top: 45 });
+      window.VN.systems.Layout.pin(this, menu.text, { right: 95, top: 45 });
     }
 
     buildRoundCounter() {
@@ -92,10 +113,13 @@
       if (this.answerButtons) {
         this.answerButtons.forEach(function (b) {
           b.bg.destroy();
+          b.overlay.destroy();
           b.text.destroy();
         });
         this.answerButtons = null;
       }
+
+      this.hideReplyPanel();
 
       this.promptText = null;
       this.blankRect = null;
@@ -120,7 +144,7 @@
                 y,
                 maxBlankWidth,
                 60,
-                this.style.colorWrong
+                this.style.colorBlank
             ).setOrigin(0, 0.5);
 
             this.promptText = this.add.text(
@@ -166,7 +190,7 @@
                 y,
                 blankWidth,
                 60,
-                this.style.colorWrong
+                this.style.colorBlank
             ).setOrigin(0, 0.5);
         }
     }
@@ -217,7 +241,11 @@
       const w = slotDef.w;
       const h = slotDef.h;
 
-      const bg = this.add.rectangle(x, y, w, h, this.style.colorDefault).setInteractive({ useHandCursor: true });
+      // Плашка варианта ответа — картинка, а не однотонный прямоугольник,
+      // поэтому цвет ошибки/правильного ответа накладывается СВЕРХУ
+      // полупрозрачной накладкой (overlay), см. onAnswerClicked().
+      const bg = this.add.image(x, y, 'quotePlazka').setDisplaySize(w, h).setInteractive({ useHandCursor: true });
+      const overlay = this.add.rectangle(x, y, w, h, this.style.colorWrong, this.style.overlayAlpha).setVisible(false);
       const text = this.add
         .text(x, y, option.text, {
           fontSize: '28px',
@@ -227,9 +255,8 @@
         })
         .setOrigin(0.5);
 
-      const button = { bg: bg, text: text, correct: option.correct, wasWrong: false };
+      const button = { bg: bg, overlay: overlay, text: text, correct: option.correct, wasWrong: false };
       bg.on('pointerup', () => this.onAnswerClicked(button));
-      window.VN.systems.ButtonFx.applyHoverLift(this, bg, [bg, text]);
       return button;
     }
 
@@ -238,21 +265,16 @@
 
       if (button.correct) {
         this.roundSolved = true;
-        button.bg.setFillStyle(this.style.colorCorrect);
+        button.overlay.setFillStyle(this.style.colorCorrect, this.style.overlayAlpha).setVisible(true);
         this.revealAnswerInQuote();
         this.disableAllAnswerButtons();
-
-        if (this.isLastRound()) {
-          this.gameFinished = true;
-          this.continueButton.text.setText('Завершить');
-        }
-        this.continueButton.bg.setVisible(true);
-        this.continueButton.text.setVisible(true);
+        if (this.isLastRound()) this.gameFinished = true;
+        this.showReplyPanel(this.currentRound);
       } else {
-        // Ничего не сбрасывается: помечаем красным один раз, игрок
-        // может пробовать остальные варианты сколько угодно.
+        // Ничего не сбрасывается: помечаем красной накладкой один раз,
+        // игрок может пробовать остальные варианты сколько угодно.
         button.wasWrong = true;
-        button.bg.setFillStyle(this.style.colorWrong);
+        button.overlay.setFillStyle(this.style.colorWrong, this.style.overlayAlpha).setVisible(true);
       }
     }
 
@@ -261,29 +283,96 @@
       this.answerButtons.forEach(function (b) { b.bg.disableInteractive(); });
     }
 
+    // ---- диалоговая плашка после правильного ответа ------------------------
+
+    /**
+     * Плашка с именем персонажа и репликой — появляется после правильного
+     * ответа, как диалоговая плашка в сюжетной сцене (StoryScene.buildBottomBar()).
+     * Строится один раз в create() и переиспользуется между раундами —
+     * только текст меняется (см. showReplyPanel()/hideReplyPanel()).
+     */
+    buildReplyPanel() {
+      const tex = this.textures.get('quotePlazka').getSourceImage();
+      const panelWidth = WIDTH * 0.75;
+      const panelHeight = panelWidth * (tex.height / tex.width);
+      const panelY = HEIGHT - panelHeight - 40;
+      const panelLeft = WIDTH / 2 - panelWidth / 2;
+      const panelCenterY = panelY + panelHeight / 2;
+
+      const panelBg = this.add.image(WIDTH / 2, panelY, 'quotePlazka').setOrigin(0.5, 0).setDisplaySize(panelWidth, panelHeight);
+
+      // Имя героя слева, реплика справа — тот же макет, что в StoryScene.
+      const nameAreaWidth = panelWidth * 0.32;
+      const nameX = panelLeft + 65;
+      const textX = panelLeft + nameAreaWidth + 20;
+
+      const nameText = this.add
+        .text(nameX, panelCenterY, '', {
+          fontFamily: 'Philosopher',
+          fontSize: '36px',
+          color: '#6E6056',
+          align: 'left',
+          lineSpacing: 6,
+        })
+        .setOrigin(0, 0.5);
+
+      const bodyText = this.add
+        .text(textX, panelCenterY, '', {
+          fontFamily: 'Ysabeau',
+          fontSize: '30px',
+          color: '#1B1A19',
+          align: 'left',
+          wordWrap: { width: panelLeft + panelWidth - textX - 90 },
+        })
+        .setOrigin(0, 0.5);
+
+      const nextBtn = this.makeIconButton(
+        panelLeft + panelWidth - 10,
+        panelCenterY,
+        'quoteNextBtn',
+        () => this.onContinueClicked(),
+        90
+      );
+
+      this.replyPanelParts = [panelBg, nameText, bodyText, nextBtn.bg];
+      this.replyNameText = nameText;
+      this.replyBodyText = bodyText;
+      this.hideReplyPanel();
+    }
+
+    showReplyPanel(round) {
+      this.replyNameText.setText(this.quoteData.characterName || '');
+      this.replyBodyText.setText(round.replyText || '');
+      this.replyPanelParts.forEach((part) => part.setVisible(true));
+    }
+
+    hideReplyPanel() {
+      this.replyPanelParts.forEach((part) => part.setVisible(false));
+    }
+
+    /** Кнопка-иконка (картинка вместо прямоугольника с текстом) — как в StoryScene. */
+    makeIconButton(x, y, texture, onClick, displaySize) {
+      const img = this.add.image(x, y, texture).setInteractive({ useHandCursor: true });
+      if (displaySize) img.setDisplaySize(displaySize, displaySize);
+      img.on('pointerup', onClick);
+      return { bg: img, text: null };
+    }
+
     isLastRound() {
       return this.currentRoundIndex === this.rounds.length - 1;
     }
 
     // ---- завершение раунда / мини-игры --------------------------------------
 
-    buildContinueButton() {
-      this.continueButton = this.makeButton(WIDTH / 2, HEIGHT * 0.92, 'Далее', () => this.onContinueClicked(), 240, 70, '28px');
-      this.continueButton.bg.setVisible(false);
-      this.continueButton.text.setVisible(false);
-    }
-
     onContinueClicked() {
-      if (!this.roundSolved || this.gameFinished) {
-        // Если это последний раунд — завершаем игру
-        if (this.gameFinished) {
-          this.finishMinigame();
-        }
+      // Кнопка "Далее" живёт внутри диалоговой плашки (buildReplyPanel())
+      // и видна только когда раунд решён (showReplyPanel()/hideReplyPanel()).
+      if (!this.roundSolved) return;
+
+      if (this.gameFinished) {
+        this.finishMinigame();
         return;
       }
-
-      this.continueButton.bg.setVisible(false);
-      this.continueButton.text.setVisible(false);
 
       this.clearRound();
       this.currentRoundIndex++;
@@ -306,7 +395,6 @@
       const bg = this.add.rectangle(x, y, w, h, 0xd9d9d9).setInteractive({ useHandCursor: true });
       const text = this.add.text(x, y, label, { fontSize: fontSize, color: '#000000', align: 'center' }).setOrigin(0.5);
       bg.on('pointerup', onClick);
-      window.VN.systems.ButtonFx.applyHoverLift(this, bg, [bg, text]);
       return { bg: bg, text: text };
     }
 

@@ -225,7 +225,7 @@
       // depth выше, чем у historyContainer (10) — чтобы кнопки оставались
       // видимыми и кликабельными поверх открытой вкладки "История"
       // (крестика для закрытия больше нет, закрывают тем же тумблером).
-      const menuBtn = this.makeIconButton(100, 90, 'resource/images/ui/pause_button.png', () => this.openPauseMenu(), 110);
+      const menuBtn = this.makeIconButton(WIDTH * 0.055, HEIGHT * 0.093, 'resource/images/ui/pause_button.png', () => this.openPauseMenu(), 150);
       menuBtn.bg.setDepth(20);
 
       this.historyBtn = this.makeIconButton(100, 205, 'resource/images/ui/history_button.png', () => this.toggleHistory(), 70);

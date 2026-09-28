@@ -192,9 +192,6 @@ export class GameScene4 extends Phaser.Scene {
       
         this.letterStack = new LetterStack(letters);
 
-        const startLetterY =
-            this.scale.height * 0.6;
-
         this.letterStack.getAll().forEach((letter, index) => {
 
             letter.createSprite(

@@ -29,7 +29,7 @@
   };
   vn.systems.GameState = { state: { storySceneIndex: 0 } };
   vn.data.storyLines = [[{ speaker: 'A' }], [{ speaker: 'B' }]];
-  vn.data.storyBackgrounds = [['resource/images/ui/back_button.png'], ['images/table.png']];
+  vn.data.storyBackgrounds = [['images/icon_UI/back_button.png'], ['images/icon_UI/dialog_text_bg.png']];
   vn.data.storyCharacterPortraits = {};
   vn.data.storyMinigameLinks = ['GameScene1', null];
   vn.data.storyAudio = [{}, {}];
@@ -78,12 +78,12 @@
     create() {
       super.create();
       const load = this.queue.loadBatch;
-      this.queue.loadBatch = async (assets) => {
+      this.queue.loadBatch = async (assets, onFileComplete) => {
         requests.push(...assets);
         if (hold && assets.some((asset) => asset.type === 'audio')) {
           await new Promise((resolve) => { releaseBackground = resolve; });
         }
-        return load(assets);
+        return load(assets, onFileComplete);
       };
     }
   }

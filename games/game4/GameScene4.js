@@ -28,6 +28,14 @@ export class GameScene4 extends Phaser.Scene {
         this.minigameId = data.minigameId;
     }
 
+    preload() {
+        if (window.VN?.systems.SceneAssets) {
+            window.VN.systems.SceneAssets.preload(this);
+            return;
+        }
+        window.VN?.systems.SceneAudio?.preload(this);
+    }
+
     create() {
 
         this.storage = new Game4Storage('game4_save_v1');

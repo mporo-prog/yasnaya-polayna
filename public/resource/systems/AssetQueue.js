@@ -44,13 +44,20 @@
       this.waiting.sort((a, b) => b.priority - a.priority);
       const batch = this.waiting.splice(0, this.concurrency);
       this.busy = true;
-      Promise.resolve().then(() => this.loadBatch(batch.map((entry) => entry.asset)))
+      const remaining = new Map(batch.map((entry) => [entry.id, entry]));
+      const settle = (asset) => {
+        const id = asset.type + ':' + asset.key;
+        const entry = remaining.get(id);
+        if (!entry) return;
+        remaining.delete(id);
+        this.pending.delete(id);
+        entry.resolve(!this.destroyed && this.isCached(entry.asset));
+      };
+      Promise.resolve().then(() => this.loadBatch(batch.map((entry) => entry.asset), settle))
         .catch((error) => console.warn('[AssetQueue]', error))
         .then(() => {
-          for (const entry of batch) {
-            this.pending.delete(entry.id);
-            entry.resolve(!this.destroyed && this.isCached(entry.asset));
-          }
+          // Ошибки обработки и загрузчики без событий тоже завершают ожидание.
+          for (const entry of remaining.values()) settle(entry.asset);
           this.busy = false;
           this.pump();
         });

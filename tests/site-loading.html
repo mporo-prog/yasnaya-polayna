@@ -27,9 +27,17 @@
     output.textContent = lines.join('\n');
   };
   const assert = (condition, message) => { if (!condition) throw new Error(message); };
+  const findTexture = (objects, key) => {
+    for (const object of objects) {
+      if (object.texture?.key === key) return object;
+      const nested = Array.isArray(object.list) && findTexture(object.list, key);
+      if (nested) return nested;
+    }
+  };
   try {
     frame.src = '../';
     await waitFor(() => frame.contentWindow.game?.scene.isActive('MainMenuScene'));
+    await waitFor(() => !frame.contentDocument.getElementById('startup-loading'));
     game = frame.contentWindow.game;
     game.sound.mute = true;
     const assets = frame.contentWindow.VN.systems.SceneAssets;
@@ -37,7 +45,7 @@
       const menu = game.scene.getScene('MainMenuScene');
       for (const key of ['mainButtonBg', 'saveButtonBg']) {
         assert(game.textures.exists(key), 'Загружена текстура ' + key);
-        assert(menu.children.list.some((object) => object.texture?.key === key), 'Кнопка использует ' + key);
+        assert(findTexture(menu.children.list, key), 'Кнопка использует ' + key);
       }
     });
     await check('Меню -> сюжет -> мини-игра 1', async () => {
@@ -47,7 +55,7 @@
       for (const key of ['dialogTextBg', 'historyModalBg', 'closeButton']) {
         assert(game.textures.exists(key), 'Загружена текстура ' + key);
       }
-      assert(scene.children.list.some((object) => object.texture?.key === 'dialogTextBg'), 'Плашка реплики использует свою текстуру');
+      assert(findTexture(scene.children.list, 'dialogTextBg'), 'Плашка реплики использует свою текстуру');
       scene.toggleHistory();
       assert(scene.historyContainer.visible, 'История открывается');
       assert(scene.historyContainer.list.some((object) => object.texture?.key === 'historyModalBg'), 'История использует свою текстуру');
@@ -70,6 +78,7 @@
         const current = game.scene.getScenes(true).find((scene) => !scene.isAssetLoader);
         current.scene.start(key, { storySceneIndex: index + 1, minigameId: 'asset-test-' + key });
         await waitFor(() => game.scene.isActive(key));
+        await waitFor(() => !frame.contentDocument.getElementById('startup-loading'));
         assert(game.scene.isActive('AssetLoaderScene'), 'Служебный загрузчик работает');
         game.scene.getScene(key).scene.start('MainMenuScene');
         await waitFor(() => game.scene.isActive('MainMenuScene'));
@@ -84,6 +93,7 @@
         game = frame.contentWindow.game;
         game.sound.mute = true;
         await waitFor(() => game.scene.isActive(key));
+        await waitFor(() => !frame.contentDocument.getElementById('startup-loading'));
       }
     });
     output.textContent += '\nDONE: ' + lines.length + ' проверок пройдено';

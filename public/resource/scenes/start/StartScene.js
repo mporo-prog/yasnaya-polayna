@@ -24,7 +24,6 @@
     }
 
     create() {
-      window.VN.systems.SceneAudio.enter(this);
       this.layout = window.VN.systems.Layout;
       this.menuData = window.VN.data.startMenuData;
       this.style = window.VN.data.startStyle;

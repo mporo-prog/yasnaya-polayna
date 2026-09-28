@@ -29,10 +29,10 @@
 
     preload() {
       window.VN.systems.SceneAudio.preload(this);
-      this.load.image('historyModalBg', 'resource/images/ui/history_modal_bg.png');
-      this.load.image('dialogTextBg', 'resource/images/ui/dialog_text_bg.png');
+      this.load.image('historyModalBg', 'images/icon_UI/history_modal_bg.png');
+      this.load.image('dialogTextBg', 'images/icon_UI/dialog_text_bg.png');
 
-      this.load.image('closeButton', 'resource/images/ui/close_button.png');
+      this.load.image('closeButton', 'images/icon_UI/close_button.png');
     }
 
     create() {
@@ -174,7 +174,7 @@
       this.nextBtn = this.makeIconButton(
         this.panelLeft + this.panelWidth,
         this.panelCenterY,
-        'resource/images/ui/next_button.png',
+        'images/icon_UI/next_button.png',
         () => this.goNext()
       );
 
@@ -182,7 +182,7 @@
       this.backBtn = this.makeIconButton(
         this.panelLeft,
         this.panelY + this.panelHeight - 80,
-        'resource/images/ui/back_button.png',
+        'images/icon_UI/back_button.png',
         () => this.goBack(),
         90
       );
@@ -192,10 +192,10 @@
       // depth выше, чем у historyContainer (10) — чтобы кнопки оставались
       // видимыми и кликабельными поверх открытой вкладки "История"
       // (крестика для закрытия больше нет, закрывают тем же тумблером).
-      const menuBtn = this.makeIconButton(100, 90, 'resource/images/ui/pause_button.png', () => this.openPauseMenu(), 110);
+      const menuBtn = this.makeIconButton(100, 90, 'images/icon_UI/pause_button.png', () => this.openPauseMenu(), 110);
       menuBtn.bg.setDepth(20);
 
-      this.historyBtn = this.makeIconButton(100, 205, 'resource/images/ui/history_button.png', () => this.toggleHistory(), 70);
+      this.historyBtn = this.makeIconButton(100, 205, 'images/icon_UI/history_button.png', () => this.toggleHistory(), 70);
       this.historyBtn.bg.setDepth(20);
     }
 

@@ -38,6 +38,7 @@ export class GameScene4 extends Phaser.Scene {
         this.createLetters();
         this.createCounter();
         this.createTimer();
+        window.VN?.systems.SceneAssets?.prefetchNext(this);
 
         window.addEventListener(
             'pagehide',

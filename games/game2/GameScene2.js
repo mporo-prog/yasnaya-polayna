@@ -12,6 +12,10 @@ export class GameScene2 extends Phaser.Scene {
     }
 
     preload() {
+        if (window.VN?.systems.SceneAssets) {
+            window.VN.systems.SceneAssets.preload(this);
+            return;
+        }
         window.VN?.systems.SceneAudio?.preload(this);
     }
 
@@ -23,6 +27,7 @@ export class GameScene2 extends Phaser.Scene {
         this.createZones();
         this.createElements();
         this.createButtonMenu();
+        window.VN?.systems.SceneAssets?.prefetchNext(this);
     }
 
     calculateScale() {

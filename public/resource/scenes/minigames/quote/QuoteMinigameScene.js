@@ -28,7 +28,7 @@
     }
 
     preload() {
-      window.VN.systems.SceneAudio.preload(this);
+      window.VN.systems.SceneAssets.preload(this);
     }
 
     create() {
@@ -38,6 +38,7 @@
       this.buildRoundCounter();
       this.startRound(this.currentRoundIndex);
       this.buildContinueButton();
+      window.VN.systems.SceneAssets.prefetchNext(this);
     }
 
     // ---- статичные части экрана ------------------------------------------

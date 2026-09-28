@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<title>Проверка загрузки сцен</title>
+<style>body { font: 16px sans-serif; } pre { white-space: pre-wrap; } canvas { max-width: 640px; }</style>
+<h1>Проверка загрузки сцен на Phaser 3.80.1</h1>
+<p>Отдельная тестовая игра. Сохранения и настройки основной игры не изменяются.</p>
+<pre id="results">Проверка…</pre>
+<div id="game"></div>
+<script src="../resource/lib/phaser.min.js"></script>
+<script src="../resource/core/namespace.js"></script>
+<script src="../resource/systems/AudioManager.js"></script>
+<script src="../resource/systems/SceneAudio.js"></script>
+<script src="../resource/systems/AssetQueue.js"></script>
+<script src="../resource/systems/SceneAssets.js"></script>
+<script src="../resource/scenes/AssetLoaderScene.js"></script>
+<script type="module">
+  const vn = window.VN;
+  const results = document.querySelector('#results');
+  const lines = [];
+  const requests = [];
+  const audioEntries = [];
+  const creates = [];
+  const root = new URL('../', location.href);
+  // Production uses document-relative image URLs. This test lives one folder deeper.
+  const originalAssetsFor = vn.systems.SceneAssets.assetsFor;
+  vn.systems.SceneAssets.assetsFor = function (...args) {
+    return originalAssetsFor.apply(this, args).map((asset) => ({ ...asset, url: new URL(asset.url, root).href }));
+  };
+  vn.systems.GameState = { state: { storySceneIndex: 0 } };
+  vn.data.storyLines = [[{ speaker: 'A' }], [{ speaker: 'B' }]];
+  vn.data.storyBackgrounds = [['resource/images/ui/back_button.png'], ['images/table.png']];
+  vn.data.storyCharacterPortraits = {};
+  vn.data.storyMinigameLinks = ['GameScene1', null];
+  vn.data.storyAudio = [{}, {}];
+  vn.data.sceneAudio = { MainMenuScene: { music: 'voice_and_sound/test_bird_1.mp3' } };
+  vn.systems.SceneAudio.enter = (scene) => audioEntries.push(scene.sys.settings.key);
+
+  class Menu extends Phaser.Scene {
+    constructor() { super('MainMenuScene'); }
+    preload() { vn.systems.SceneAssets.preload(this, { visualsOnly: true }); }
+    create() {
+      creates.push('menu');
+      this.add.text(30, 30, 'Меню готово', { color: '#ffffff' });
+      vn.systems.SceneAssets.enterMenu(this);
+    }
+  }
+  class Story extends Phaser.Scene {
+    constructor() { super('StoryScene'); }
+    init(data) { this.storySceneIndex = data.storySceneIndex; }
+    preload() { vn.systems.SceneAssets.preload(this); }
+    create() {
+      creates.push('story:' + this.storySceneIndex);
+      this.add.text(30, 30, 'Сюжет готов', { color: '#ffffff' });
+      vn.systems.SceneAssets.prefetchNext(this);
+    }
+  }
+  class MiniGame extends Phaser.Scene {
+    constructor() { super('GameScene1'); }
+    init(data) { this.storySceneIndex = data.storySceneIndex; }
+    getAssetManifest() { return { images: [{ key: 'game-bird', url: 'images/game1/Zyablik_1.png' }] }; }
+    preload() { vn.systems.SceneAssets.preload(this); }
+    create() {
+      creates.push('minigame');
+      vn.systems.SceneAssets.prefetchNext(this);
+    }
+  }
+  let releaseBackground;
+  let hold = true;
+  class Boot extends Phaser.Scene {
+    constructor() { super('Boot'); }
+    create() {
+      this.scene.launch('AssetLoaderScene');
+      this.scene.start('MainMenuScene');
+    }
+  }
+  class Loader extends vn.scenes.AssetLoaderScene {
+    create() {
+      super.create();
+      const load = this.queue.loadBatch;
+      this.queue.loadBatch = async (assets) => {
+        requests.push(...assets);
+        if (hold && assets.some((asset) => asset.type === 'audio')) {
+          await new Promise((resolve) => { releaseBackground = resolve; });
+        }
+        return load(assets);
+      };
+    }
+  }
+  const game = new Phaser.Game({
+    type: Phaser.CANVAS, width: 960, height: 540, parent: 'game',
+    scene: [Boot, Loader, Menu, Story, MiniGame],
+    audio: { noAudio: false },
+  });
+  const waitFor = async (condition) => {
+    const deadline = performance.now() + 15000;
+    while (!condition()) {
+      if (performance.now() > deadline) throw new Error('Превышено время ожидания');
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+  };
+  const assert = (condition, message) => { if (!condition) throw new Error(message); };
+  async function check(name, action) {
+    await action();
+    lines.push('PASS ' + name);
+    results.textContent = lines.join('\n');
+  }
+  try {
+    await check('Меню появляется до загрузки аудио', async () => {
+      await waitFor(() => releaseBackground && creates.includes('menu'));
+      assert(audioEntries.length === 0, 'Звук ещё не готов');
+      assert(game.scene.isActive('MainMenuScene'), 'Меню должно оставаться активным');
+      assert(requests[0].key === 'menuBackground', 'Первый запрос — фон меню');
+    });
+    await check('Ранний переход ждёт общую очередь; поздняя музыка меню не включается', async () => {
+      game.scene.getScene('MainMenuScene').scene.start('StoryScene', { storySceneIndex: 0 });
+      await waitFor(() => game.scene.getScene('StoryScene').load.isLoading());
+      assert(!creates.includes('story:0'), 'Сюжет не должен создаваться до готовности');
+      assert(game.scene.getScene('StoryScene').children.list.some((object) => object.text?.startsWith('Загрузка')), 'Видимый индикатор загрузки');
+      hold = false;
+      releaseBackground();
+      await waitFor(() => creates.includes('story:0'));
+      assert(audioEntries.length === 0, 'Остановленное меню не должно включать музыку');
+      const url = vn.systems.AudioManager.getUrl('voice_and_sound/test_bird_1.mp3');
+      assert(game.cache.audio.exists(url), 'Phaser действительно декодировал аудио');
+      assert(game.cache.audio.get(url).duration > 0, 'В кеше готовый AudioBuffer');
+    });
+    await check('Сюжет готовит мини-игру; готовые файлы не скачиваются повторно', async () => {
+      await waitFor(() => game.textures.exists('game-bird'));
+      const before = requests.length;
+      game.scene.getScene('StoryScene').scene.start('GameScene1', { storySceneIndex: 0 });
+      await waitFor(() => creates.includes('minigame'));
+      assert(requests.filter((asset) => asset.key === 'game-bird').length === 1, 'Без повторного запроса');
+      assert(requests.length >= before, 'Очередь продолжает работу');
+    });
+    await check('Мини-игра готовит следующую сюжетную сцену', async () => {
+      const assets = vn.systems.SceneAssets.assetsFor(game, 'StoryScene', { storySceneIndex: 1 });
+      await waitFor(() => assets.every((asset) => game.scene.getScene('AssetLoaderScene').queue.isCached(asset)));
+      game.scene.getScene('GameScene1').scene.start('StoryScene', { storySceneIndex: 1 });
+      await waitFor(() => creates.includes('story:1'));
+    });
+    await check('Повторные входы не накапливают обработчики загрузчика', async () => {
+      const scene = game.scene.getScene('StoryScene');
+      const count = scene.events.listenerCount('shutdown');
+      for (let i = 0; i < 3; i++) {
+        const before = creates.length;
+        scene.scene.restart({ storySceneIndex: 1 });
+        await waitFor(() => creates.length > before);
+      }
+      assert(scene.events.listenerCount('shutdown') === count, 'Нет лишних подписок');
+    });
+    results.textContent += '\nDONE: ' + lines.length + ' проверок пройдено';
+  } catch (error) {
+    results.textContent += '\nFAIL ' + error.stack;
+  } finally {
+    hold = false;
+    releaseBackground?.();
+    game.destroy(true);
+  }
+</script>
+</html>

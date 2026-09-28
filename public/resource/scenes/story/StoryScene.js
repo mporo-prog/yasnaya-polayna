@@ -28,11 +28,7 @@
     }
 
     preload() {
-      window.VN.systems.SceneAudio.preload(this);
-      this.load.image('historyModalBg', 'images/icon_UI/history_modal_bg.png');
-      this.load.image('dialogTextBg', 'images/icon_UI/dialog_text_bg.png');
-
-      this.load.image('closeButton', 'images/icon_UI/close_button.png');
+      window.VN.systems.SceneAssets.preload(this);
     }
 
     create() {
@@ -45,6 +41,7 @@
       this.buildHistoryOverlay();
 
       this.renderCurrentScreen();
+      window.VN.systems.SceneAssets.prefetchNext(this);
 
       // Дополнительная страховка: если вкладку скрыли — сохраняемся
       // немедленно, не дожидаясь следующего клика.

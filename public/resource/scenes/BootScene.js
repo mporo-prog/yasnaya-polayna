@@ -36,6 +36,7 @@
     }
 
     create() {
+      this.scene.launch('AssetLoaderScene');
       const params = new URLSearchParams(window.location.search);
       const game = params.get('game');
 

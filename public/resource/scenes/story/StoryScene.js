@@ -155,13 +155,15 @@
 
     buildBottomBar() {
 
-      const dialogTex = this.textures.get('dialogTextBg').getSourceImage();
-      const panelWidth = WIDTH * 0.75;
-      const panelHeight = panelWidth * (dialogTex.height / dialogTex.width);
-
-      // "плажку чуть-чуть приподними" — панель поднята над самым низом экрана.
-      const panelY = HEIGHT - panelHeight - 110;
-      const panelLeft = WIDTH / 2 - panelWidth / 2;
+      // Плашка диалога — по дизайну задан её ПРАВЫЙ ВЕРХНИЙ угол:
+      // 8.63% от правого края макета, 68.58% от верхнего края,
+      // фиксированный размер 1580.17 x 314.3px (не доля ширины экрана,
+      // как было раньше).
+      const panelWidth = 1580.17;
+      const panelHeight = 314.3;
+      const panelRight = WIDTH - WIDTH * 0.0863;
+      const panelLeft = panelRight - panelWidth;
+      const panelY = HEIGHT * 0.6858;
       const panelCenterY = panelY + panelHeight / 2;
 
       this.panelY = panelY;
@@ -172,29 +174,34 @@
       this.panelCenterY = panelCenterY;
 
       // Плашка реплики — бежевая, однотонная (без градиента/текстуры).
-      const panelBg = this.add.image(WIDTH / 2, panelY, 'dialogTextBg').setOrigin(0.5, 0).setDisplaySize(panelWidth, panelHeight);
-      // Имя героя — слева, отделено вертикальной чертой от текста реплики
-      // (макет: имя и реплика стоят в один ряд, а не друг под другом).
+      const panelBg = this.add.image(panelLeft, panelY, 'dialogTextBg').setOrigin(0, 0).setDisplaySize(panelWidth, panelHeight);
+
+      // Имя героя — родитель "Диалоговое окно", позиция задана в % от его
+      // размеров (от левого верхнего угла панели): 5.643% / 18.231%.
+      const nameX = panelLeft + panelWidth * 0.0564306372099;
+      const nameY = panelY + panelHeight * 0.25;
       const nameAreaWidth = panelWidth * 0.32;
-      const nameX = panelLeft + 65;
-      const dividerX = panelLeft + nameAreaWidth;
-      const textX = dividerX - 10;
 
       this.speakerNameText = this.add
-        .text(nameX, panelCenterY, '', {
+        .text(nameX, nameY, '', {
           fontFamily: 'Philosopher',
           fontSize: '40px',
           color: '#6E6056',
           align: 'left',
           wordWrap: { width: nameAreaWidth - 55 },
         })
-        .setOrigin(0, 0.5);
+        .setOrigin(0, 0);
+
+      // Текст реплики — родитель "Диалоговое окно", позиция 29.185% / 16.322%
+      // от размеров панели, фиксированная ширина 922px (высота — по контенту).
+      const textX = panelLeft + panelWidth * 0.291848345431;
+      this.dialogueTextY = panelY + panelHeight * 0.25;
 
       const dialogueTextStyle = {
         fontFamily: 'Ysabeau',
         fontSize: '32px',
         align: 'left',
-        wordWrap: { width: panelLeft + panelWidth - textX - 90 },
+        wordWrap: { width: 922 },
       };
 
       // Реплика рисуется двумя наложенными друг на друга текстами:
@@ -207,38 +214,48 @@
       // центру: при побуквенном заполнении "проговорённый" текст короче и
       // оборачивается в меньшее число строк, поэтому при центрировании его
       // верх "плавал" бы ниже верха светлого текста. Единая верхняя точка
-      // Y пересчитывается в renderCurrentScreen() по высоте полного текста
-      // и применяется к обоим слоям — они всегда начинаются с одной строки.
+      // Y — фиксированная (this.dialogueTextY, по дизайну), применяется к
+      // обоим слоям в renderCurrentScreen() — они всегда начинаются с одной строки.
       //
       // Оба слоя живут в bottomGroup вместе с плашкой, поэтому на любых
       // пропорциях экрана (Layout) они двигаются вместе с ней.
       this.dialogueText = this.add
-        .text(textX, panelCenterY, '', { ...dialogueTextStyle, color: '#E3D8CA' })
+        .text(textX, this.dialogueTextY, '', { ...dialogueTextStyle, color: '#E3D8CA' })
         .setOrigin(0, 0);
 
       this.dialogueRevealedText = this.add
-        .text(textX, panelCenterY, '', { ...dialogueTextStyle, color: '#1B1A19' })
+        .text(textX, this.dialogueTextY, '', { ...dialogueTextStyle, color: '#1B1A19' })
         .setOrigin(0, 0);
 
       this.bottomGroup.add([panelBg, this.speakerNameText, this.dialogueText, this.dialogueRevealedText]);
     }
 
     buildNavButtons() {
-      // "Далее" — у правого края плашки, по центру по вертикали.
+      // "Далее" — абсолютная позиция на макете (не привязана к плашке):
+      // левый верхний угол на 85.417% / 76.389%, размер 150x150.
+      // makeIconButton ставит x/y в ЦЕНТР картинки (origin 0.5,0.5 по
+      // умолчанию у Phaser.Image), поэтому смещаем на половину размера.
+      const nextBtnSize = 150;
+      const nextBtnX = WIDTH * 0.8541666667 + nextBtnSize / 2;
+      const nextBtnY = HEIGHT * 0.7638888889 + nextBtnSize / 2;
       this.nextBtn = this.makeIconButton(
-        this.panelLeft + this.panelWidth,
-        this.panelCenterY,
+        nextBtnX,
+        nextBtnY,
         'images/icon_UI/next_button.png',
-        () => this.goNext()
+        () => this.goNext(),
+        nextBtnSize
       );
 
-      // "Назад" — у левого нижнего края плашки, размером поменьше.
+      // "Назад" — левый верхний угол на 6.77% / 86.389%, размер 96x96.
+      const backBtnSize = 96;
+      const backBtnX = WIDTH * 0.0677 + backBtnSize / 2;
+      const backBtnY = HEIGHT * 0.8638888889 + backBtnSize / 2;
       this.backBtn = this.makeIconButton(
-        this.panelLeft,
-        this.panelY + this.panelHeight - 80,
+        backBtnX,
+        backBtnY,
         'images/icon_UI/back_button.png',
         () => this.goBack(),
-        90
+        backBtnSize
       );
 
       this.bottomGroup.add([this.nextBtn.bg, this.backBtn.bg]);
@@ -248,7 +265,14 @@
       // depth выше, чем у historyContainer (10) — чтобы кнопки оставались
       // видимыми и кликабельными поверх открытой вкладки "История"
       // (крестика для закрытия больше нет, закрывают тем же тумблером).
-      const menuBtn = this.makeIconButton(100, 90, 'images/icon_UI/pause_button.png', () => this.openPauseMenu(), 110);
+      // Позиция по дизайну: левый верхний угол кнопки на 1.5% / 2.3% от
+      // краёв макета 1920x1080, размер 150x150. У Phaser.Image origin
+      // по умолчанию (0.5, 0.5) — x/y это центр, поэтому смещаем на
+      // половину размера, чтобы угол картинки совпал с макетом.
+      const menuBtnSize = 150;
+      const menuBtnLeft = WIDTH * 0.015 + menuBtnSize / 2; // ≈ 104
+      const menuBtnTop = HEIGHT * 0.023 + menuBtnSize / 2; // ≈ 100
+      const menuBtn = this.makeIconButton(menuBtnLeft, menuBtnTop, 'images/icon_UI/pause_button.png', () => this.openPauseMenu(), menuBtnSize);
       menuBtn.bg.setDepth(20);
 
       this.historyBtn = this.makeIconButton(100, 205, 'images/icon_UI/history_button.png', () => this.toggleHistory(), 70);
@@ -256,7 +280,7 @@
 
       // Прижимаем к левому верхнему углу экрана (с учётом выреза телефона),
       // а не к углу макета — на широком экране они уходят на поле.
-      this.layout.pin(this, menuBtn.bg, { left: 100, top: 90 });
+      this.layout.pin(this, menuBtn.bg, { left: menuBtnLeft, top: menuBtnTop });
       this.layout.pin(this, this.historyBtn.bg, { left: 100, top: 205 });
     }
 
@@ -421,12 +445,12 @@
       this.speakerNameText.setText(speakerName || '');
       this.dialogueText.setText(text);
 
-      // Общая верхняя точка для обоих слоёв текста реплики — считаем её по
-      // высоте ПОЛНОГО текста (dialogueText), чтобы блок был вертикально
-      // центрирован в панели, но верх был общий для светлого и тёмного слоя.
-      const textTopY = this.panelCenterY - this.dialogueText.height / 2;
-      this.dialogueText.setY(textTopY);
-      this.dialogueRevealedText.setY(textTopY);
+      // Общая верхняя точка для обоих слоёв текста реплики — фиксированная,
+      // по дизайну (this.dialogueTextY, см. buildBottomBar), а не по центру
+      // панели. Важно лишь, чтобы у обоих слоёв была ОДНА и та же Y —
+      // иначе "проговорённый" слой съедет относительно фонового.
+      this.dialogueText.setY(this.dialogueTextY);
+      this.dialogueRevealedText.setY(this.dialogueTextY);
 
       // Запоминаем для возможного перезапуска озвучки после паузы/истории
       // (см. resumeVoiceIfNeeded()) — без повторного обращения к storyAudio.

@@ -14,6 +14,26 @@ test('preload traverses scene and screen audio, deduplicates paths and uses the 
   assert.ok(f.loads.every(({ key, url }) => key === url && url.startsWith('https://example.test/yasnaya-polayna/resource/sound/')));
 });
 
+test('screen voice lines are queued like other audio but are not auto-played by the scene session', () => {
+  const f = fixture();
+  f.buffers.clear();
+  const config = {
+    music: 'music/a.mp3',
+    screens: [
+      { voice: { path: 'voice_and_sound/line1.mp3', delay: 2, margin: 0.5 } },
+      { voice: 'voice_and_sound/line2.mp3' },
+      { voice: 'voice_and_sound/line1.mp3' },
+    ],
+  };
+  assert.deepEqual([...f.sceneAudio.paths(config)].sort(),
+    ['music/a.mp3', 'voice_and_sound/line1.mp3', 'voice_and_sound/line2.mp3']);
+  f.sceneAudio.preload(f.scene(), config);
+  assert.equal(f.loads.length, 3);
+  f.buffers.clear();
+  f.sceneAudio.enter(f.scene(), config);
+  assert.equal(f.controller.effects.size, 0, 'StoryScene plays the voice itself to sync the text');
+});
+
 test('saved screen restores its inherited music without replaying previous screen effects; Back restores earlier music', () => {
   const f = fixture();
   const scene = f.scene();

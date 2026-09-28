@@ -53,6 +53,9 @@
 
         if (scene) {
             scene.input.enabled = true;
+            // Если пауза открывалась во время озвучки реплики (StoryScene) —
+            // проиграть её заново с начала. Другие сцены этот метод не реализуют.
+            if (typeof scene.resumeVoiceIfNeeded === 'function') scene.resumeVoiceIfNeeded();
         }
     }
 

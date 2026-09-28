@@ -2,6 +2,8 @@
 
 // Все координаты — в пикселях макета 1920×1080 (безопасная зона).
 // Растягивание на экран и поля по краям — resource/systems/Layout.js.
+import { THINGS } from './data/things.js';
+
 const BASE_WIDTH = 1920;
 const BASE_HEIGHT = 1080;
 
@@ -14,6 +16,19 @@ export class GameScene2 extends Phaser.Scene {
     init(data) {
         this.storySceneIndex = data.storySceneIndex;
         this.minigameId = data.minigameId;
+    }
+
+    getAssetManifest() {
+        const imagesPath = `${import.meta.env.BASE_URL}images/game2/`;
+        return {
+            images: [
+                { key: 'background', url: `${imagesPath}background.png` },
+                ...THINGS.flatMap((thing) => [
+                    { key: `${thing.image}`, url: `${imagesPath}${thing.image}.png` },
+                ]),
+            ],
+            audio: THINGS.map((thing) => thing.voice),
+        };
     }
 
     preload() {
@@ -158,63 +173,86 @@ export class GameScene2 extends Phaser.Scene {
         this.scene.bringToTop('PauseScene');
     }
 
-    createElements() {
-        const elementSize = 115;
+    // createElements() {
+    //     const elementSize = 115;
 
-        this.elements = [
-            {
-                id: 'element1',
-                correctZone: 'red',
-                color: 0xd12626
-            },
-            {
-                id: 'element2',
-                correctZone: 'blue',
-                color: 0x17249b
-            },
-            {
-                id: 'element3',
-                correctZone: 'purple',
-                color: 0x8d187f
-            },
-            {
-                id: 'element4',
-                correctZone: 'emerald',
-                color: 0x17937b
-            },
-            {
-                id: 'element5',
-                correctZone: 'green',
-                color: 0x8eb41b
-            }
-        ];
+    //     this.elements = [
+    //         {
+    //             id: 'element1',
+    //             correctZone: 'red',
+    //             color: 0xd12626
+    //         },
+    //         {
+    //             id: 'element2',
+    //             correctZone: 'blue',
+    //             color: 0x17249b
+    //         },
+    //         {
+    //             id: 'element3',
+    //             correctZone: 'purple',
+    //             color: 0x8d187f
+    //         },
+    //         {
+    //             id: 'element4',
+    //             correctZone: 'emerald',
+    //             color: 0x17937b
+    //         },
+    //         {
+    //             id: 'element5',
+    //             correctZone: 'green',
+    //             color: 0x8eb41b
+    //         }
+    //     ];
 
-        const panelCenterX = this.panelX + (BASE_WIDTH - this.panelX) / 2;
-        const gap = 40;
-        const countElements = this.elements.length
-        const totalHeight = elementSize * countElements + gap * (countElements - 1);
-        const startY = (BASE_HEIGHT - totalHeight) / 2 + 0.08 * BASE_HEIGHT;
+    //     const panelCenterX = this.panelX + (BASE_WIDTH - this.panelX) / 2;
+    //     const gap = 40;
+    //     const countElements = this.elements.length
+    //     const totalHeight = elementSize * countElements + gap * (countElements - 1);
+    //     const startY = (BASE_HEIGHT - totalHeight) / 2 + 0.08 * BASE_HEIGHT;
         
-        this.elements.forEach((element, index) => {
+    //     this.elements.forEach((element, index) => {
 
-            const square = this.add.rectangle(
-                panelCenterX,
-                startY + elementSize / 2 + index * (elementSize + gap),
-                elementSize,
-                elementSize,
-                element.color
-            );
+    //         const square = this.add.rectangle(
+    //             panelCenterX,
+    //             startY + elementSize / 2 + index * (elementSize + gap),
+    //             elementSize,
+    //             elementSize,
+    //             element.color
+    //         );
 
-            square.setInteractive({
-                draggable: true
-            });
+    //         square.setInteractive({
+    //             draggable: true
+    //         });
 
-            element.sprite = square;
-            element.startX = square.x;
-            element.startY = square.y;
+    //         element.sprite = square;
+    //         element.startX = square.x;
+    //         element.startY = square.y;
+    //     });
+
+    //     this.setupDrag();
+    // }
+    createThings(){
+        this.things = THINGS.map((data, index) => {
+            const thing = {
+                voice: window.VN.systems.AudioManager.add(this, data.voice),
+                timer: null,
+                width: data.width ?? BIRD_WIDTH,
+                height: data.height ?? BIRD_HEIGHT,
+                idleKey: `${data.image}_idle`,
+                singKey: `${data.image}_sing`
+            };
+
+            bird.box = this.add.image(data.x, data.y, bird.idleKey)
+                .setOrigin(0)
+                .setDisplaySize(bird.width, bird.height);
+
+            bird.box.setInteractive({ useHandCursor: true });
+            bird.box.on('pointerdown', () => this.selectBird(index));
+
+            this.stage.add(bird.box);
+
+            return bird;
         });
-
-        this.setupDrag();
     }
 
     setupDrag() {

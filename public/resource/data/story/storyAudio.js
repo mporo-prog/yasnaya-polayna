@@ -53,7 +53,7 @@ window.VN.data.storyAudio = [
       { voice: {path: 'voice_and_sound/screen_2_1_scene_2_posetitel.wav'}, sounds: [] },
       { voice: {path: 'voice_and_sound/screen_3_scene_2_veter_beg.wav'}, sounds: [] },
       { voice: {path: 'voice_and_sound/screen_4_scene_2_posetitel.wav'}, sounds: [] },
-      { voice: {path: 'voice_and_sound/screen5_scene2_posetitel.mp3'}, sounds: [] },
+      { voice: {path: 'voice_and_sound/screen5_scene2_posetitel.wav'}, sounds: [] },
     ],
   },
   // Сюжетная сцена 3

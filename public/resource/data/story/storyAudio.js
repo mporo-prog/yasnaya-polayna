@@ -19,12 +19,12 @@ window.VN.data.storyAudio = [
     transitionSound: null, // { path: 'ui/transition.mp3', volume: 0.6, delay: 0 }
     sounds: [], // Звуки при входе в сцену, например { path: 'voice_and_sound/intro.mp3' }
     screens: [
-      { voice: { path: 'voice_and_sound/screen1_scene1_rasskazchik.wav', delay: 4, margin: 1 }, sounds: [] }, // реплика 1 — 4с
-      { voice: { path: 'voice_and_sound/screen2_scene1_sadovnik1.wav', delay: 3.2, margin: 0.3}, sounds: [] }, // Экран 2; 
+      { voice: { path: 'voice_and_sound/screen1_scene1_rasskazchik.wav', delay: 5, margin: 1}, sounds: [] }, // реплика 1 — 4с
+      { voice: { path: 'voice_and_sound/screen2_scene1_sadovnik1.wav', delay: 3.2, margin: 0.9}, sounds: [] }, // Экран 2; 
       { voice: 'voice_and_sound/screen2_scene1_posetitel1.mp3', sounds: [] }, // Экран 3
       { voice: 'voice_and_sound/screen2_scene1_sadovnik2.wav', sounds: [] },
       { voice: 'voice_and_sound/screen2_scene1_posetitel2.mp3', sounds: [] },
-      { voice: 'voice_and_sound/screen_3_scene_1_sadovnik.wav', delay: 2, sounds: [] },
+      { voice: {path: 'voice_and_sound/screen_3_scene_1_sadovnik.wav', delay: 2, margin: 0.9}, sounds: [] },
     ],
   },
   // Сюжетная сцена 2

@@ -10,6 +10,15 @@
       super('MainMenuScene');
     }
 
+    getAssetManifest() {
+      return {
+        images: [
+          { key: 'mainButtonBg', url: 'images/icon_UI/main_button.png' },
+          { key: 'saveButtonBg', url: 'images/icon_UI/save_button.png' },
+        ],
+      };
+    }
+
     preload() {
       window.VN.systems.SceneAssets.preload(this, { visualsOnly: true });
     }

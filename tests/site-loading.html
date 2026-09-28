@@ -33,10 +33,28 @@
     game = frame.contentWindow.game;
     game.sound.mute = true;
     const assets = frame.contentWindow.VN.systems.SceneAssets;
+    await check('Фоны кнопок меню готовы к первому показу', async () => {
+      const menu = game.scene.getScene('MainMenuScene');
+      for (const key of ['mainButtonBg', 'saveButtonBg']) {
+        assert(game.textures.exists(key), 'Загружена текстура ' + key);
+        assert(menu.children.list.some((object) => object.texture?.key === key), 'Кнопка использует ' + key);
+      }
+    });
     await check('Меню -> сюжет -> мини-игра 1', async () => {
       game.scene.getScene('MainMenuScene').startGame();
       await waitFor(() => game.scene.isActive('StoryScene'));
       const scene = game.scene.getScene('StoryScene');
+      for (const key of ['dialogTextBg', 'historyModalBg', 'closeButton']) {
+        assert(game.textures.exists(key), 'Загружена текстура ' + key);
+      }
+      assert(scene.children.list.some((object) => object.texture?.key === 'dialogTextBg'), 'Плашка реплики использует свою текстуру');
+      scene.toggleHistory();
+      assert(scene.historyContainer.visible, 'История открывается');
+      assert(scene.historyContainer.list.some((object) => object.texture?.key === 'historyModalBg'), 'История использует свою текстуру');
+      const close = scene.historyContainer.list.find((object) => object.texture?.key === 'closeButton');
+      assert(close, 'Крестик истории использует свою текстуру');
+      close.emit('pointerup');
+      assert(!scene.historyContainer.visible, 'История закрывается');
       for (let i = 0; i < scene.totalScreensInThisScene; i++) scene.goNext();
       await waitFor(() => game.scene.isActive('GameScene1'));
       assert(game.scene.getScene('GameScene1').birds.length === 4, 'Птицы созданы');

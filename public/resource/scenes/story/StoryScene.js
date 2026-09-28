@@ -19,6 +19,16 @@
       super('StoryScene');
     }
 
+    getAssetManifest() {
+      return {
+        images: [
+          { key: 'dialogTextBg', url: 'images/icon_UI/dialog_text_bg.png' },
+          { key: 'historyModalBg', url: 'images/icon_UI/history_modal_bg.png' },
+          { key: 'closeButton', url: 'images/icon_UI/close_button.png' },
+        ],
+      };
+    }
+
     init(data) {
       data = data || {};
       const GameState = window.VN.systems.GameState;

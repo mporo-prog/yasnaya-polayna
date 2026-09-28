@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import test from 'node:test';
 
@@ -8,15 +8,18 @@ const tick = () => new Promise((resolve) => setImmediate(resolve));
 const picture = (key) => ({ type: 'image', key, url: key + '.png' });
 
 function fixture(concurrency = 4) {
-  const window = { VN: { systems: {}, data: {} } };
+  const window = { VN: { systems: {}, data: {}, scenes: {} } };
   const context = vm.createContext({
     window, URL, console,
     document: { currentScript: { src: 'https://example.test/yasnaya-polayna/resource/systems/AudioManager.js' } },
     localStorage: { getItem: () => null },
-    Phaser: { Loader: { File: class { constructor(loader) { this.loader = loader; } } } },
+    Phaser: { Scene: class {}, Loader: { File: class { constructor(loader) { this.loader = loader; } } } },
   });
   for (const file of ['AudioManager', 'SceneAudio', 'AssetQueue', 'SceneAssets']) {
     vm.runInContext(readFileSync(new URL(`../public/resource/systems/${file}.js`, import.meta.url), 'utf8'), context);
+  }
+  for (const file of ['start/StartScene', 'story/StoryScene']) {
+    vm.runInContext(readFileSync(new URL(`../public/resource/scenes/${file}.js`, import.meta.url), 'utf8'), context);
   }
   const cached = new Set();
   const batches = [];
@@ -42,6 +45,8 @@ function fixture(concurrency = 4) {
   data.storyMinigameLinks = ['GameScene1', null];
   const game = { scene: { getScene(key) {
     if (key === 'AssetLoaderScene') return { queue };
+    if (key === 'MainMenuScene') return new window.VN.scenes.StartScene();
+    if (key === 'StoryScene') return new window.VN.scenes.StoryScene();
     if (key === 'GameScene1') return { getAssetManifest: () => ({ images: [{ key: 'bird', url: '/yasnaya-polayna/images/bird.png' }], audio: ['voice_and_sound/bird.wav'] }) };
     return {};
   } } };
@@ -129,10 +134,11 @@ test('destroy settles both queued and in-flight requests', async () => {
   assert.equal(f.batches.length, 1);
 });
 
-test('menu needs only its background; a story includes only its own speakers, images and audio', () => {
+test('menu needs only its visuals; a story includes only its own speakers, images and audio', () => {
   const f = fixture();
   const menu = f.assets.assetsFor(f.game, 'MainMenuScene', {}, { visualsOnly: true });
-  assert.deepEqual(Array.from(menu, (asset) => asset.key), ['menuBackground']);
+  assert.deepEqual(Array.from(menu, (asset) => asset.key).sort(), ['mainButtonBg', 'menuBackground', 'saveButtonBg']);
+  assert.ok(menu.every((asset) => asset.type === 'image'));
   const story = f.assets.assetsFor(f.game, 'StoryScene', { storySceneIndex: 0 });
   const keys = story.map((asset) => asset.key);
   assert.equal(keys.filter((key) => key === 'first.png').length, 1);
@@ -144,6 +150,23 @@ test('menu needs only its background; a story includes only its own speakers, im
   assert.equal(gameAssets.length, 3, 'Mini-game declaration, bird voice and scene audio are included');
   const overridden = f.assets.assetsFor(f.game, 'StoryScene', { storySceneIndex: 0, audio: null });
   assert.ok(overridden.every((asset) => asset.type === 'image'));
+});
+
+test('actual menu and story manifests include UI texture aliases backed by existing PNG files', () => {
+  const f = fixture();
+  const expected = {
+    MainMenuScene: { mainButtonBg: 'main_button.png', saveButtonBg: 'save_button.png' },
+    StoryScene: { dialogTextBg: 'dialog_text_bg.png', historyModalBg: 'history_modal_bg.png', closeButton: 'close_button.png' },
+  };
+  for (const [scene, textures] of Object.entries(expected)) {
+    const assets = f.assets.assetsFor(f.game, scene, { storySceneIndex: 0 }, { visualsOnly: true });
+    for (const [key, filename] of Object.entries(textures)) {
+      const matches = assets.filter((asset) => asset.key === key);
+      assert.equal(matches.length, 1, `${scene} must prepare ${key} exactly once`);
+      assert.equal(matches[0].url, 'images/icon_UI/' + filename);
+      assert.ok(existsSync(new URL('../public/' + matches[0].url, import.meta.url)), `${key} URL must point to a shipped file`);
+    }
+  }
 });
 
 test('look-ahead follows menu -> story -> mini-game -> next story -> final menu', () => {

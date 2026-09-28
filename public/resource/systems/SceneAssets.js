@@ -66,7 +66,7 @@
           const path = vn.data.storyCharacterPortraits?.[entry.speaker];
           if (path) assets.push(image(path));
         }
-        for (const name of ['pause', 'history', 'back', 'next']) {
+        for (const name of ['pause', 'history', 'back', 'next', 'main']) {
           assets.push(image('images/icon_UI/' + name + '_button.png'));
         }
       }

@@ -14,7 +14,7 @@
       return {
         images: [
           { key: 'mainButtonBg', url: 'images/icon_UI/main_button.png' },
-          { key: 'saveButtonBg', url: 'images/icon_UI/save_button.png' },
+          { key: 'saveButtonBg', url: 'images/icon_UI/main_button.png' },
         ],
       };
     }

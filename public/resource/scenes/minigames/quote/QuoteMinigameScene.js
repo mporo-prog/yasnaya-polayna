@@ -1,6 +1,8 @@
 (function () {
   const WIDTH = 1920;
   const HEIGHT = 1080;
+  // const WIDTH = window.innerWidth;
+  // const HEIGHT = window.innerHeight;
 
   /**
    * QuoteMinigameScene — мини-игра "определи правильное начало/продолжение
@@ -173,28 +175,30 @@
     }
 
     revealAnswerInQuote() {
-        const answer = this.currentRound.answer;
+      const mode = this.currentRound.mode;
+      const prompt = this.currentRound.prompt;
+      const answer = this.currentRound.answer;
+      const startX = WIDTH * 0.465;
+      const rightMargin = 60;
 
-        const x = this.blankRect.x;
-        const y = this.blankRect.y;
-        const width = this.blankRect.width;
+      if (this.blankRect) {
+          this.blankRect.destroy();
+          this.blankRect = null;
+      }
 
-        this.blankRect.destroy();
-        this.blankRect = null;
-
-        this.answerText = this.add.text(
-            x,
-            y,
-            answer,
-            {
-                fontSize: '40px',
-                color: '#000000',
-                wordWrap: {
-                    width: width - 20
-                }
-            }
-        ).setOrigin(0, 0.5);
-    }
+      if (mode === 'prefix') {
+          // В этом режиме плашка стояла СЛЕВА (это было начало фразы),
+          // а известный текст (prompt) — справа от неё. После ответа
+          // собираем фразу целиком и ставим её с самого начала строки.
+          this.promptText.setText(answer + ' ' + prompt);
+          this.promptText.setPosition(startX, this.promptText.y);
+          this.promptText.setWordWrapWidth(WIDTH - startX - rightMargin);
+      } else {
+          // mode === 'suffix': prompt слева, ответ — продолжение справа.
+          this.promptText.setText(prompt + ' ' + answer);
+          this.promptText.setWordWrapWidth(WIDTH - startX - rightMargin);
+      }
+  }
 
     // ---- варианты ответа ----------------------------------------------------
 

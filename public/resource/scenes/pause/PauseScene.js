@@ -9,12 +9,18 @@
     }
 
     create() {
+
       const width = this.scale.width;
       const height = this.scale.height;
+      // const width = window.innerWidth;
+      // const height = window.innerHeight;
       const menuData = window.VN.data.pauseMenuData;
       const title = window.VN.data.startMenuData.title; // используем то же название игры, что и на стартовом экране
 
-      this.add.rectangle(0, 0, width, height, 0xffffff, 1).setOrigin(0, 0);
+      // Полупрозрачная тёмная подложка на весь экран — сцена под паузой
+      // (например, StoryScene) остаётся видна, просто притемнена.
+      this.add.rectangle(0, 0, width, height, 0x000000, 0.6).setOrigin(0, 0);
+
       this.add.rectangle(width / 2, height * 0.2, width * 0.55, height * 0.18, 0xd9d9d9);
       this.add.text(width / 2, height * 0.2, title, { fontSize: '38px', color: '#000000' }).setOrigin(0.5);
 

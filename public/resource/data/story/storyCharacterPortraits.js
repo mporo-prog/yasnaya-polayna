@@ -6,7 +6,7 @@
  * просто не показывается (реплика остаётся, как раньше, без спрайта).
  */
 window.VN.data.storyCharacterPortraits = {
-  САДОВНИК: 'resource/images/hero/sadovnik.png',
-  ПОСЕТИТЕЛЬ: 'resource/images/hero/repin.png',
-  ПАЦАН: 'resource/images/hero/patsan.png',
+  САДОВНИК: 'images/hero/sadovnik.png',
+  ПОСЕТИТЕЛЬ: 'images/hero/repin.png',
+  ПАЦАН: 'images/hero/patsan.png',
 };

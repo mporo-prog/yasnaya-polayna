@@ -6,17 +6,28 @@
 window.VN.data.storyBackgrounds = [
   // Сюжетная сцена 1: 6 реплик на 3 фонах; реплики 2–5 идут на одном фоне.
   [
-    'resource/images/backgrounds/screen_1.png',
-    'resource/images/backgrounds/screen_1.png',
-    'resource/images/backgrounds/screen_1.png',
-    'resource/images/backgrounds/screen_1.png',
-    'resource/images/backgrounds/screen_1.png',
+    'images/backgrounds/screen_1.png',
+    'images/backgrounds/screen_1.png',
+    'images/backgrounds/screen_1.png',
+    'images/backgrounds/screen_1.png',
+    'images/backgrounds/screen_1.png',
+    'images/backgrounds/screen_1.png',
   ],
   // Сюжетная сцена 2
   [
-    'assets/backgrounds/scene2_screen1.jpg',
-    'assets/backgrounds/scene2_screen2.jpg',
-    'assets/backgrounds/scene2_screen3.jpg',
+    'images/backgrounds/screen_2.png',
+    'images/backgrounds/screen_2.png',
+    'images/backgrounds/screen_2.png',
+    'images/backgrounds/screen_2.png',
+    'images/backgrounds/screen_2.png',
+    'images/backgrounds/screen_2.png',
+    'images/backgrounds/screen_2.png',
+    'images/backgrounds/screen_2.png',
+    'images/backgrounds/screen_2.png',
+    'images/backgrounds/screen_2.png',
+    'images/backgrounds/screen_2.png',
+    'images/backgrounds/screen_2.png',
+    'images/backgrounds/screen_2.png',
   ],
   // Сюжетная сцена 3
   [

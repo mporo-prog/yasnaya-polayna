@@ -5,7 +5,7 @@
  
  */
 window.VN.data.startMenuData = {
-  title: 'ОДИН ДЕНЬ ЛЬВА НИКОЛАЕВИЧА',
+  title: 'ОДИН ДЕНЬ ЛЬВА ТОЛСТОГО',
 
   buttons: [
     { label: 'НАЧАТЬ', action: 'start' },

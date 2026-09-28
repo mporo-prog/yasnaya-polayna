@@ -1,16 +1,17 @@
-// import Phaser from 'phaser';
-
-const GAME4_SAVE_KEY = 'game4_save_v1';
+import { Game4Timer } from './systems/Game4Timer.js';
+import { Letter } from './models/Letter.js';
+import { LetterStack } from './models/LetterStack.js';
+import { Envelope } from './models/Envelope.js';
+import { Game4Storage } from './systems/Game4Storage.js';
+import { letterLists } from './data/letterLists.js';
 
 export class GameScene4 extends Phaser.Scene {
 
     constructor() {
         super('GameScene4');
 
-        this.shouldSave = true;
-
         this.handlePageHide = () => {
-            localStorage.removeItem(GAME4_SAVE_KEY);
+            this.storage.clear();
         };
     }
 
@@ -19,25 +20,15 @@ export class GameScene4 extends Phaser.Scene {
         this.minigameId = data.minigameId;
     }
 
-    getAssetManifest() {
-        return { images: [{ key: 'table', url: `${import.meta.env.BASE_URL}images/table.png` }] };
-    }
-
-    preload() {
-        if (window.VN?.systems.SceneAssets) {
-            window.VN.systems.SceneAssets.preload(this);
-            return;
-        }
-        window.VN?.systems.SceneAudio?.preload(this);
-        for (const { key, url } of this.getAssetManifest().images) this.load.image(key, url);
-    }
-
     create() {
-    
+
+        this.storage = new Game4Storage('game4_save_v1');
+
         this.completed = false;
         this.timeLeft = undefined;
-        
+
         window.VN?.systems.SceneAudio?.enter(this);
+
         this.calculateScale();
         this.createBackground();
         this.createGameField();
@@ -63,14 +54,20 @@ export class GameScene4 extends Phaser.Scene {
     }
 
     calculateScale() {
+
+        // const baseWidth = window.innerWidth;
         const baseWidth = 1920;
+        // const baseHeight = window.innerHeight;
         const baseHeight = 1080;
+
         const scaleX = this.scale.width / baseWidth;
         const scaleY = this.scale.height / baseHeight;
+
         this.gameScale = Math.min(scaleX, scaleY);
     }
 
     createBackground() {
+
         this.add.rectangle(
             0,
             0,
@@ -108,6 +105,7 @@ export class GameScene4 extends Phaser.Scene {
     }
 
     openPauseMenu() {
+
         this.scene.launch('PauseScene', {
             returnSceneKey: 'GameScene4'
         });
@@ -118,10 +116,13 @@ export class GameScene4 extends Phaser.Scene {
     }
 
     createGameField() {
+
         const width = this.scale.width;
         const height = this.scale.height;
+
         const tableWidth = width * 0.8;
         const tableHeight = height * 0.5;
+
         this.panelX = width / 2 - tableWidth / 2;
         this.panelY = height - tableHeight;
 
@@ -144,86 +145,18 @@ export class GameScene4 extends Phaser.Scene {
 
     createLetters() {
 
-        const letterLists = [
-
-            [
-                { envelope: 'blue', color: 0x6e9cff },
-                { envelope: 'pink', color: 0xff8181 },
-                { envelope: 'yellow', color: 0xf7ff87 },
-                { envelope: 'black', color: 0x000000 },
-                { envelope: 'pink', color: 0xff8181 },
-                { envelope: 'blue', color: 0x6e9cff },
-                { envelope: 'black', color: 0x000000 },
-                { envelope: 'yellow', color: 0xf7ff87 },
-                { envelope: 'blue', color: 0x6e9cff },
-                { envelope: 'pink', color: 0xff8181 },
-                { envelope: 'yellow', color: 0xf7ff87 },
-                { envelope: 'black', color: 0x000000 },
-                { envelope: 'pink', color: 0xff8181 },
-                { envelope: 'blue', color: 0x6e9cff },
-                { envelope: 'black', color: 0x000000 },
-                { envelope: 'yellow', color: 0xf7ff87 },
-                { envelope: 'blue', color: 0x6e9cff },
-                { envelope: 'pink', color: 0xff8181 },
-                { envelope: 'black', color: 0x000000 },
-                { envelope: 'yellow', color: 0xf7ff87 }
-            ],
-
-            [
-                { envelope: 'black', color: 0x000000 },
-                { envelope: 'yellow', color: 0xf7ff87 },
-                { envelope: 'blue', color: 0x6e9cff },
-                { envelope: 'pink', color: 0xff8181 },
-                { envelope: 'yellow', color: 0xf7ff87 },
-                { envelope: 'black', color: 0x000000 },
-                { envelope: 'pink', color: 0xff8181 },
-                { envelope: 'blue', color: 0x6e9cff },
-                { envelope: 'pink', color: 0xff8181 },
-                { envelope: 'black', color: 0x000000 },
-                { envelope: 'yellow', color: 0xf7ff87 },
-                { envelope: 'blue', color: 0x6e9cff },
-                { envelope: 'black', color: 0x000000 },
-                { envelope: 'pink', color: 0xff8181 },
-                { envelope: 'yellow', color: 0xf7ff87 },
-                { envelope: 'blue', color: 0x6e9cff },
-                { envelope: 'pink', color: 0xff8181 },
-                { envelope: 'yellow', color: 0xf7ff87 },
-                { envelope: 'black', color: 0x000000 },
-                { envelope: 'blue', color: 0x6e9cff }
-            ],
-
-            [
-                { envelope: 'yellow', color: 0xf7ff87 },
-                { envelope: 'pink', color: 0xff8181 },
-                { envelope: 'black', color: 0x000000 },
-                { envelope: 'blue', color: 0x6e9cff },
-                { envelope: 'black', color: 0x000000 },
-                { envelope: 'yellow', color: 0xf7ff87 },
-                { envelope: 'blue', color: 0x6e9cff },
-                { envelope: 'pink', color: 0xff8181 },
-                { envelope: 'yellow', color: 0xf7ff87 },
-                { envelope: 'black', color: 0x000000 },
-                { envelope: 'pink', color: 0xff8181 },
-                { envelope: 'blue', color: 0x6e9cff },
-                { envelope: 'yellow', color: 0xf7ff87 },
-                { envelope: 'pink', color: 0xff8181 },
-                { envelope: 'black', color: 0x000000 },
-                { envelope: 'blue', color: 0x6e9cff },
-                { envelope: 'pink', color: 0xff8181 },
-                { envelope: 'black', color: 0x000000 },
-                { envelope: 'blue', color: 0x6e9cff },
-                { envelope: 'yellow', color: 0xf7ff87 }
-            ]
-        ];
-
         const saved = this.loadGame4State();
+
+        let letters;
 
         if (saved) {
 
-            this.letters = saved.letters.map(letter => ({
-                envelope: letter.envelope,
-                color: letter.color
-            }));
+            letters = saved.letters.map(letter => {
+                return new Letter(
+                    letter.envelope,
+                    letter.color
+                );
+            });
 
             this.sortedLetters = saved.sortedLetters;
             this.totalLetters = saved.totalLetters;
@@ -234,36 +167,38 @@ export class GameScene4 extends Phaser.Scene {
             const randomList =
                 Phaser.Utils.Array.GetRandom(letterLists);
 
-            this.letters = randomList.map(letter => ({
-                envelope: letter.envelope,
-                color: letter.color
-            }));
+            letters = randomList.map(letter => {
+                return new Letter(
+                    letter.envelope,
+                    letter.color
+                );
+            });
 
-            this.totalLetters = this.letters.length;
+            this.totalLetters = letters.length;
             this.sortedLetters = 0;
             this.timeLeft = 30;
         }
 
+        this.letterStack = new LetterStack(letters);
+
         const letterWidth = 350 * this.gameScale;
         const letterHeight = 250 * this.gameScale;
 
-        const startLetterX = this.scale.width / 2 - letterWidth / 2;
-        const startLetterY = this.scale.height * 0.6;
+        const startLetterX =
+            this.scale.width / 2 - letterWidth / 2;
 
-        this.letters.forEach((letter, index) => {
+        const startLetterY =
+            this.scale.height * 0.6;
 
-            letter.folder = letter.envelope;
-            letter.startX = startLetterX;
-            letter.startY = startLetterY;
-            letter.locked = false;
+        this.letterStack.getAll().forEach((letter, index) => {
 
-            letter.sprite = this.add.rectangle(
+            letter.createSprite(
+                this,
                 startLetterX,
                 startLetterY,
                 letterWidth,
-                letterHeight,
-                letter.color
-            ).setOrigin(0);
+                letterHeight
+            );
 
             letter.sprite.setDepth(index);
         });
@@ -273,65 +208,29 @@ export class GameScene4 extends Phaser.Scene {
 
     saveGame4State() {
 
-        if (!this.letters) {
-            return;
-        }
+        this.storage.save({
 
-        const data = {
-            version: 1,
-
-            letters: this.letters.map(letter => ({
-                envelope: letter.envelope,
-                color: letter.color
-            })),
+            letters: this.letterStack
+                .getAll()
+                .map(letter => ({
+                    envelope: letter.envelope,
+                    color: letter.color
+                })),
 
             sortedLetters: this.sortedLetters,
+
             totalLetters: this.totalLetters,
-            timeLeft: this.timeLeft,
 
-            savedAt: Date.now()
-        };
-
-        localStorage.setItem(
-            GAME4_SAVE_KEY,
-            JSON.stringify(data)
-        );
+            timeLeft: this.timeLeft
+        });
     }
 
     loadGame4State() {
-
-        const raw = localStorage.getItem(
-            GAME4_SAVE_KEY
-        );
-
-        if (!raw) {
-            return null;
-        }
-
-        try {
-
-            return JSON.parse(raw);
-
-        } catch (error) {
-
-            console.warn(
-                'Не удалось загрузить сохранение Game 4',
-                error
-            );
-
-            localStorage.removeItem(
-                GAME4_SAVE_KEY
-            );
-
-            return null;
-        }
+        return this.storage.load();
     }
 
     clearGame4Save() {
-
-        localStorage.removeItem(
-            GAME4_SAVE_KEY
-        );
+        this.storage.clear();
     }
 
     createCounter() {
@@ -345,64 +244,40 @@ export class GameScene4 extends Phaser.Scene {
                 color: '#000000'
             }
         ).setOrigin(0.5);
-
     }
 
     createTimer() {
 
-        if (this.timeLeft === undefined) {
-            this.timeLeft = 5;
-        }
-
         this.timerText = this.add.text(
             this.scale.width / 2,
             90 * this.gameScale,
-            '',
+            '00:30',
             {
                 fontSize: `${36 * this.gameScale}px`,
                 color: '#000000'
             }
         ).setOrigin(0.5);
 
-        this.updateTimerText();
+        this.timer = new Game4Timer(
+            this,
+            30,
 
-        this.timerEvent = this.time.addEvent({
-            delay: 1000,
-            loop: true,
-            callback: this.updateTimer,
-            callbackScope: this
-        });
+            (timeLeft) => {
 
-        this.saveGame4State();
-    }
+                this.timeLeft = timeLeft;
 
-    updateTimer() {
+                this.updateTimerText();
 
-        if (this.completed) {
-            return;
-        }
+                this.saveGame4State();
+            },
 
-        this.timeLeft--;
+            () => {
 
-        if (this.timeLeft <= 0) {
-
-            this.timeLeft = 0;
-
-            this.saveGame4State();
-            this.updateTimerText();
-
-            if (this.timerEvent) {
-                this.timerEvent.remove(false);
+                this.loseGame();
             }
+        );
 
-            this.loseGame();
-
-            return;
-        }
-
-        this.updateTimerText();
-
-        this.saveGame4State();
+        this.timer.start(this.timeLeft);
     }
 
     updateTimerText() {
@@ -415,27 +290,31 @@ export class GameScene4 extends Phaser.Scene {
         this.timerText.setText(
             `00:${seconds.toString().padStart(2, '0')}`
         );
-
     }
 
     updateCounter() {
 
-        this.counterText.setText(`${this.sortedLetters}/${this.totalLetters}`);
-
+        this.counterText.setText(
+            `${this.sortedLetters}/${this.totalLetters}`
+        );
     }
 
     activateTopLetter() {
 
-        this.letters.forEach(letter => {
+        this.letterStack.getAll().forEach(letter => {
+
             letter.sprite.disableInteractive();
-            letter.locked = false;
+            letter.lock();
         });
 
-        if (this.letters.length === 0) {
+        if (this.letterStack.isEmpty()) {
             return;
         }
 
-        const topLetter = this.letters[this.letters.length - 1];
+        const topLetter =
+            this.letterStack.getTopLetter();
+
+        topLetter.unlock();
 
         topLetter.sprite.setInteractive({
             draggable: true,
@@ -445,101 +324,141 @@ export class GameScene4 extends Phaser.Scene {
         topLetter.sprite.setDepth(100);
     }
 
-    createEnvelopes(){
+    createEnvelopes() {
+
         const sizeEnvelopes = 240;
-        const envelopesWidthAndHeight = sizeEnvelopes * this.gameScale;
+
+        const envelopesWidthAndHeight =
+            sizeEnvelopes * this.gameScale;
+
         const gap = 80 * this.gameScale;
-        const widthContainer = envelopesWidthAndHeight * 4 + gap * 3;
-        const startContainerX = this.scale.width / 2 - widthContainer / 2;
-        const startContainerY = this.scale.height * 0.15;
+
+        const widthContainer =
+            envelopesWidthAndHeight * 4 +
+            gap * 3;
+
+        const startContainerX =
+            this.scale.width / 2 -
+            widthContainer / 2;
+
+        const startContainerY =
+            this.scale.height * 0.15;
 
         this.envelopes = [
-            {
-                id: 'pink',
-                x: startContainerX + gap * 0,
-                y: startContainerY,
-                color: 0xff8181,
-            },
-            {
-                id: 'blue',
-                x: startContainerX + gap * 1 + envelopesWidthAndHeight * 1,
-                y: startContainerY,
-                color: 0x6e9cff
-            },
-            {
-                id: 'yellow',
-                x: startContainerX + gap * 2 + envelopesWidthAndHeight * 2,
-                y: startContainerY,
-                color: 0xf7ff87
-            },
-            {
-                id: 'black',
-                x: startContainerX + gap * 3 + envelopesWidthAndHeight * 3,
-                y: startContainerY,
-                color: 0x000000
-            }
-        ]
+
+            new Envelope(
+                'pink',
+                startContainerX,
+                startContainerY,
+                0xff8181
+            ),
+
+            new Envelope(
+                'blue',
+                startContainerX +
+                gap +
+                envelopesWidthAndHeight,
+                startContainerY,
+                0x6e9cff
+            ),
+
+            new Envelope(
+                'yellow',
+                startContainerX +
+                gap * 2 +
+                envelopesWidthAndHeight * 2,
+                startContainerY,
+                0xf7ff87
+            ),
+
+            new Envelope(
+                'black',
+                startContainerX +
+                gap * 3 +
+                envelopesWidthAndHeight * 3,
+                startContainerY,
+                0x000000
+            )
+        ];
 
         this.envelopes.forEach(envelope => {
-            envelope.sprite = this.add.rectangle(
-                envelope.x,
-                envelope.y,
+
+            envelope.createSprite(
+                this,
                 envelopesWidthAndHeight,
-                envelopesWidthAndHeight,
-                envelope.color
-            ).setOrigin(0)
+                envelopesWidthAndHeight
+            );
         });
     }
 
     setupDrag() {
 
-        this.input.on('dragstart', (pointer, gameObject) => {
+        this.input.on(
+            'dragstart',
+            (pointer, gameObject) => {
 
-            const letter = this.letters.find(
-                item => item.sprite === gameObject
-            );
+                const letter =
+                    this.letterStack
+                        .getAll()
+                        .find(
+                            item => item.sprite === gameObject
+                        );
 
-            if (!letter || letter.locked) {
-                return;
+                if (!letter || letter.isLocked()) {
+                    return;
+                }
+
+                gameObject.setDepth(200);
             }
+        );
 
-            gameObject.setDepth(200);
-        });
+        this.input.on(
+            'drag',
+            (pointer, gameObject, dragX, dragY) => {
 
+                const letter =
+                    this.letterStack
+                        .getAll()
+                        .find(
+                            item => item.sprite === gameObject
+                        );
 
-        this.input.on('drag', (pointer, gameObject, dragX, dragY) => {
+                if (!letter || letter.isLocked()) {
+                    return;
+                }
 
-            const letter = this.letters.find(
-                item => item.sprite === gameObject
-            );
-
-            if (!letter || letter.locked) {
-                return;
+                gameObject.x = dragX;
+                gameObject.y = dragY;
             }
+        );
 
-            gameObject.x = dragX;
-            gameObject.y = dragY;
-        });
+        this.input.on(
+            'dragend',
+            (pointer, gameObject) => {
 
+                const letter =
+                    this.letterStack
+                        .getAll()
+                        .find(
+                            item => item.sprite === gameObject
+                        );
 
-        this.input.on('dragend', (pointer, gameObject) => {
+                if (!letter || letter.isLocked()) {
+                    return;
+                }
 
-            const letter = this.letters.find(
-                item => item.sprite === gameObject
-            );
+                const envelope = this.findZone(letter);
 
-            if (!letter || letter.locked) {
-                return;
+                if (
+                    envelope &&
+                    letter.isForEnvelope(envelope.id)
+                ) {
+                    this.deleteLetter(letter);
+                } else {
+                    this.returnLetter(letter);
+                }
             }
-
-            const envelope = this.findZone(letter);
-
-            if (envelope && envelope.id === letter.folder) {
-                this.deleteLetter(letter);
-            } else {
-                this.returnLetter(letter);
-            }
-        });
+        );
     }
 
     findZone(letter) {
@@ -551,11 +470,8 @@ export class GameScene4 extends Phaser.Scene {
 
         for (const envelope of this.envelopes) {
 
-            const envelopeBounds =
-                envelope.sprite.getBounds();
-
             if (
-                envelopeBounds.contains(
+                envelope.containsPoint(
                     centerX,
                     centerY
                 )
@@ -569,22 +485,26 @@ export class GameScene4 extends Phaser.Scene {
 
     deleteLetter(letter) {
 
-        letter.locked = true;
+        letter.lock();
 
         const sprite = letter.sprite;
 
-        this.letters = this.letters.filter(
-            item => item !== letter
-        );
+        this.letterStack.removeLetter(letter);
 
         this.sortedLetters++;
+
         this.updateCounter();
+
         this.saveGame4State();
 
         this.tweens.add({
+
             targets: sprite,
+
             alpha: 0,
+
             scale: 0.8,
+
             duration: 200,
 
             onComplete: () => {
@@ -592,7 +512,9 @@ export class GameScene4 extends Phaser.Scene {
                 sprite.destroy();
 
                 if (this.checkGameFinished()) {
+
                     this.finishGame();
+
                     return;
                 }
 
@@ -604,10 +526,15 @@ export class GameScene4 extends Phaser.Scene {
     returnLetter(letter) {
 
         this.tweens.add({
+
             targets: letter.sprite,
+
             x: letter.startX,
+
             y: letter.startY,
+
             duration: 500,
+
             ease: 'Power2'
         });
 
@@ -615,7 +542,8 @@ export class GameScene4 extends Phaser.Scene {
     }
 
     checkGameFinished() {
-        return this.letters.length == 0;
+
+        return this.letterStack.isEmpty();
     }
 
     finishGame() {
@@ -626,44 +554,13 @@ export class GameScene4 extends Phaser.Scene {
 
         this.completed = true;
 
-        this.shouldSave = false;
-
         this.clearGame4Save();
 
-        // this.add.text(
-        //     this.scale.width / 2,
-        //     this.scale.height / 2,
-        //     'Ура! Победа!\n\nДалее',
-        //     {
-        //         fontSize: '48px',
-        //         color: '#ffffff',
-        //         backgroundColor: '#000000',
-        //         align: 'center',
-        //         padding: {
-        //             x: 30,
-        //             y: 20
-        //         }
-        //     }
-        // )
-        // .setOrigin(0.5)
-        // .setInteractive({
-        //     useHandCursor: true
-        // })
-        // .on('pointerdown', () => {
-
-        //     window.VN.systems.finishMinigameAndAdvance(
-        //         this,
-        //         this.storySceneIndex,
-        //         this.minigameId
-        //     );
-
-        // });
-
         window.VN.systems.finishMinigameAndAdvance(
-                this,
-                this.storySceneIndex,
-                this.minigameId
-            );
+            this,
+            this.storySceneIndex,
+            this.minigameId
+        );
     }
 
     loseGame() {
@@ -674,22 +571,24 @@ export class GameScene4 extends Phaser.Scene {
 
         this.completed = true;
 
-        this.shouldSave = false;
-
         this.clearGame4Save();
 
-        if (this.timerEvent) {
-            this.timerEvent.remove(false);
+        if (this.timer) {
+            this.timer.destroy();
         }
 
-        this.letters.forEach(letter => {
+        this.letterStack.getAll().forEach(letter => {
+
             if (letter.sprite) {
                 letter.sprite.disableInteractive();
             }
         });
 
-        const panelWidth = 700 * this.gameScale;
-        const panelHeight = 400 * this.gameScale;
+        const panelWidth =
+            700 * this.gameScale;
+
+        const panelHeight =
+            400 * this.gameScale;
 
         this.add.rectangle(
             this.scale.width / 2,
@@ -703,7 +602,8 @@ export class GameScene4 extends Phaser.Scene {
 
         this.add.text(
             this.scale.width / 2,
-            this.scale.height / 2 - 80 * this.gameScale,
+            this.scale.height / 2 -
+            80 * this.gameScale,
             'Вы проиграли',
             {
                 fontSize: `${52 * this.gameScale}px`,
@@ -713,41 +613,10 @@ export class GameScene4 extends Phaser.Scene {
         .setOrigin(0.5)
         .setDepth(102);
 
-        // const restartButton = this.add.rectangle(
-        //     this.scale.width / 2,
-        //     this.scale.height / 2 + 80 * this.gameScale,
-        //     380 * this.gameScale,
-        //     90 * this.gameScale,
-        //     0x555555
-        // )
-        // .setOrigin(0.5)
-        // .setInteractive({
-        //     useHandCursor: true
-        // })
-        // .setDepth(102);
-
-
-        // this.add.text(
-        //     this.scale.width / 2,
-        //     this.scale.height / 2 + 80 * this.gameScale,
-        //     'Начать игру заново',
-        //     {
-        //         fontSize: `${30 * this.gameScale}px`,
-        //         color: '#ffffff'
-        //     }
-        // )
-        // .setOrigin(0.5)
-        // .setDepth(103);
-
         this.restartGame();
-        
-        // restartButton.on('pointerdown', () => {
-        // });
     }
 
     restartGame() {
-
-        this.shouldSave = false;
 
         this.clearGame4Save();
 
@@ -758,9 +627,6 @@ export class GameScene4 extends Phaser.Scene {
     }
 
     clearGame4Save() {
-
-        localStorage.removeItem(GAME4_SAVE_KEY);
-
+        this.storage.clear();
     }
-
 }

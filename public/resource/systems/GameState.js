@@ -91,7 +91,7 @@
 
     checkExpiration: function () {
 
-      if (window.VN.systems.SaveManager.isExpired(rhis.state)) {
+      if (window.VN.systems.SaveManager.isExpired(this.state)) {
 
         window.VN.systems.SaveManager.clear();
 

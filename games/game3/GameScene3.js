@@ -1,9 +1,9 @@
 // import Phaser from 'phaser';
 
 const BASE_WIDTH = 1920;
-// const BASE_HEIGHT = 1080;
+const BASE_HEIGHT = 1080;
 // const BASE_WIDTH = window.innerWidth;
-const BASE_HEIGHT = window.innerHeight;
+// const BASE_HEIGHT = window.innerHeight;
 
 const ITEM_SIZE = 246;
 const ITEM_STEP = 261;

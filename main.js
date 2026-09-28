@@ -13,8 +13,8 @@ import { GameScene4 } from './games/game4/GameScene4.js';
 (function () {
   const VN = window.VN;
 
-  const widthScreen = window.innerWidth;
-  const heightScreen = window.innerHeight;
+  const widthScreen = 1920;
+  const heightScreen = 1080;
 
   const config = {
     type: Phaser.AUTO,

@@ -4,8 +4,6 @@
     { category: 'ui', label: 'ГРОМКОСТЬ ЗВУКОВ' },
     { category: 'voice', label: 'ГРОМКОСТЬ ГОЛОСА' },
   ];
-  const WIDTH = this.scale.width;
-  const HEIGHT = window.innerHeight;
   const TRACK_X = 675;
   const TRACK_WIDTH = 340;
 

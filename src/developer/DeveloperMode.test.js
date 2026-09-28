@@ -130,6 +130,19 @@ test('unknown entries cannot replace the current game or change the save', () =>
   f.mode.destroy();
 });
 
+test('background asset loading survives opening developer mode and jumping to another scene', () => {
+  const f = fixture({ AssetLoaderScene: 'running', StoryScene: 'running', GameScene4: 'stopped' });
+  const loader = f.game.scene.getScene('AssetLoaderScene');
+  loader.isAssetLoader = true;
+  f.mode.open();
+  assert.equal(loader.status, 'running');
+  f.mode.launch(f.entry);
+  f.frame();
+  assert.equal(loader.status, 'running');
+  assert.equal(f.game.scene.getScene('GameScene4').status, 'running');
+  f.mode.destroy();
+});
+
 test('uninstall and game destruction remove hooks and restore owned pauses', () => {
   for (const destroyGame of [false, true]) {
     const f = fixture({ StoryScene: 'running' });

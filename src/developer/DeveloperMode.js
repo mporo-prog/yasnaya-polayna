@@ -48,6 +48,7 @@ export class DeveloperMode {
 
   pauseActiveScenes() {
     for (const scene of this.game.scene.getScenes(true)) {
+      if (scene.isAssetLoader) continue;
       scene.input?.keyboard?.resetKeys();
       scene.sys.pause();
       this.pausedScenes.add(scene);
@@ -73,6 +74,7 @@ export class DeveloperMode {
     // Останавливаем также сцены под меню паузы и загружающиеся сцены.
     // ScenePlugin выполняет переходы в очереди, на границе кадра.
     for (const scene of this.game.scene.getScenes(false)) {
+      if (scene.isAssetLoader) continue;
       if (scene.sys.isActive() || scene.sys.isPaused() || scene.sys.isSleeping()
         || scene.sys.load?.isLoading()) {
         scene.scene.stop();

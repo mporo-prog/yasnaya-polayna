@@ -26,7 +26,7 @@
     }
 
     preload() {
-      window.VN.systems.SceneAudio.preload(this);
+      window.VN.systems.SceneAssets.preload(this);
     }
 
     create() {
@@ -39,6 +39,7 @@
       this.buildHistoryOverlay();
 
       this.renderCurrentScreen();
+      window.VN.systems.SceneAssets.prefetchNext(this);
 
       // Дополнительная страховка: если вкладку скрыли — сохраняемся
       // немедленно, не дожидаясь следующего клика.

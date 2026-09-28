@@ -9,12 +9,10 @@
     }
 
     preload() {
-      window.VN.systems.SceneAudio.preload(this);
-      this.load.image('menuBackground', 'resource/images/backgrounds/menu_screen.png');
+      window.VN.systems.SceneAssets.preload(this, { visualsOnly: true });
     }
 
     create() {
-      window.VN.systems.SceneAudio.enter(this);
       this.menuData = window.VN.data.startMenuData;
       this.style = window.VN.data.startStyle;
 
@@ -24,6 +22,7 @@
       this.buildTitle();
       this.buildButtons();
       this.buildOverlay(); // оверлей для "Авторы"
+      window.VN.systems.SceneAssets.enterMenu(this);
     }
 
     buildBackground() {

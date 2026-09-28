@@ -25,6 +25,7 @@ import { GameScene4 } from './games/game4/GameScene4.js';
     },
     scene: [
       VN.scenes.BootScene,
+      VN.scenes.AssetLoaderScene,
       VN.scenes.StartScene,
       VN.scenes.SettingsScene,
       VN.scenes.StoryScene,
@@ -66,9 +67,10 @@ import { GameScene4 } from './games/game4/GameScene4.js';
     const expired = VN.systems.GameState.checkExpiration();
     if (expired) {
       window.game.scene.getScenes(true).forEach(function (scene) {
+        if (scene.isAssetLoader) return;
         window.game.scene.stop(scene.scene.key);
       });
-      window.game.scene.start('StartScene');
+      window.game.scene.start('MainMenuScene');
     }
   });
 })();

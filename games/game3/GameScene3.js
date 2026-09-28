@@ -56,6 +56,10 @@ export class GameScene3 extends Phaser.Scene {
     }
 
     preload() {
+        if (window.VN?.systems.SceneAssets) {
+            window.VN.systems.SceneAssets.preload(this);
+            return;
+        }
         window.VN?.systems.SceneAudio?.preload(this);
     }
 
@@ -78,6 +82,7 @@ export class GameScene3 extends Phaser.Scene {
         this.createWinOverlay();
         this.createIntroOverlay();
         this.setupInput();
+        window.VN?.systems.SceneAssets?.prefetchNext(this);
     }
 
     calculateScale() {

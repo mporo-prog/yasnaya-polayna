@@ -76,29 +76,30 @@ export class GameScene1 extends Phaser.Scene {
             : DEFAULT_HINT_DURATION_SECONDS;
     }
 
-    preload() {
+    getAssetManifest() {
         const imagesPath = `${import.meta.env.BASE_URL}images/game1/`;
+        return {
+            images: [
+                { key: 'game1-background', url: `${imagesPath}bacground_game1.png` },
+                ...BIRDS.flatMap((bird) => [
+                    { key: `${bird.image}_idle`, url: `${imagesPath}${bird.image}_1.png` },
+                    { key: `${bird.image}_sing`, url: `${imagesPath}${bird.image}_2.png` },
+                ]),
+            ],
+            audio: BIRDS.map((bird) => bird.voice),
+        };
+    }
 
-        this.load.image(
-            'game1-background',
-            `${imagesPath}bacground_game1.png`
-        );
-
-        window.VN?.systems.SceneAudio?.preload(this);
-
-        for (const bird of BIRDS) {
-            this.load.image(
-                `${bird.image}_idle`,
-                `${imagesPath}${bird.image}_1.png`
-            );
-
-            this.load.image(
-                `${bird.image}_sing`,
-                `${imagesPath}${bird.image}_2.png`
-            );
-
-            window.VN.systems.AudioManager.load(this, bird.voice);
+    preload() {
+        if (window.VN?.systems.SceneAssets) {
+            window.VN.systems.SceneAssets.preload(this);
+            return;
         }
+        // Сохраняем отдельный запуск games/game1/index.html.
+        const assets = this.getAssetManifest();
+        for (const { key, url } of assets.images) this.load.image(key, url);
+        window.VN?.systems.SceneAudio?.preload(this);
+        for (const path of assets.audio) window.VN.systems.AudioManager.load(this, path);
     }
 
     create() {
@@ -126,6 +127,7 @@ export class GameScene1 extends Phaser.Scene {
         this.createIntroOverlay();
         this.createWinRoundOverlay();
         this.setupInput();
+        window.VN?.systems.SceneAssets?.prefetchNext(this);
     }
 
     calculateScale() {

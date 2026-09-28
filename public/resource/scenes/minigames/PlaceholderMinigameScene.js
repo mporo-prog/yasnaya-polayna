@@ -15,7 +15,7 @@
     }
 
     preload() {
-      window.VN.systems.SceneAudio.preload(this);
+      window.VN.systems.SceneAssets.preload(this);
     }
 
     create() {
@@ -37,6 +37,7 @@
         .setInteractive({ useHandCursor: true });
       this.add.text(width / 2, height / 2 + 80, 'Завершить', { fontSize: '28px', color: '#000000' }).setOrigin(0.5);
       btn.on('pointerup', () => this.finishMinigame());
+      window.VN.systems.SceneAssets.prefetchNext(this);
     }
 
     finishMinigame() {

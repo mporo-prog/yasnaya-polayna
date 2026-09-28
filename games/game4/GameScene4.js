@@ -19,12 +19,17 @@ export class GameScene4 extends Phaser.Scene {
         this.minigameId = data.minigameId;
     }
 
+    getAssetManifest() {
+        return { images: [{ key: 'table', url: `${import.meta.env.BASE_URL}images/table.png` }] };
+    }
+
     preload() {
+        if (window.VN?.systems.SceneAssets) {
+            window.VN.systems.SceneAssets.preload(this);
+            return;
+        }
         window.VN?.systems.SceneAudio?.preload(this);
-        this.load.image(
-            'table',
-            `${import.meta.env.BASE_URL}images/table.png`
-        );
+        for (const { key, url } of this.getAssetManifest().images) this.load.image(key, url);
     }
 
     create() {
@@ -42,6 +47,7 @@ export class GameScene4 extends Phaser.Scene {
         this.createLetters();
         this.createCounter();
         this.createTimer();
+        window.VN?.systems.SceneAssets?.prefetchNext(this);
 
         window.addEventListener(
             'pagehide',

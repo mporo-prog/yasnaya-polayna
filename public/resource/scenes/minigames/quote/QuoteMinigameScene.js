@@ -1,6 +1,8 @@
 (function () {
   const WIDTH = 1920;
   const HEIGHT = 1080;
+  // const WIDTH = window.innerWidth;
+  // const HEIGHT = window.innerHeight;
 
   /**
    * QuoteMinigameScene — мини-игра "определи правильное начало/продолжение
@@ -26,7 +28,7 @@
     }
 
     preload() {
-      window.VN.systems.SceneAudio.preload(this);
+      window.VN.systems.SceneAssets.preload(this);
     }
 
     create() {
@@ -36,6 +38,7 @@
       this.buildRoundCounter();
       this.startRound(this.currentRoundIndex);
       this.buildContinueButton();
+      window.VN.systems.SceneAssets.prefetchNext(this);
     }
 
     // ---- статичные части экрана ------------------------------------------

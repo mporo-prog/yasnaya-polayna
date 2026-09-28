@@ -1,6 +1,8 @@
 (function () {
   const WIDTH = 1920;
   const HEIGHT = 1080;
+  // const WIDTH = window.innerWidth;
+  // const HEIGHT = window.innerHeight;
 
   
   class StartScene extends Phaser.Scene {
@@ -8,11 +10,17 @@
       super('MainMenuScene');
     }
 
+    getAssetManifest() {
+      return {
+        images: [
+          { key: 'mainButtonBg', url: 'images/icon_UI/main_button.png' },
+          { key: 'saveButtonBg', url: 'images/icon_UI/save_button.png' },
+        ],
+      };
+    }
+
     preload() {
-      window.VN.systems.SceneAudio.preload(this);
-      this.load.image('menuBackground', 'resource/images/backgrounds/menu_screen.png');
-      this.load.image('mainButtonBg', 'resource/images/ui/main_button.png');
-      this.load.image('saveButtonBg', 'resource/images/ui/save_button.png');
+      window.VN.systems.SceneAssets.preload(this, { visualsOnly: true });
     }
 
     create() {
@@ -27,6 +35,7 @@
       this.buildTitle();
       this.buildButtons();
       this.buildOverlay(); // оверлей для "Авторы"
+      window.VN.systems.SceneAssets.enterMenu(this);
     }
 
     buildBackground() {

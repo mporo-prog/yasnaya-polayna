@@ -13,6 +13,9 @@ import { GameScene4 } from './games/game4/GameScene4.js';
 (function () {
   const VN = window.VN;
 
+  const widthScreen = 1920;
+  const heightScreen = 1080;
+
   const config = {
     type: Phaser.AUTO,
     backgroundColor: '#000000',
@@ -22,6 +25,7 @@ import { GameScene4 } from './games/game4/GameScene4.js';
     scale: VN.systems.Layout.getScaleConfig('app'),
     scene: [
       VN.scenes.BootScene,
+      VN.scenes.AssetLoaderScene,
       VN.scenes.StartScene,
       VN.scenes.SettingsScene,
       VN.scenes.StoryScene,
@@ -66,9 +70,10 @@ import { GameScene4 } from './games/game4/GameScene4.js';
     const expired = VN.systems.GameState.checkExpiration();
     if (expired) {
       window.game.scene.getScenes(true).forEach(function (scene) {
+        if (scene.isAssetLoader) return;
         window.game.scene.stop(scene.scene.key);
       });
-      window.game.scene.start('StartScene');
+      window.game.scene.start('MainMenuScene');
     }
   });
 })();

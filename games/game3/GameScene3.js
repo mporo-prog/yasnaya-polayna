@@ -2,6 +2,8 @@
 
 const BASE_WIDTH = 1920;
 const BASE_HEIGHT = 1080;
+// const BASE_WIDTH = window.innerWidth;
+// const BASE_HEIGHT = window.innerHeight;
 
 const ITEM_SIZE = 246;
 const ITEM_STEP = 261;
@@ -56,6 +58,10 @@ export class GameScene3 extends Phaser.Scene {
     }
 
     preload() {
+        if (window.VN?.systems.SceneAssets) {
+            window.VN.systems.SceneAssets.preload(this);
+            return;
+        }
         window.VN?.systems.SceneAudio?.preload(this);
     }
 
@@ -77,6 +83,7 @@ export class GameScene3 extends Phaser.Scene {
         this.createWinOverlay();
         this.createIntroOverlay();
         this.setupInput();
+        window.VN?.systems.SceneAssets?.prefetchNext(this);
     }
 
     createBackground() {

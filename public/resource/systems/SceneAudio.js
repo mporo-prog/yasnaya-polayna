@@ -14,8 +14,7 @@
       return window.VN.data.sceneAudio?.[scene.sys.settings.key] ?? {};
     },
 
-    // Вызывать в preload. Один и тот же путь ставится в очередь только один раз.
-    preload(scene, config = this.getConfig(scene)) {
+    paths(config) {
       const paths = new Set();
       const visit = (cue) => {
         if (!cue) return;
@@ -25,7 +24,12 @@
         for (const screen of cue.screens ?? []) visit(screen);
       };
       for (const item of Array.isArray(config) ? config : [config]) visit(item);
-      for (const path of paths) window.VN.systems.AudioManager.load(scene, path);
+      return [...paths];
+    },
+
+    // Вызывать в preload. Один и тот же путь ставится в очередь только один раз.
+    preload(scene, config = this.getConfig(scene)) {
+      for (const path of this.paths(config)) window.VN.systems.AudioManager.load(scene, path);
     },
 
     // Вызывать в create. Для сюжетных экранов затем вызывать showScreen(index).

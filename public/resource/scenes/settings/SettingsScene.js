@@ -4,10 +4,10 @@
     { category: 'ui', label: 'ГРОМКОСТЬ ЗВУКОВ' },
     { category: 'voice', label: 'ГРОМКОСТЬ ГОЛОСА' },
   ];
-  const TRACK_X = 675;
-  const TRACK_WIDTH = 340;
   const WIDTH = window.innerWidth;
   const HEIGHT = window.innerHeight;
+  const TRACK_X = 675;
+  const TRACK_WIDTH = 340;
 
   class SettingsScene extends Phaser.Scene {
     constructor(key = 'SettingsScene') {

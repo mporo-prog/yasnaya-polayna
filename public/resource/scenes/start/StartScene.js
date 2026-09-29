@@ -13,6 +13,7 @@
     getAssetManifest() {
       return {
         images: [
+          { key: 'gameLogo', url: 'images/icon_UI/game_logo.png' },
           { key: 'mainButtonBg', url: 'images/icon_UI/main_button.png' },
           { key: 'saveButtonBg', url: 'images/icon_UI/main_button.png' },
         ],
@@ -46,18 +47,9 @@
       const t = this.style.title;
       const x = WIDTH * t.xFrac;
       const y = HEIGHT * t.yFrac;
-      const w = WIDTH * t.wFrac;
-      const h = HEIGHT * t.hFrac;
-
-      this.add.rectangle(x, y, w, h, this.style.panelColor);
-      this.add
-        .text(x, y, this.menuData.title, {
-          fontSize: this.style.titleFontSize,
-          color: this.style.textColor,
-          align: 'center',
-          wordWrap: { width: w - 40 },
-        })
-        .setOrigin(0.5);
+      this.add.image(x, y, 'gameLogo')
+        .setOrigin(0, 0)
+        .setDisplaySize(t.width, t.height);
     }
 
     buildButtons() {
@@ -67,15 +59,16 @@
 
         const x = WIDTH * slot.xFrac;
         const y = HEIGHT * slot.yFrac;
-        const w = WIDTH * slot.wFrac;
-        const h = HEIGHT * slot.hFrac;
+        const w = slot.width;
+        const h = slot.height;
 
         const texture = buttonData.action === 'start' ? 'mainButtonBg' : 'saveButtonBg';
-        const bg = this.add.image(x, y, texture).setInteractive({ useHandCursor: true });
-        const scale = w / bg.width;
-        bg.setScale(scale);
+        const bg = this.add.image(x, y, texture)
+          .setOrigin(0, 0)
+          .setDisplaySize(w, h)
+          .setInteractive({ useHandCursor: true });
         this.add
-          .text(x, y, buttonData.label, { fontFamily: 'Philosopher', fontSize: this.style.buttonFontSize, color: this.style.textColor })
+          .text(x + w / 2, y + h / 2, buttonData.label, { fontFamily: 'Philosopher', fontSize: this.style.buttonFontSize, color: this.style.textColor })
           .setOrigin(0.5);
 
         bg.on('pointerup', () => this.onButtonClick(buttonData.action));

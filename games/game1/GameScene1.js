@@ -48,19 +48,64 @@ const BIRDS = [
 // растягивается на весь экран, насколько позволяет эта область.
 const BIRDS_AREA = { x: 197, y: 15, width: 1539, height: 894 };
 
-const MENU_BUTTON = {
-    x: 1830,
-    y: 14,
-    width: 72,
-    height: 66
+const PAUSE_BUTTON = {
+    x: 100,
+    y: 90,
+    size: 110,
+    texture: 'images/icon_UI/pause_button.png'
+};
+
+const HINT_NEXT_ARROW = {
+    // Координаты левого верхнего угла, как Left/Top в макете.
+    x: 1600,
+    y: 825,
+    size: 150,
+    texture: 'images/icon_UI/next_button.png'
+};
+
+const RESULT_MESSAGE_PANEL = {
+    // Левый верхний угол: 29,792% × 39,815% макета 1920×1080.
+    x: 572,
+    y: 430,
+    width: 776.03,
+    height: 220,
+    texture: 'images/icon_UI/result_message_panel.png'
+};
+
+const INSTRUCTION_PANEL = {
+    // Левый верхний угол: 16,146% × 23,241% макета 1920×1080.
+    x: 310,
+    y: 251,
+    width: 1300,
+    height: 577.04,
+    texture: 'images/icon_UI/instruction_panel.png'
 };
 
 const COLOR_BACKGROUND = 0xe5e5e5;
-const COLOR_MENU = 0x6f6f6f;
-const COLOR_OVERLAY = 0xd9d9d9;
+const COLOR_OVERLAY = 0x000000;
+// 40% прозрачности — 60% непрозрачности чёрного слоя.
+const OVERLAY_ALPHA = 0.6;
 
 const FONT_FAMILY = 'Inter, sans-serif';
-const COLOR_TEXT = '#000000';
+const COLOR_TEXT = '#ffffff';
+
+const RESULT_MESSAGE_TEXT_STYLE = {
+    fontFamily: 'Philosopher',
+    fontStyle: 'normal',
+    fontSize: '64px',
+    color: '#04151F',
+    lineSpacing: 0,
+    letterSpacing: 0
+};
+
+const INSTRUCTION_TEXT_STYLE = {
+    fontFamily: 'Philosopher',
+    fontStyle: 'normal',
+    fontSize: '64px',
+    color: '#6E6056',
+    letterSpacing: 0,
+    wordWrap: { width: INSTRUCTION_PANEL.width - 160 }
+};
 
 const DEMO_START_DELAY = 700;
 const DEMO_FLASH_DURATION = 500;
@@ -88,6 +133,10 @@ export class GameScene1 extends Phaser.Scene {
         return {
             images: [
                 { key: 'game1-background', url: `${imagesPath}bacground_game1.png` },
+                { key: PAUSE_BUTTON.texture, url: `${import.meta.env.BASE_URL}${PAUSE_BUTTON.texture}` },
+                { key: HINT_NEXT_ARROW.texture, url: `${import.meta.env.BASE_URL}${HINT_NEXT_ARROW.texture}` },
+                { key: RESULT_MESSAGE_PANEL.texture, url: `${import.meta.env.BASE_URL}${RESULT_MESSAGE_PANEL.texture}` },
+                { key: INSTRUCTION_PANEL.texture, url: `${import.meta.env.BASE_URL}${INSTRUCTION_PANEL.texture}` },
                 ...BIRDS.flatMap((bird) => [
                     { key: `${bird.image}_idle`, url: `${imagesPath}${bird.image}_1.png` },
                     { key: `${bird.image}_sing`, url: `${imagesPath}${bird.image}_2.png` },
@@ -117,6 +166,7 @@ export class GameScene1 extends Phaser.Scene {
         this.input.enabled = true;
         this.input.keyboard.enabled = true;
         this.sequence = [];
+        this.playedBirds = new Set();
         this.inputIndex = 0;
         this.demoStep = 0;
         this.round_number = 2;
@@ -126,12 +176,11 @@ export class GameScene1 extends Phaser.Scene {
         this.createBackground();
         this.createBirds();
         this.createPauseOverlay();
-        this.createButtonMenu();
+        this.createPauseButton();
         this.createRepeatOverlay();
         this.createLoseOverlay();
         this.createWinOverlay();
         this.createIntroOverlay();
-        this.createWinRoundOverlay();
         this.setupInput();
         window.VN?.systems.SceneAssets?.prefetchNext(this);
     }
@@ -174,20 +223,13 @@ export class GameScene1 extends Phaser.Scene {
     }
 
     buildSequence(sequence_len) {
-        const sequence = [];
+        const indices = Phaser.Utils.Array.Shuffle(this.birds.map((_, index) => index));
+        const unplayed = indices.filter(index => !this.playedBirds.has(index));
+        const played = indices.filter(index => this.playedBirds.has(index));
 
-        while (sequence.length < sequence_len) {
-            const index = Phaser.Math.Between(0, this.birds.length - 1);
-
-            // Одна и та же птица подряд читается неоднозначно — пропускаем.
-            if (index === sequence[sequence.length - 1]) {
-                continue;
-            }
-
-            sequence.push(index);
-        }
-
-        return sequence;
+        // Сначала включаем ещё не звучавших птиц, затем перемешиваем порядок.
+        // Каждая птица встречается в раунде не более одного раза.
+        return Phaser.Utils.Array.Shuffle([...unplayed, ...played].slice(0, sequence_len));
     }
 
     startRound() {
@@ -326,11 +368,13 @@ export class GameScene1 extends Phaser.Scene {
 
     winRound() {
         this.phase = 'over';
-        if (this.round_number == 4){
+        // Неудачные попытки не учитываем: все птицы должны войти в два пройденных раунда.
+        this.sequence.forEach(index => this.playedBirds.add(index));
+        if (this.round_number === 3) {
             this.showHint(this.winOverlay, () => this.finishGame());
-            return
+            return;
         }
-        this.showHint(this.winRoundOverlay, () => this.nextRound());
+        this.nextRound();
     }
 
     restartRound() {
@@ -358,36 +402,15 @@ export class GameScene1 extends Phaser.Scene {
         this.birds[index].voice.play();
     }
 
-    createButtonMenu() {
-        const button = this.add.rectangle(
-            MENU_BUTTON.x,
-            MENU_BUTTON.y,
-            MENU_BUTTON.width,
-            MENU_BUTTON.height,
-            COLOR_MENU
-        ).setOrigin(0);
-
-        const label = this.add.text(
-            MENU_BUTTON.x + MENU_BUTTON.width / 2,
-            MENU_BUTTON.y + MENU_BUTTON.height / 2,
-            'меню',
-            {
-                fontFamily: FONT_FAMILY,
-                fontSize: '16px',
-                color: COLOR_TEXT,
-                align: 'center'
-            }
-        ).setOrigin(0.5);
-
-        button.setInteractive({ useHandCursor: true });
+    createPauseButton() {
+        const button = this.add.image(PAUSE_BUTTON.x, PAUSE_BUTTON.y, PAUSE_BUTTON.texture)
+            .setDisplaySize(PAUSE_BUTTON.size, PAUSE_BUTTON.size)
+            .setDepth(20)
+            .setInteractive({ useHandCursor: true });
         button.on('pointerdown', () => this.openPauseMenu());
 
-        // Кнопка меню — в правом верхнем углу экрана (с учётом выреза).
-        this.layout.pin(this, button, { right: BASE_WIDTH - MENU_BUTTON.x, top: MENU_BUTTON.y });
-        this.layout.pin(this, label, {
-            right: BASE_WIDTH - MENU_BUTTON.x - MENU_BUTTON.width / 2,
-            top: MENU_BUTTON.y + MENU_BUTTON.height / 2
-        });
+        // Размер и привязка к левому верхнему углу — как в сюжетной сцене.
+        this.layout.pin(this, button, { left: PAUSE_BUTTON.x, top: PAUSE_BUTTON.y });
     }
 
     showHint(overlay, onDismiss, durationSeconds = this.hintDurationSeconds) {
@@ -423,32 +446,70 @@ export class GameScene1 extends Phaser.Scene {
         hint.onDismiss();
     }
 
-    createOverlay(text, onClick) {
+    createOverlay(text, onClick, { panel: panelConfig = null, textStyle = {}, lineHeight = null } = {}) {
         const background = this.add.rectangle(
             0,
             0,
             BASE_WIDTH,
             BASE_HEIGHT,
-            COLOR_OVERLAY
+            COLOR_OVERLAY,
+            OVERLAY_ALPHA
         ).setOrigin(0);
 
         const label = this.add.text(BASE_WIDTH / 2, BASE_HEIGHT / 2, text, {
             fontFamily: FONT_FAMILY,
             fontSize: '40px',
-            color: COLOR_TEXT,
-            align: 'center'
+            color: panelConfig ? '#6e6056' : COLOR_TEXT,
+            align: 'center',
+            ...textStyle
         }).setOrigin(0.5);
+
+        if (lineHeight !== null) {
+            // В Phaser межстрочный шаг складывается из метрик шрифта и lineSpacing.
+            const updateLineHeight = () => label.setLineSpacing(lineHeight - label.style.metrics.fontSize);
+            updateLineHeight();
+            const fonts = globalThis.document?.fonts;
+            fonts?.addEventListener('loadingdone', updateLineHeight);
+            this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+                fonts?.removeEventListener('loadingdone', updateLineHeight);
+            });
+        }
 
         background.setInteractive({ useHandCursor: Boolean(onClick) });
 
+        const elements = [background];
+        if (panelConfig) {
+            const panel = this.add.image(panelConfig.x, panelConfig.y, panelConfig.texture)
+                .setOrigin(0)
+                .setDisplaySize(panelConfig.width, panelConfig.height);
+            elements.push(panel);
+            this.layout.onLayout(this, (visible) => {
+                const x = visible.x + visible.width * panelConfig.x / BASE_WIDTH;
+                const y = visible.y + visible.height * panelConfig.y / BASE_HEIGHT;
+                panel.setPosition(x, y);
+                label.setPosition(x + panelConfig.width / 2, y + panelConfig.height / 2);
+            });
+        }
+        elements.push(label);
         if (onClick) {
             background.on('pointerdown', onClick);
+
+            // Стрелка только обозначает переход: клик принимает вся подложка.
+            const nextArrow = this.add.image(HINT_NEXT_ARROW.x, HINT_NEXT_ARROW.y, HINT_NEXT_ARROW.texture)
+                .setOrigin(0)
+                .setDisplaySize(HINT_NEXT_ARROW.size, HINT_NEXT_ARROW.size);
+            elements.push(nextArrow);
+            this.layout.onLayout(this, (visible) => {
+                nextArrow.setPosition(
+                    visible.x + visible.width * HINT_NEXT_ARROW.x / BASE_WIDTH,
+                    visible.y + visible.height * HINT_NEXT_ARROW.y / BASE_HEIGHT
+                );
+            });
         }
 
-        const overlay = this.add.container(0, 0, [background, label]);
-        overlay.setVisible(false);
+        const overlay = this.add.container(0, 0, elements).setDepth(10).setVisible(false);
 
-        // Подложка подсказки закрывает весь экран, текст — по центру.
+        // Затемняем весь игровой фон и птиц; UI паузы остаётся выше подложки.
         this.layout.fill(this, background);
 
         return overlay;
@@ -468,47 +529,33 @@ export class GameScene1 extends Phaser.Scene {
     createLoseOverlay() {
         this.loseOverlay = this.createOverlay(
             'Попробуйте снова',
-            () => this.dismissHint()
+            () => this.dismissHint(),
+            { panel: RESULT_MESSAGE_PANEL, textStyle: RESULT_MESSAGE_TEXT_STYLE }
         );
     }
 
     createWinOverlay() {
         this.winOverlay = this.createOverlay(
             'Ура пабеда едем дальше',
-            () => this.dismissHint()
-        );
-    }
-
-    createWinRoundOverlay() {
-        this.winRoundOverlay = this.createOverlay(
-            'Раунд пройден, повышаем сложность...',
-            () => this.dismissHint()
+            () => this.dismissHint(),
+            { panel: RESULT_MESSAGE_PANEL, textStyle: RESULT_MESSAGE_TEXT_STYLE }
         );
     }
 
     nextRound(){
         this.round_number += 1;
-        this.winRoundOverlay.setVisible(false);
         this.phase = 'intro';
         this.showHint(this.introOverlay, () => this.startRound());
     }
 
     createIntroOverlay() {
-        // Первый показ правил нельзя пропустить; повторные показы — можно.
-        let canSkip = false;
         this.introOverlay = this.createOverlay(
             'Прослушайте песню птиц и попробуйте повторить ее.',
-            () => {
-                if (canSkip) {
-                    this.dismissHint();
-                }
-            }
+            () => this.dismissHint(),
+            { panel: INSTRUCTION_PANEL, textStyle: INSTRUCTION_TEXT_STYLE, lineHeight: 64 }
         );
 
-        this.showHint(this.introOverlay, () => {
-            canSkip = true;
-            this.startRound();
-        }, 4);
+        this.showHint(this.introOverlay, () => this.startRound(), 4);
     }
 
     openPauseMenu() {

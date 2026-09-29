@@ -15,7 +15,7 @@
         images: [
           { key: 'gameLogo', url: 'images/icon_UI/game_logo.png' },
           { key: 'mainButtonBg', url: 'images/icon_UI/main_button.png' },
-          { key: 'saveButtonBg', url: 'images/icon_UI/save_button.png' },
+          { key: 'saveButtonBg', url: 'images/icon_UI/main_button.png' },
         ],
       };
     }

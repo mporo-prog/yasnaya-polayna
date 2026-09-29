@@ -18,7 +18,9 @@
       const paths = new Set();
       const visit = (cue) => {
         if (!cue) return;
-        for (const value of [cue.music, cue.transitionSound, ...(cue.sounds ?? [])]) {
+        // voice — озвучка реплики: её проигрывает StoryScene, а здесь путь
+        // нужен, чтобы SceneAssets загрузил файл через общую очередь.
+        for (const value of [cue.music, cue.transitionSound, cue.voice, ...(cue.sounds ?? [])]) {
           if (value) paths.add(asSound(value).path);
         }
         for (const screen of cue.screens ?? []) visit(screen);

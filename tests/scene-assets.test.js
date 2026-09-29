@@ -163,7 +163,7 @@ test('destroy settles both queued and in-flight requests', async () => {
 test('menu needs only its visuals; a story includes only its own speakers, images and audio', () => {
   const f = fixture();
   const menu = f.assets.assetsFor(f.game, 'MainMenuScene', {}, { visualsOnly: true });
-  assert.deepEqual(Array.from(menu, (asset) => asset.key).sort(), ['mainButtonBg', 'menuBackground', 'saveButtonBg']);
+  assert.deepEqual(Array.from(menu, (asset) => asset.key).sort(), ['gameLogo', 'mainButtonBg', 'menuBackground', 'saveButtonBg']);
   assert.ok(menu.every((asset) => asset.type === 'image'));
   const story = f.assets.assetsFor(f.game, 'StoryScene', { storySceneIndex: 0 });
   const keys = story.map((asset) => asset.key);
@@ -181,7 +181,7 @@ test('menu needs only its visuals; a story includes only its own speakers, image
 test('actual menu and story manifests include UI texture aliases backed by existing PNG files', () => {
   const f = fixture();
   const expected = {
-    MainMenuScene: { mainButtonBg: 'main_button.png', saveButtonBg: 'save_button.png' },
+    MainMenuScene: { gameLogo: 'game_logo.png', mainButtonBg: 'main_button.png', saveButtonBg: 'save_button.png' },
     StoryScene: { dialogTextBg: 'dialog_text_bg.png', historyModalBg: 'history_modal_bg.png', closeButton: 'close_button.png' },
   };
   for (const [scene, textures] of Object.entries(expected)) {

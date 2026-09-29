@@ -1,33 +1,59 @@
-// import Phaser from 'phaser';
-
-// Все координаты — в пикселях макета 1920×1080 (безопасная зона).
-// Растягивание на экран и поля по краям — resource/systems/Layout.js.
 import { THINGS } from './data/things.js';
-
-const BASE_WIDTH = 1920;
-const BASE_HEIGHT = 1080;
+import { TARGETS } from './data/targets.js';
+import {
+    BASE_WIDTH,
+    BASE_HEIGHT,
+    TARGET_SIZE,
+    ITEM_SIZE,
+    PAUSE_BUTTON
+} from './constants/Game2Constants.js';
+import { Thing } from './models/Thing.js';
+import { Target } from './models/Target.js';
+import { Game2Matcher } from './systems/Game2Matcher.js';
+import { Game2Audio } from './systems/Game2Audio.js';
+import { Game2PanelLayout } from './systems/Game2PanelLayout.js';
 
 export class GameScene2 extends Phaser.Scene {
 
     constructor() {
         super('GameScene2');
+
+        this.matcher = new Game2Matcher();
+        this.audio = new Game2Audio(this);
+
+        this.things = [];
+        this.targets = [];
+        this.completed = false;
     }
 
-    init(data) {
+    init(data = {}) {
         this.storySceneIndex = data.storySceneIndex;
         this.minigameId = data.minigameId;
     }
 
     getAssetManifest() {
-        const imagesPath = `${import.meta.env.BASE_URL}images/game2/`;
+        const imagesPath =
+            `${import.meta.env.BASE_URL}images/game2/`;
+        const uiPath =
+            `${import.meta.env.BASE_URL}images/icon_UI/`;
+
         return {
             images: [
-                { key: 'background', url: `${imagesPath}background.png` },
-                ...THINGS.flatMap((thing) => [
-                    { key: `${thing.image}`, url: `${imagesPath}${thing.image}.png` },
-                ]),
+                {
+                    key: 'game2-background',
+                    url: `${imagesPath}background.png`
+                },
+                ...THINGS.map((thing) => ({
+                    key: `game2-${thing.image}`,
+                    url: `${imagesPath}${thing.image}.png`
+                })),
+                {
+                    key: 'game2-pause',
+                    url: `${uiPath}pause_button.png`
+                }
             ],
-            audio: THINGS.map((thing) => thing.voice),
+
+            audio: [...THINGS.map((thing) => thing.sound), 'voice_and_sound/gameplay2_neverniy_vybor.wav']
         };
     }
 
@@ -36,358 +62,303 @@ export class GameScene2 extends Phaser.Scene {
             window.VN.systems.SceneAssets.preload(this);
             return;
         }
-        window.VN?.systems.SceneAudio?.preload(this);
+
+        // Отдельная страница games/game2/index.html.
+        const assets = this.getAssetManifest();
+
+        assets.images.forEach(({ key, url }) => {
+            this.load.image(key, url);
+        });
     }
 
     create() {
+        this.layout = window.VN?.systems.Layout || null;
+
         window.VN?.systems.SceneAudio?.enter(this);
-        this.layout = window.VN.systems.Layout;
+
         this.createBackground();
-        this.createGameField();
-        this.createZones();
-        this.createElements();
-        this.createButtonMenu();
+        this.createTargets();
+        this.createPauseButton();
+        this.createThings();
+        this.createPanelLayout();
+        this.setupDrag();
+
+        this.events.once(
+            Phaser.Scenes.Events.SHUTDOWN,
+            this.shutdown,
+            this
+        );
+
         window.VN?.systems.SceneAssets?.prefetchNext(this);
     }
 
     createBackground() {
-        const background = this.add.rectangle(
-            0,
-            0,
+        if (this.layout) {
+            this.background = this.layout.addBackground(
+                this,
+                'game2-background'
+            );
+            this.stage = this.background.stage;
+            return;
+        }
+
+        this.background = this.add.image(
+            BASE_WIDTH / 2,
+            BASE_HEIGHT / 2,
+            'game2-background'
+        ).setDisplaySize(
             BASE_WIDTH,
-            BASE_HEIGHT,
-            0x3a3a3a
-        ).setOrigin(0);
+            BASE_HEIGHT
+        );
 
-        // Фон — на весь экран, включая поля по краям.
-        this.layout.fill(this, background);
+        this.stage = this.add.container(0, 0);
+        this.stage.add(this.background);
     }
 
-    createGameField() {
-        const width = BASE_WIDTH;
-        const height = BASE_HEIGHT;
-        this.mapWidth = width * 0.9;
-        this.panelX = this.mapWidth;
+    createTargets() {
+        this.targets = TARGETS.map((data) => {
+            const target = new Target(data);
+            const thing = THINGS.find(
+                (item) => item.targetId === target.id
+            );
 
-        this.add.rectangle(
-            0,
-            0,
-            this.mapWidth,
-            height
-        ).setOrigin(0);
-
-        this.add.rectangle(
-            this.panelX,
-            0,
-            width - this.panelX,
-            height
-        ).setOrigin(0);
-    }
-
-    createZones() {
-        const zoneWidth = 134;
-        const zoneHeight = 126;
-
-        this.zones = [
-            {
-                id: 'red',
-                x: this.mapWidth * 0.4,
-                y: BASE_HEIGHT * 0.2,
-                color: 0xd12626
-            },
-            {
-                id: 'green',
-                x: this.mapWidth * 0.5,
-                y: BASE_HEIGHT * 0.45,
-                color: 0x8eb41b
-            },
-            {
-                id: 'emerald',
-                x: this.mapWidth * 0.7,
-                y: BASE_HEIGHT * 0.4,
-                color: 0x17937b
-            },
-            {
-                id: 'blue',
-                x: this.mapWidth * 0.6,
-                y: BASE_HEIGHT * 0.8,
-                color: 0x17249b
-            },
-            {
-                id: 'purple',
-                x: this.mapWidth * 0.9,
-                y: BASE_HEIGHT * 0.6,
-                color: 0x8d187f
+            if (!thing) {
+                return target;
             }
-        ];
 
-        this.zones.forEach(zone => {
-            this.add.rectangle(
-                zone.x,
-                zone.y,
-                zoneWidth,
-                zoneHeight,
-                zone.color
+            target.createSprite(
+                this,
+                `game2-${thing.image}`,
+                TARGET_SIZE
+            );
+
+            this.stage.add(target.sprite);
+
+            return target;
+        });
+    }
+
+    createThings() {
+        this.things = THINGS.map((data) => {
+            return new Thing(
+                data,
+                `game2-${data.image}`
             );
         });
     }
 
-    createButtonMenu() {
+    createPauseButton() {
+        this.pauseButton = this.add.image(
+            0,
+            0,
+            'game2-pause'
+        );
 
-        const buttonWidth = 72;
-        const buttonHeight = 66;
+        this.pauseButton.setDisplaySize(
+            PAUSE_BUTTON.width,
+            PAUSE_BUTTON.height
+        );
 
-        const buttonX =
-            this.panelX +
-            (BASE_WIDTH - this.panelX) -
-            0.06 * BASE_WIDTH;
-
-        const button = this.add.rectangle(
-            buttonX,
-            10 + buttonHeight / 2,
-            buttonWidth,
-            buttonHeight,
-            0x555555
-        ).setOrigin(0);
-
-        button.setInteractive({
+        this.pauseButton.setInteractive({
             useHandCursor: true
         });
 
-        button.on('pointerdown', () => {
-            this.openPauseMenu();
-        });
-
-        // Кнопка меню — в правом верхнем углу экрана (с учётом выреза).
-        this.layout.pin(this, button, { right: BASE_WIDTH - buttonX, top: button.y });
+        this.pauseButton.on(
+            'pointerdown',
+            () => this.openPauseMenu()
+        );
     }
 
-    openPauseMenu() {
+    createPanelLayout() {
+        this.panelLayout = new Game2PanelLayout(
+            this,
+            this.things,
+            this.pauseButton
+        );
 
-        this.scene.pause();
+        this.panel = this.panelLayout.createPanel();
 
-        this.scene.launch('PauseScene', {
-            returnSceneKey: 'GameScene2'
+        this.things.forEach((thing) => {
+            if (!thing.sprite) {
+                thing.createSprite(
+                    this,
+                    this.pauseButton.x,
+                    this.pauseButton.y,
+                    ITEM_SIZE
+                );
+            }
         });
 
-        this.scene.bringToTop('PauseScene');
-    }
-
-    // createElements() {
-    //     const elementSize = 115;
-
-    //     this.elements = [
-    //         {
-    //             id: 'element1',
-    //             correctZone: 'red',
-    //             color: 0xd12626
-    //         },
-    //         {
-    //             id: 'element2',
-    //             correctZone: 'blue',
-    //             color: 0x17249b
-    //         },
-    //         {
-    //             id: 'element3',
-    //             correctZone: 'purple',
-    //             color: 0x8d187f
-    //         },
-    //         {
-    //             id: 'element4',
-    //             correctZone: 'emerald',
-    //             color: 0x17937b
-    //         },
-    //         {
-    //             id: 'element5',
-    //             correctZone: 'green',
-    //             color: 0x8eb41b
-    //         }
-    //     ];
-
-    //     const panelCenterX = this.panelX + (BASE_WIDTH - this.panelX) / 2;
-    //     const gap = 40;
-    //     const countElements = this.elements.length
-    //     const totalHeight = elementSize * countElements + gap * (countElements - 1);
-    //     const startY = (BASE_HEIGHT - totalHeight) / 2 + 0.08 * BASE_HEIGHT;
-        
-    //     this.elements.forEach((element, index) => {
-
-    //         const square = this.add.rectangle(
-    //             panelCenterX,
-    //             startY + elementSize / 2 + index * (elementSize + gap),
-    //             elementSize,
-    //             elementSize,
-    //             element.color
-    //         );
-
-    //         square.setInteractive({
-    //             draggable: true
-    //         });
-
-    //         element.sprite = square;
-    //         element.startX = square.x;
-    //         element.startY = square.y;
-    //     });
-
-    //     this.setupDrag();
-    // }
-    createThings(){
-        this.things = THINGS.map((data, index) => {
-            const thing = {
-                voice: window.VN.systems.AudioManager.add(this, data.voice),
-                timer: null,
-                width: data.width ?? BIRD_WIDTH,
-                height: data.height ?? BIRD_HEIGHT,
-                idleKey: `${data.image}_idle`,
-                singKey: `${data.image}_sing`
-            };
-
-            bird.box = this.add.image(data.x, data.y, bird.idleKey)
-                .setOrigin(0)
-                .setDisplaySize(bird.width, bird.height);
-
-            bird.box.setInteractive({ useHandCursor: true });
-            bird.box.on('pointerdown', () => this.selectBird(index));
-
-            this.stage.add(bird.box);
-
-            return bird;
-        });
+        // Layout.onLayout() сразу расставляет предметы.
+        this.panelLayout.update(
+            this.layout
+                ? this.layout.getUiRect(this)
+                : {
+                    x: 0,
+                    y: 0,
+                    width: BASE_WIDTH,
+                    height: BASE_HEIGHT,
+                    right: BASE_WIDTH,
+                    bottom: BASE_HEIGHT,
+                    top: 0,
+                    left: 0
+                }
+        );
     }
 
     setupDrag() {
+        this.onDragStart = (pointer, gameObject) => {
+                const thing =
+                    gameObject.getData('thing');
 
-        this.input.on('dragstart', (pointer, gameObject) => {
+                if (!thing || thing.isLocked()) {
+                    return;
+                }
 
-            const element = this.elements.find(item => item.sprite == gameObject);
+                this.audio.unlock();
 
-            if (element.locked) {return;}
-        });
+                gameObject.setDepth(100);
+        };
 
-        this.input.on('drag', (pointer, gameObject, dragX, dragY) => {
+        this.onDrag = (pointer, gameObject, dragX, dragY) => {
+                const thing =
+                    gameObject.getData('thing');
 
-            const element = this.elements.find(item => item.sprite == gameObject);
+                if (!thing || thing.isLocked()) {
+                    return;
+                }
 
-            if (element.locked) {return;}
+                gameObject.setPosition(
+                    dragX,
+                    dragY
+                );
+        };
 
-            gameObject.x = dragX;
-            gameObject.y = dragY;
-        });
+        this.onDragEnd = (pointer, gameObject) => {
+                const thing =
+                    gameObject.getData('thing');
 
-        this.input.on('dragend', (pointer, gameObject) => {
+                if (!thing || thing.isLocked()) {
+                    return;
+                }
 
-            const element = this.elements.find(item => item.sprite == gameObject);
+                this.handleDrop(
+                    thing,
+                    {
+                        x: pointer.worldX,
+                        y: pointer.worldY
+                    }
+                );
+        };
 
-            const zone = this.findZone(gameObject);
+        this.input.on('dragstart', this.onDragStart);
+        this.input.on('drag', this.onDrag);
+        this.input.on('dragend', this.onDragEnd);
+    }
 
-            if (zone && zone.id == element.correctZone) {
-                this.placeElement(element, zone);
-            } else {
-                this.returnElement(element);
+    handleDrop(thing, point) {
+        const target = this.findMatchingTarget(
+            thing,
+            point
+        );
+
+        if (!target) {
+            this.returnThing(thing);
+            return;
+        }
+
+        this.placeThing(
+            thing,
+            target
+        );
+    }
+
+    findMatchingTarget(thing, point) {
+        return this.matcher.findMatchingTarget(
+            thing,
+            point,
+            this.targets
+        );
+    }
+
+    placeThing(thing, target) {
+        thing.lock();
+        thing.sprite.disableInteractive();
+
+        this.tweens.add({
+            targets: thing.sprite,
+            alpha: 0,
+            duration: 180,
+            onComplete: () => {
+                thing.sprite.destroy();
+                thing.sprite = null;
+
+                target.reveal();
+                window.VN?.systems.AudioManager?.play(this, thing.sound);
+
+                this.checkCompletion();
             }
         });
     }
 
-    findZone(gameObject) {
+    returnThing(thing) {
+        window.VN?.systems.AudioManager?.play(this, 'voice_and_sound/gameplay2_neverniy_vybor.wav');
 
-        return this.zones.find(zone => {
-
-            const distance = Phaser.Math.Distance.Between(
-                gameObject.x,
-                gameObject.y,
-                zone.x,
-                zone.y
-            );
-
-            return distance < 40;
+        this.tweens.add({
+            targets: thing.sprite,
+            x: thing.startX,
+            y: thing.startY,
+            duration: 500,
+            ease: 'Power2'
         });
-    }
 
-    placeElement(element, zone) {
-
-        element.sprite.x = zone.x;
-        element.sprite.y = zone.y;
-        
-        element.sprite.disableInteractive();
-
-        element.locked = true;
-
-        element.sprite.setFillStyle(0xffffff);
-
-        this.checkCompletion();
+        thing.sprite.setDepth(1);
     }
 
     checkCompletion() {
+        if (this.completed) {
+            return;
+        }
 
-        const completed = this.elements.every(
-            element => element.locked
+        const done = this.things.every(
+            (thing) => thing.isLocked()
         );
 
-        if (completed) {
-            this.showWinMessage();
+        if (!done) {
+            return;
         }
-    }
 
-    // showWinMessage() {
+        this.completed = true;
 
-    //     this.add.text(
-    //         BASE_WIDTH / 2,
-    //         BASE_HEIGHT / 2,
-    //         'Далее',
-    //         {
-    //             fontSize: '48px',
-    //             color: '#ffffff',
-    //             backgroundColor: '#000000',
-    //             padding: {
-    //                 x: 20,
-    //                 y: 10
-    //             }
-    //         }
-    //     ).setOrigin(0.5);
-    // }
-
-    showWinMessage() {
-
-        // const button = this.add.text(
-        //     BASE_WIDTH / 2,
-        //     BASE_HEIGHT / 2,
-        //     'Далее',
-        //     {
-        //         fontSize: '48px',
-        //         color: '#ffffff',
-        //         backgroundColor: '#000000',
-        //         padding: {
-        //             x: 20,
-        //             y: 10
-        //         }
-        //     }
-        // ).setOrigin(0.5);
-
-
-        // button.setInteractive({
-        //     useHandCursor: true
-        // });
-
-
-        window.VN.systems.finishMinigameAndAdvance(
+        window.VN?.systems.finishMinigameAndAdvance?.(
             this,
             this.storySceneIndex,
             this.minigameId
         );
-        // button.on('pointerdown', () => {
-
-
-        // });
     }
 
-    returnElement(element) {
+    openPauseMenu() {
+        if (this.completed) {
+            return;
+        }
 
-        this.tweens.add({
-            targets: element.sprite,
-            x: element.startX,
-            y: element.startY,
-            duration: 500,
-            ease: 'Power2'
-        });
+        this.scene.pause();
+
+        this.scene.launch(
+            'PauseScene',
+            {
+                returnSceneKey: 'GameScene2'
+            }
+        );
+
+        this.scene.bringToTop(
+            'PauseScene'
+        );
+    }
+
+    shutdown() {
+        this.input.off('dragstart', this.onDragStart);
+        this.input.off('drag', this.onDrag);
+        this.input.off('dragend', this.onDragEnd);
     }
 }

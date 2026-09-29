@@ -51,7 +51,7 @@ const BIRDS_AREA = { x: 197, y: 15, width: 1539, height: 894 };
 const PAUSE_BUTTON = {
     x: 100,
     y: 90,
-    size: 110,
+    size: 148,
     texture: 'images/icon_UI/pause_button.png'
 };
 

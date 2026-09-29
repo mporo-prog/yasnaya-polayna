@@ -1,12 +1,15 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { fixture as audioFixture } from './helpers/audio-fixture.js';
 
 globalThis.Phaser = {
   Scene: class {},
+  Scenes: { Events: { SHUTDOWN: 'shutdown' } },
   Utils: { Array: { Shuffle: (array) => array.reverse() } },
 };
 globalThis.window = { VN: { systems: {
   finishMinigameAndAdvance(scene) { scene.advances += 1; },
+  SceneAudio: { enter() {} },
 } } };
 const { GameScene1 } = await import('../games/game1/GameScene1.js');
 
@@ -61,6 +64,124 @@ function fixture(round = 2, audio = true) {
   }
   return { scene, advance };
 }
+
+function narratedIntroFixture(t, { blocked = false, sounds = ['voice_and_sound/line.mp3'] } = {}) {
+  const f = fixture(2, false);
+  const audio = audioFixture();
+  const audioScene = audio.scene('GameScene1', { audio: { sounds } });
+  const scene = f.scene;
+  Object.assign(scene, {
+    phase: 'intro',
+    game: audioScene.game, events: audioScene.events,
+    sound: audioScene.sound, cache: audioScene.cache, sys: audioScene.sys,
+  });
+  let resumeAllowed = !blocked;
+  let resumeCalls = 0;
+  audio.context.state = 'suspended';
+  audio.context.resume = () => {
+    resumeCalls += 1;
+    if (resumeAllowed) audio.context.state = 'running';
+  };
+  scene.createOverlay = (text, onClick) => {
+    scene.introOverlay.onClick = onClick;
+    return scene.introOverlay;
+  };
+  t.mock.method(window.VN.systems.SceneAudio, 'enter', (owner) => {
+    assert.equal(owner.introOverlay.visible, true, 'The instruction is visible when narration starts');
+    return audio.sceneAudio.enter(owner);
+  });
+  scene.createIntroOverlay();
+  return { ...f, audio, get resumeCalls() { return resumeCalls; },
+    allowResume() { resumeAllowed = true; } };
+}
+
+test('first instruction starts narration immediately and waits for its actual end before starting birds', (t) => {
+  const f = narratedIntroFixture(t);
+  const { scene, audio, advance } = f;
+  assert.equal(f.resumeCalls, 1, 'Unlock audio on the first instruction, not on startRound');
+  assert.equal(audio.sources.length, 1);
+  assert.equal(audio.sources[0].startAt, 0);
+  assert.equal(audio.context.state, 'running');
+
+  scene.introOverlay.onClick();
+  advance(4000);
+  assert.equal(scene.introOverlay.visible, true, 'Clicks and the old four-second timeout cannot skip narration');
+  assert.equal(scene.phase, 'intro');
+  assert.ok(scene.birds.every((bird) => bird.voice.plays === 0));
+
+  audio.advance(9.99);
+  scene.update();
+  assert.equal(scene.introOverlay.visible, true);
+  audio.advance(10);
+  scene.update();
+  assert.equal(scene.introOverlay.visible, false);
+  assert.equal(scene.phase, 'demo');
+  advance(699);
+  assert.ok(scene.birds.every((bird) => bird.voice.plays === 0));
+  advance(1);
+  assert.equal(scene.birds[0].voice.plays, 1);
+
+  scene.nextRound();
+  scene.introOverlay.onClick();
+  assert.equal(scene.phase, 'demo', 'The next round instruction can still be skipped');
+  scene.restartRound();
+  advance(100);
+  assert.equal(scene.phase, 'demo', 'A retry uses the regular hint duration');
+  assert.equal(audio.sources.length, 1, 'Later instruction displays never replay narration');
+});
+
+test('autoplay-blocked narration keeps the first instruction open until a click unlocks audio and it finishes', (t) => {
+  const f = narratedIntroFixture(t, { blocked: true });
+  const { scene, audio, advance } = f;
+  advance(30000);
+  assert.equal(scene.introOverlay.visible, true);
+  assert.equal(scene.phase, 'intro');
+  assert.equal(f.resumeCalls, 1, 'Waiting does not repeatedly request audio unlock');
+
+  f.allowResume();
+  scene.introOverlay.onClick();
+  assert.equal(audio.context.state, 'running');
+  assert.equal(scene.introOverlay.visible, true, 'The unlocking click cannot also dismiss the instruction');
+  assert.equal(audio.sources.length, 1);
+  audio.advance(10);
+  scene.update();
+  assert.equal(scene.phase, 'demo');
+});
+
+test('finishing narration while paused defers the instruction transition until the scene resumes', (t) => {
+  const { scene, audio, advance } = narratedIntroFixture(t);
+  advance(4000);
+  scene.paused = true;
+  audio.advance(10);
+  scene.update();
+  assert.equal(scene.introOverlay.visible, true);
+  scene.paused = false;
+  scene.update();
+  assert.equal(scene.phase, 'demo');
+});
+
+test('missing narration does not trap the player on the first instruction', (t) => {
+  const { scene, audio, advance } = narratedIntroFixture(t, { sounds: ['voice_and_sound/missing.mp3'] });
+  assert.equal(audio.warnings.length, 1);
+  advance(4000);
+  assert.equal(scene.introOverlay.visible, false);
+  assert.equal(scene.phase, 'demo');
+});
+
+test('leaving the first instruction cancels narration and cannot start the bird demonstration later', (t) => {
+  const { scene, audio, advance } = narratedIntroFixture(t);
+  scene.input.keyboard.on = () => {};
+  scene.birds.forEach((bird) => { bird.voice.destroy = () => {}; });
+  scene.setupInput();
+  advance(4000);
+  scene.events.emit('shutdown');
+  assert.equal(scene.activeHint, null);
+  assert.equal(audio.controller.effects.size, 0);
+  audio.advance(10);
+  advance(10000);
+  assert.equal(scene.phase, 'intro');
+  assert.ok(scene.birds.every((bird) => bird.voice.plays === 0));
+});
 
 for (const [label, round, lastBird, overlay] of [
   ['round victory', 2, 1, 'introOverlay'],

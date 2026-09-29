@@ -91,3 +91,18 @@ test('one missing sound does not break a scene or prevent other effects, explici
   assert.equal(f.controller.effects.size, 1);
   assert.equal(f.warnings.length, 2);
 });
+
+test('active sound status includes delayed narration and excludes background music', () => {
+  const f = fixture();
+  const session = f.sceneAudio.enter(f.scene(), {
+    music: 'music/a.mp3',
+    sounds: [{ path: 'voice_and_sound/line.mp3', delay: 4 }],
+    screens: [{ sounds: ['ui/screen.mp3'] }],
+  });
+  assert.equal(session.hasActiveSounds, true, 'Pending narration also blocks an early transition');
+  f.advance(10);
+  assert.equal(session.hasActiveSounds, true, 'A finished screen sound does not hide active scene narration');
+  f.advance(14);
+  assert.equal(session.hasActiveSounds, false);
+  assert.equal(f.controller.tracks.size, 1, 'Looping music never blocks an instruction');
+});

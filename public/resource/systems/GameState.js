@@ -20,7 +20,7 @@
       this.save();
     },
 
-    /** Одна точка выбора продолжения для загрузки страницы, меню и предзагрузки. */
+    /** Выбор сохранённой сюжетной сцены или мини-игры для восстановления. */
     getResumeTarget: function () {
       const s = this.state;
       const storySceneIndex = s.storySceneIndex;
@@ -40,7 +40,7 @@
     resume: function (scene) {
       this.checkExpiration();
       const target = this.getResumeTarget();
-      // Записываем переход до загрузки ресурсов, в том числе при продолжении из меню.
+      // Записываем переход до загрузки ресурсов, чтобы перезагрузка восстановила цель.
       this.state.status = target.key === 'StoryScene' ? 'story' : 'minigame';
       this.save();
       scene.scene.start(target.key, target.data);
@@ -101,13 +101,13 @@
       this.save();
     },
 
-    /** Полный сброс прогресса (для будущей кнопки "Новая игра"). */
+    /** Полный сброс прогресса, в том числе по кнопке "Начать" в главном меню. */
     reset: function () {
       SaveManager.clear();
       this.state = SaveManager.load();
     },
 
-    /** Проверка срока хранения при возвращении на вкладку или продолжении из меню. */
+    /** Проверка срока хранения при загрузке и возвращении на вкладку. */
     checkExpiration: function () {
       if (SaveManager.isExpired(this.state)) {
         this.reset();

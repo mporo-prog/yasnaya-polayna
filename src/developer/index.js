@@ -22,6 +22,12 @@ export function installDeveloperMode(game, vn) {
       minigameId: `story_${storySceneIndex + 1}_minigame`,
     },
   }] : []);
+  entries.push({
+    key: 'FinishScene',
+    label: 'Финальный экран',
+    description: 'Открыть экран итогов игры',
+    url: `${import.meta.env.BASE_URL}games/finish/index.html`,
+  });
   entries.push({ key: 'SoundTestScene', label: 'Саундтест', data: {} });
   entries.push({
     key: 'MainMenuScene',

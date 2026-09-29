@@ -1,32 +1,49 @@
 (function () {
   const WIDTH = 1920;
   const HEIGHT = 1080;
-  // const WIDTH = window.innerWidth;
-  // const HEIGHT = window.innerHeight;
+
+  const IMG = {
+    background: 'quoteBackground',
+    hero: 'quoteHero',
+    plazka: 'quotePlazka',
+    dialog: 'dialogTextBg', // тот же ключ и файл, что в StoryScene
+    next: 'images/icon_UI/next_button.png',
+    pause: 'images/icon_UI/pause_button.png',
+  };
 
   /**
-   * QuoteMinigameScene — мини-игра "определи правильное начало/продолжение/
-   * пропущенное слово в цитате". Раунды — в data/minigames/quote/quoteData.js,
-   * стиль — в data/minigames/quote/quoteStyle.js, здесь только логика/отрисовка.
+   * QuoteMinigameScene — мини-игра «Продолжите цитату». Раунды —
+   * data/minigames/quote/quoteData.js, внешний вид —
+   * data/minigames/quote/quoteStyle.js.
    *
-   * У каждого раунда есть mode:
-   *   'prefix' — плашка-пропуск СЛЕВА, известный текст (prompt) справа от неё;
-   *   'suffix' — известный текст (prompt) слева, плашка-пропуск справа;
-   *   'middle' — плашка-пропуск ВНУТРИ фразы: текст до неё (prefix) и после
-   *              (suffix) — два разных куска, известных заранее.
+   * Раунд: цитата с пустой рамкой и три плашки-варианта. Неправильный
+   * вариант закрывается красной накладкой. После правильного цитата
+   * собирается целиком, варианты исчезают, снизу появляется диалоговая
+   * плашка героя (как в сюжетной сцене) со своей репликой; стрелка на
+   * плашке ведёт к следующему раунду, после последнего — дальше по сюжету.
+   *
+   * У раунда есть mode:
+   *   'prefix' — рамка-пропуск сверху, известный текст (prompt) под ней;
+   *   'suffix' — известный текст (prompt) сверху, рамка-пропуск под ним;
+   *   'middle' — рамка-пропуск ПОСЕРЕДИНЕ: текст до неё (prefix) сверху,
+   *              текст после (suffix) снизу — три строки друг под другом.
    */
   class QuoteMinigameScene extends Phaser.Scene {
     constructor() {
       super('QuoteMinigameScene');
     }
 
+    // Картинки грузятся общей очередью SceneAssets (с экраном загрузки и
+    // предзагрузкой во время предыдущей сюжетной сцены).
     getAssetManifest() {
       return {
         images: [
-          { key: 'quotePlug', url: 'images/backgrounds/plug.png' },
-          { key: 'quoteHero', url: 'images/hero/Толстой_1.png' },
-          { key: 'quotePlazka', url: 'images/ui/plazka_game_5.png' },
-          { key: 'quoteNextBtn', url: 'images/icon_UI/next_button.png' },
+          { key: IMG.background, url: 'images/backgrounds/plug.png' },
+          { key: IMG.hero, url: 'public/images/hero/Толстой_1.png' },
+          { key: IMG.plazka, url: 'images/icon_UI/rectangle_game5.png' },
+          { key: IMG.dialog, url: 'images/icon_UI/dialog_text_bg.png' },
+          { key: IMG.next, url: IMG.next },
+          { key: IMG.pause, url: IMG.pause },
         ],
       };
     }
@@ -42,6 +59,8 @@
       this.currentRoundIndex = 0;
       this.roundSolved = false;
       this.gameFinished = false;
+      this.quoteParts = [];
+      this.answerButtons = null;
     }
 
     preload() {
@@ -51,358 +70,88 @@
     create() {
       window.VN.systems.SceneAudio.enter(this);
       this.layout = window.VN.systems.Layout;
-      this.buildBackground();
+
+      // Под фоном — сплошная подложка на весь экран, включая поля (холст
+      // игры чёрный, а фон полупрозрачный). Сам фон растягивается на весь
+      // экран через Layout; прозрачность ставится на весь «сценический»
+      // контейнер, вместе с зеркальными копиями для широких экранов.
+      this.layout.fill(this, this.add.rectangle(0, 0, WIDTH, HEIGHT, this.style.backgroundColor));
+      this.layout.addBackground(this, IMG.background).stage.setAlpha(this.style.backgroundAlpha);
+
+      // Герой и диалоговая плашка — в одной группе, прижатой к нижнему краю
+      // экрана (как в StoryScene): на планшете 4:3 они не «висят» в середине.
+      this.bottomGroup = this.add.container(0, 0).setDepth(5);
       this.buildHero();
-      this.buildTopButtons();
-      this.buildRoundCounter();
       this.buildReplyPanel();
+      this.layout.onLayout(this, (visible, ui) => {
+        this.bottomGroup.y = ui.bottom - HEIGHT;
+      });
+
+      this.buildPauseButton();
       this.startRound(this.currentRoundIndex);
       window.VN.systems.SceneAssets.prefetchNext(this);
     }
 
     // ---- статичные части экрана ------------------------------------------
 
-    buildBackground() {
-      // Фон — на весь экран, включая поля (Layout.addBackground сам
-      // растягивает картинку 1920×1080 под любые пропорции экрана).
-      this.layout.addBackground(this, 'quotePlug');
-    }
-
     buildHero() {
-      // Портрет героя — прижат к левому краю, снизу; масштабируется, чтобы
-      // не перекрывать весь фон (тот же приём, что и в StoryScene.setCharacter()).
-      const tex = this.textures.get('quoteHero').getSourceImage();
-      const maxHeight = HEIGHT * 0.83;
-      const scale = Math.min(1, maxHeight / tex.height);
-      this.add.image(WIDTH * 0.045, HEIGHT * 0.91, 'quoteHero').setOrigin(0, 1).setScale(scale);
+      const hero = this.style.hero;
+      const image = this.add.image(hero.x, hero.bottom, IMG.hero).setOrigin(0.5, 1).setScale(hero.scale);
+      this.bottomGroup.add(image);
     }
 
-    buildTopButtons() {
-      const menu = this.makeButton(WIDTH - 95, 45, 'кнопка\nменю', () => this.openPauseMenu(), 150, 80);
-      // Кнопка меню — в правом верхнем углу экрана (с учётом выреза телефона).
-      window.VN.systems.Layout.pin(this, menu.bg, { right: 95, top: 45 });
-      window.VN.systems.Layout.pin(this, menu.text, { right: 95, top: 45 });
+    buildPauseButton() {
+      const button = this.makeIconButton(105, 100, IMG.pause, () => this.openPauseMenu(), 150);
+      button.setDepth(20);
+      // Левый верхний угол экрана с учётом выреза телефона — как в StoryScene.
+      this.layout.pin(this, button, { left: 105, top: 100 });
     }
-
-    buildRoundCounter() {
-      this.roundCounterText = this.add
-        .text(WIDTH * 0.465, HEIGHT * 0.10, '', {
-          fontSize: '32px',
-          color: '#333333',
-        })
-        .setOrigin(0, 0.5);
-      this.updateRoundCounter();
-    }
-
-    updateRoundCounter() {
-      this.roundCounterText.setText(
-        'Раунд ' + (this.currentRoundIndex + 1) + ' из ' + this.rounds.length
-      );
-    }
-
-    // ---- логика раунда ------------------------------------------------------
-
-    startRound(index) {
-      this.roundSolved = false;
-      this.currentRound = this.rounds[index];
-
-      this.buildQuoteRow();
-      this.buildAnswerButtons();
-      this.updateRoundCounter();
-    }
-
-    clearRound() {
-      if (this.promptText) this.promptText.destroy();
-      if (this.promptSuffixText) this.promptSuffixText.destroy();
-      if (this.blankRect) this.blankRect.destroy();
-      if (this.answerText) this.answerText.destroy();
-
-      if (this.answerButtons) {
-        this.answerButtons.forEach(function (b) {
-          b.bg.destroy();
-          b.overlay.destroy();
-          b.text.destroy();
-        });
-        this.answerButtons = null;
-      }
-
-      this.hideReplyPanel();
-
-      this.promptText = null;
-      this.promptSuffixText = null;
-      this.blankRect = null;
-      this.answerText = null;
-    }
-
-    buildQuoteRow() {
-        const mode = this.currentRound.mode;
-        const prompt = this.currentRound.prompt;
-
-        const startX = WIDTH * 0.465;
-        const y = HEIGHT * 0.22;
-
-        const rightMargin = 60;
-        const maxBlankWidth = 480;
-        const minBlankWidth = 220;
-
-        if (mode === 'prefix') {
-
-            this.blankRect = this.add.rectangle(
-                startX,
-                y,
-                maxBlankWidth,
-                60,
-                this.style.colorBlank
-            ).setOrigin(0, 0.5);
-
-            this.promptText = this.add.text(
-                startX + maxBlankWidth + 20,
-                y,
-                prompt,
-                {
-                    fontSize: '40px',
-                    color: '#000000',
-                    wordWrap: {
-                        width: WIDTH - (startX + maxBlankWidth + 20) - rightMargin
-                    }
-                }
-            ).setOrigin(0, 0.5);
-
-        } else if (mode === 'middle') {
-            // Пропуск ВНУТРИ фразы: текст до (prefix) — плашка — текст
-            // после (suffix). Все три части стоят в один ряд слева направо.
-            const prefix = this.currentRound.prefix;
-            const suffix = this.currentRound.suffix;
-
-            this.promptText = this.add.text(
-                startX,
-                y,
-                prefix,
-                { fontSize: '40px', color: '#000000' }
-            ).setOrigin(0, 0.5);
-
-            const blankX = startX + this.promptText.width + 20;
-
-            // Ширина плашки — как в режиме 'suffix', но с запасом места под
-            // текст ПОСЛЕ неё (minBlankWidth), иначе suffix может не влезть.
-            const availableForBlank = WIDTH - blankX - rightMargin - minBlankWidth;
-            const blankWidth = Math.min(
-                maxBlankWidth,
-                Math.max(minBlankWidth, availableForBlank)
-            );
-
-            this.blankRect = this.add.rectangle(
-                blankX,
-                y,
-                blankWidth,
-                60,
-                this.style.colorBlank
-            ).setOrigin(0, 0.5);
-
-            const suffixX = blankX + blankWidth + 20;
-            this.promptSuffixText = this.add.text(
-                suffixX,
-                y,
-                suffix,
-                {
-                    fontSize: '40px',
-                    color: '#000000',
-                    wordWrap: { width: WIDTH - suffixX - rightMargin }
-                }
-            ).setOrigin(0, 0.5);
-
-        } else {
-
-            this.promptText = this.add.text(
-                startX,
-                y,
-                prompt,
-                {
-                    fontSize: '40px',
-                    color: '#000000',
-                    wordWrap: {
-                        width: WIDTH - startX - maxBlankWidth - rightMargin
-                    }
-                }
-            ).setOrigin(0, 0.5);
-
-            const blankX = startX + this.promptText.width + 20;
-
-            const availableWidth =
-                WIDTH - blankX - rightMargin;
-
-            const blankWidth = Math.min(
-                maxBlankWidth,
-                Math.max(minBlankWidth, availableWidth)
-            );
-
-            this.blankRect = this.add.rectangle(
-                blankX,
-                y,
-                blankWidth,
-                60,
-                this.style.colorBlank
-            ).setOrigin(0, 0.5);
-        }
-    }
-
-    revealAnswerInQuote() {
-      const mode = this.currentRound.mode;
-      const prompt = this.currentRound.prompt;
-      const answer = this.currentRound.answer;
-      const startX = WIDTH * 0.465;
-      const rightMargin = 60;
-
-      if (this.blankRect) {
-          this.blankRect.destroy();
-          this.blankRect = null;
-      }
-
-      if (mode === 'prefix') {
-          // В этом режиме плашка стояла СЛЕВА (это было начало фразы),
-          // а известный текст (prompt) — справа от неё. После ответа
-          // собираем фразу целиком и ставим её с самого начала строки.
-          this.promptText.setText(answer + ' ' + prompt);
-          this.promptText.setPosition(startX, this.promptText.y);
-          this.promptText.setWordWrapWidth(WIDTH - startX - rightMargin);
-      } else if (mode === 'middle') {
-          // Плашка была ПОСЕРЕДИНЕ — после ответа убираем правую часть
-          // (promptSuffixText) как отдельный объект и собираем фразу целиком
-          // в promptText, как и в остальных режимах.
-          const prefix = this.currentRound.prefix;
-          const suffix = this.currentRound.suffix;
-
-          if (this.promptSuffixText) {
-              this.promptSuffixText.destroy();
-              this.promptSuffixText = null;
-          }
-
-          this.promptText.setText(prefix + ' ' + answer + suffix);
-          this.promptText.setPosition(startX, this.promptText.y);
-          this.promptText.setWordWrapWidth(WIDTH - startX - rightMargin);
-      } else {
-          // mode === 'suffix': prompt слева, ответ — продолжение справа.
-          this.promptText.setText(prompt + ' ' + answer);
-          this.promptText.setWordWrapWidth(WIDTH - startX - rightMargin);
-      }
-  }
-
-    // ---- варианты ответа ----------------------------------------------------
-
-    buildAnswerButtons() {
-      const options = this.shuffle(
-        [{ text: this.currentRound.answer, correct: true }].concat(
-          this.currentRound.distractors.map(function (text) {
-            return { text: text, correct: false };
-          })
-        )
-      );
-
-      this.answerButtons = options.map((option, i) => this.buildOneAnswerButton(option, this.style.slots[i]));
-    }
-
-    buildOneAnswerButton(option, slotDef) {
-      const x = WIDTH * slotDef.xFrac;
-      const y = HEIGHT * slotDef.yFrac;
-      const w = slotDef.w;
-      const h = slotDef.h;
-
-      // Плашка варианта ответа — картинка, а не однотонный прямоугольник,
-      // поэтому цвет ошибки/правильного ответа накладывается СВЕРХУ
-      // полупрозрачной накладкой (overlay), см. onAnswerClicked().
-      const bg = this.add.image(x, y, 'quotePlazka').setDisplaySize(w, h).setInteractive({ useHandCursor: true });
-      const overlay = this.add.rectangle(x, y, w, h, this.style.colorWrong, this.style.overlayAlpha).setVisible(false);
-      const text = this.add
-        .text(x, y, option.text, {
-          fontSize: '28px',
-          color: '#000000',
-          align: 'center',
-          wordWrap: { width: w - 20 },
-        })
-        .setOrigin(0.5);
-
-      const button = { bg: bg, overlay: overlay, text: text, correct: option.correct, wasWrong: false };
-      bg.on('pointerup', () => this.onAnswerClicked(button));
-      return button;
-    }
-
-    onAnswerClicked(button) {
-      if (this.roundSolved || this.gameFinished) return;
-
-      if (button.correct) {
-        this.roundSolved = true;
-        button.overlay.setFillStyle(this.style.colorCorrect, this.style.overlayAlpha).setVisible(true);
-        this.revealAnswerInQuote();
-        this.disableAllAnswerButtons();
-        if (this.isLastRound()) this.gameFinished = true;
-        this.showReplyPanel(this.currentRound);
-      } else {
-        // Ничего не сбрасывается: помечаем красной накладкой один раз,
-        // игрок может пробовать остальные варианты сколько угодно.
-        button.wasWrong = true;
-        button.overlay.setFillStyle(this.style.colorWrong, this.style.overlayAlpha).setVisible(true);
-      }
-    }
-
-    disableAllAnswerButtons() {
-      if (!this.answerButtons) return;
-      this.answerButtons.forEach(function (b) { b.bg.disableInteractive(); });
-    }
-
-    // ---- диалоговая плашка после правильного ответа ------------------------
 
     /**
-     * Плашка с именем персонажа и репликой — появляется после правильного
-     * ответа, как диалоговая плашка в сюжетной сцене (StoryScene.buildBottomBar()).
-     * Строится один раз в create() и переиспользуется между раундами —
-     * только текст меняется (см. showReplyPanel()/hideReplyPanel()).
+     * Диалоговая плашка после правильного ответа — та же картинка и тот же
+     * макет, что в сюжетной сцене: имя слева, вертикальная черта (часть
+     * картинки), реплика справа, стрелка «далее» на правом краю.
+     * Строится один раз, между раундами меняется только текст.
      */
     buildReplyPanel() {
-      const tex = this.textures.get('quotePlazka').getSourceImage();
-      const panelWidth = WIDTH * 0.75;
-      const panelHeight = panelWidth * (tex.height / tex.width);
-      const panelY = HEIGHT - panelHeight - 40;
+      const style = this.style;
+      const tex = this.textures.get(IMG.dialog).getSourceImage();
+      const panelWidth = tex.width;
+      const panelHeight = tex.height;
       const panelLeft = WIDTH / 2 - panelWidth / 2;
+      const panelY = HEIGHT - panelHeight - style.panelBottomMargin;
       const panelCenterY = panelY + panelHeight / 2;
+      // Вертикальная черта нарисована в картинке на x≈437 из 1589.
+      const dividerX = panelLeft + panelWidth * (437 / 1589);
 
-      const panelBg = this.add.image(WIDTH / 2, panelY, 'quotePlazka').setOrigin(0.5, 0).setDisplaySize(panelWidth, panelHeight);
+      const panelBg = this.add.image(WIDTH / 2, panelY, IMG.dialog).setOrigin(0.5, 0);
 
-      // Имя героя слева, реплика справа — тот же макет, что в StoryScene.
-      const nameAreaWidth = panelWidth * 0.32;
-      const nameX = panelLeft + 65;
-      const textX = panelLeft + nameAreaWidth + 20;
-
-      const nameText = this.add
-        .text(nameX, panelCenterY, '', {
+      this.replyNameText = this.add
+        .text(panelLeft + 95, panelCenterY, '', {
           fontFamily: 'Philosopher',
-          fontSize: '36px',
-          color: '#6E6056',
-          align: 'left',
-          lineSpacing: 6,
+          fontStyle: 'bold',
+          fontSize: style.nameFontSize + 'px',
+          color: style.textColor,
+          lineSpacing: 4,
+          wordWrap: { width: dividerX - panelLeft - 130 },
         })
         .setOrigin(0, 0.5);
 
-      const bodyText = this.add
+      const textX = dividerX + 68;
+      this.replyBodyText = this.add
         .text(textX, panelCenterY, '', {
           fontFamily: 'Ysabeau',
-          fontSize: '30px',
+          fontSize: style.replyFontSize + 'px',
           color: '#1B1A19',
-          align: 'left',
-          wordWrap: { width: panelLeft + panelWidth - textX - 90 },
+          lineSpacing: 12,
+          wordWrap: { width: panelLeft + panelWidth - textX - 150 },
         })
         .setOrigin(0, 0.5);
 
-      const nextBtn = this.makeIconButton(
-        panelLeft + panelWidth - 10,
-        panelCenterY,
-        'quoteNextBtn',
-        () => this.onContinueClicked(),
-        90
-      );
+      const nextBtn = this.makeIconButton(panelLeft + panelWidth - 28, panelCenterY, IMG.next, () => this.onContinueClicked());
 
-      this.replyPanelParts = [panelBg, nameText, bodyText, nextBtn.bg];
-      this.replyNameText = nameText;
-      this.replyBodyText = bodyText;
+      this.replyPanelParts = [panelBg, this.replyNameText, this.replyBodyText, nextBtn];
+      this.bottomGroup.add(this.replyPanelParts);
       this.hideReplyPanel();
     }
 
@@ -416,32 +165,210 @@
       this.replyPanelParts.forEach((part) => part.setVisible(false));
     }
 
-    /** Кнопка-иконка (картинка вместо прямоугольника с текстом) — как в StoryScene. */
-    makeIconButton(x, y, texture, onClick, displaySize) {
-      const img = this.add.image(x, y, texture).setInteractive({ useHandCursor: true });
-      if (displaySize) img.setDisplaySize(displaySize, displaySize);
-      img.on('pointerup', onClick);
-      return { bg: img, text: null };
+    // ---- раунд -------------------------------------------------------------
+
+    startRound(index) {
+      this.roundSolved = false;
+      this.currentRound = this.rounds[index];
+      this.buildQuote();
+      this.buildAnswerButtons();
+    }
+
+    clearRound() {
+      this.quoteParts.forEach((part) => part.destroy());
+      this.quoteParts = [];
+      if (this.answerButtons) {
+        this.answerButtons.forEach((b) => { b.bg.destroy(); b.overlay.destroy(); b.text.destroy(); });
+        this.answerButtons = null;
+      }
+      this.hideReplyPanel();
+    }
+
+    quoteTextStyle() {
+      const style = this.style;
+      return {
+        fontFamily: style.quoteFontFamily,
+        fontStyle: 'bold',
+        fontSize: style.quoteFontSize + 'px',
+        color: style.textColor,
+        wordWrap: { width: style.quoteWrapWidth },
+      };
+    }
+
+    /** Кавычка, «висящая» слева от первой строки цитаты. */
+    addOpeningMark(y) {
+      const mark = this.add.text(this.style.quoteX - 12, y, '“', this.quoteTextStyle()).setOrigin(1, 0);
+      this.quoteParts.push(mark);
+    }
+
+    /**
+     * Цитата с пустой рамкой:
+     *   'suffix' — текст (prompt), под ним рамка;
+     *   'prefix' — рамка, под ней текст (prompt);
+     *   'middle' — текст (prefix), под ним рамка, под ней текст (suffix).
+     * Закрывающая кавычка — после последней части.
+     */
+    buildQuote() {
+      const style = this.style;
+      const x = style.quoteX;
+      let y = style.quoteY;
+      this.addOpeningMark(y);
+
+      const addLine = (str) => {
+        const text = this.add.text(x, y, str, this.quoteTextStyle());
+        this.quoteParts.push(text);
+        y += text.height + 20;
+        return text;
+      };
+      const addBlank = () => {
+        const blank = this.add
+          .rectangle(x, y, style.blankWidth, style.blankHeight)
+          .setOrigin(0, 0)
+          .setStrokeStyle(style.blankStrokeWidth, style.blankStrokeColor);
+        this.quoteParts.push(blank);
+        y += style.blankHeight + 20;
+        return blank;
+      };
+
+      const mode = this.currentRound.mode;
+      let last;
+      if (mode === 'prefix') {
+        addBlank();
+        last = addLine(this.currentRound.prompt);
+      } else if (mode === 'middle') {
+        addLine(this.currentRound.prefix);
+        addBlank();
+        last = addLine(this.currentRound.suffix);
+      } else {
+        addLine(this.currentRound.prompt);
+        last = addBlank();
+      }
+      const closeX = last.x + (last.displayWidth || last.width) + 18;
+      this.quoteParts.push(this.add.text(closeX, last.y, '”', this.quoteTextStyle()));
+
+      // Запоминаем, где на самом деле закончилась цитата в ЭТОМ раунде —
+      // addLine()/addBlank() уже учли перенос строк (wordWrap) и число строк
+      // (у 'middle' их на одну больше). buildAnswerButtons() использует это,
+      // чтобы не дать плашкам-вариантам наехать на длинную цитату.
+      this.quoteBottomY = y;
+    }
+
+    /** После правильного ответа: цитата целиком, в две строки, ниже. */
+    buildSolvedQuote() {
+      const style = this.style;
+      this.quoteParts.forEach((part) => part.destroy());
+      this.quoteParts = [];
+
+      const round = this.currentRound;
+      let lines;
+      if (round.mode === 'prefix') {
+        lines = [round.answer, round.prompt];
+      } else if (round.mode === 'middle') {
+        // "Надо жить, надо" / "        любить, надо верить." — вторая
+        // строка начинается с ответа и продолжается известным суффиксом.
+        lines = [round.prefix, round.answer + round.suffix];
+      } else {
+        lines = [round.prompt, round.answer];
+      }
+
+      let y = style.solvedQuoteY;
+      this.addOpeningMark(y);
+      const first = this.add.text(style.quoteX, y, lines[0], this.quoteTextStyle());
+      y += first.height + 4;
+      const second = this.add.text(style.quoteX + style.solvedSecondLineIndent, y, lines[1] + ' ”', {
+        ...this.quoteTextStyle(),
+        wordWrap: { width: style.quoteWrapWidth - style.solvedSecondLineIndent },
+      });
+      this.quoteParts.push(first, second);
+    }
+
+    // ---- варианты ответа ---------------------------------------------------
+
+    buildAnswerButtons() {
+      const options = this.shuffle(
+        [{ text: this.currentRound.answer, correct: true }].concat(
+          this.currentRound.distractors.map((text) => ({ text: text, correct: false }))
+        )
+      );
+
+      // style.slots подобраны под "обычную" короткую цитату
+      // (answerAreaDesignedTopY). Если в ЭТОМ раунде цитата длиннее —
+      // из-за переноса строк или режима 'middle' (три строки вместо
+      // двух) — сдвигаем все три плашки вниз на одну и ту же величину,
+      // чтобы они не наезжали на текст, но остались друг относительно
+      // друга в том же треугольном расположении.
+      const overflow = this.quoteBottomY - this.style.answerAreaDesignedTopY;
+      this.answerAreaShiftY = Math.max(0, overflow);
+
+      this.answerButtons = options.map((option, i) => this.buildOneAnswerButton(option, this.style.slots[i]));
+    }
+
+    buildOneAnswerButton(option, slotDef) {
+      const style = this.style;
+      const slot = { x: slotDef.x, y: slotDef.y + this.answerAreaShiftY };
+      const text = this.add
+        .text(slot.x, slot.y, option.text, {
+          fontFamily: style.quoteFontFamily,
+          fontStyle: 'bold',
+          fontSize: style.answerFontSize + 'px',
+          color: style.textColor,
+          align: 'center',
+        })
+        .setOrigin(0.5);
+      // Высота плашки — родная высота картинки; ширина — не меньше родной
+      // и растягивается под длинный текст.
+      const tex = this.textures.get(IMG.plazka).getSourceImage();
+      const height = tex.height;
+      const width = Math.max(tex.width, text.width + style.answerPaddingX * 2);
+
+      const bg = this.add
+        .image(slot.x, slot.y, IMG.plazka)
+        .setDisplaySize(width, height)
+        .setInteractive({ useHandCursor: true });
+      // Накладка — та же картинка, залитая красным: повторяет форму плашки.
+      const overlay = this.add
+        .image(slot.x, slot.y, IMG.plazka)
+        .setDisplaySize(width, height)
+        .setTintFill(style.colorWrong)
+        .setAlpha(style.overlayAlpha)
+        .setVisible(false);
+      text.setDepth(1); // текст поверх плашки и накладки
+
+      const button = { bg: bg, overlay: overlay, text: text, correct: option.correct };
+      bg.on('pointerup', () => this.onAnswerClicked(button));
+      return button;
+    }
+
+    onAnswerClicked(button) {
+      if (this.roundSolved || this.gameFinished) return;
+
+      if (!button.correct) {
+        // Ничего не сбрасывается: можно пробовать остальные варианты.
+        button.overlay.setVisible(true);
+        button.bg.disableInteractive();
+        return;
+      }
+
+      this.roundSolved = true;
+      if (this.isLastRound()) this.gameFinished = true;
+      this.answerButtons.forEach((b) => { b.bg.destroy(); b.overlay.destroy(); b.text.destroy(); });
+      this.answerButtons = null;
+      this.buildSolvedQuote();
+      this.showReplyPanel(this.currentRound);
     }
 
     isLastRound() {
       return this.currentRoundIndex === this.rounds.length - 1;
     }
 
-    // ---- завершение раунда / мини-игры --------------------------------------
+    // ---- переходы ----------------------------------------------------------
 
     onContinueClicked() {
-      // Кнопка "Далее" живёт внутри диалоговой плашки (buildReplyPanel())
-      // и видна только когда раунд решён (showReplyPanel()/hideReplyPanel()).
       if (!this.roundSolved) return;
-
       if (this.gameFinished) {
-        // Финальный экран пока убран — по завершении последнего раунда
-        // сразу уходим дальше по сюжету.
         this.finishMinigame();
         return;
       }
-
       this.clearRound();
       this.currentRoundIndex++;
       this.startRound(this.currentRoundIndex);
@@ -456,14 +383,14 @@
       this.scene.launch('PauseScene', { returnSceneKey: 'QuoteMinigameScene' });
     }
 
-    // ---- утилиты ---------------------------------------------------------------
+    // ---- утилиты -----------------------------------------------------------
 
-    makeButton(x, y, label, onClick, w, h, fontSize) {
-      w = w || 120; h = h || 40; fontSize = fontSize || '20px';
-      const bg = this.add.rectangle(x, y, w, h, 0xd9d9d9).setInteractive({ useHandCursor: true });
-      const text = this.add.text(x, y, label, { fontSize: fontSize, color: '#000000', align: 'center' }).setOrigin(0.5);
-      bg.on('pointerup', onClick);
-      return { bg: bg, text: text };
+    /** Кнопка-картинка, как в StoryScene. */
+    makeIconButton(x, y, texture, onClick, displaySize) {
+      const img = this.add.image(x, y, texture).setInteractive({ useHandCursor: true });
+      if (displaySize) img.setDisplaySize(displaySize, displaySize);
+      img.on('pointerup', onClick);
+      return img;
     }
 
     shuffle(array) {

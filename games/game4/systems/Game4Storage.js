@@ -5,21 +5,28 @@ export class Game4Storage {
     }
 
     save(data) {
-        localStorage.setItem(
-            this.key,
-            JSON.stringify(data)
-        );
+        try {
+            localStorage.setItem(this.key, JSON.stringify({ ...data, lastActiveAt: Date.now() }));
+        } catch (error) {
+            console.warn('Не удалось сохранить Game 4:', error);
+        }
     }
 
     load() {
-        const data = localStorage.getItem(this.key);
-
-        if (!data) {
-            return null;
-        }
-
         try {
-            return JSON.parse(data);
+            const data = localStorage.getItem(this.key);
+            if (!data) return null;
+            const saved = JSON.parse(data);
+            // В общем прохождении срок един для сюжета и писем, включая паузу/меню.
+            // Отдельная страница мини-игры использует собственную метку.
+            const lastActiveAt = globalThis.window?.VN?.systems.GameState?.state.lastActiveAt
+                ?? saved?.lastActiveAt;
+            if (!saved || !Array.isArray(saved.letters)
+                || (lastActiveAt && Date.now() - lastActiveAt > 30 * 60 * 1000)) {
+                this.clear();
+                return null;
+            }
+            return saved;
         } catch (error) {
             console.error(
                 'Ошибка загрузки сохранения Game 4:',
@@ -33,6 +40,10 @@ export class Game4Storage {
     }
 
     clear() {
-        localStorage.removeItem(this.key);
+        try {
+            localStorage.removeItem(this.key);
+        } catch (error) {
+            console.warn('Не удалось удалить сохранение Game 4:', error);
+        }
     }
 }

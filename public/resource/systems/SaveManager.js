@@ -81,7 +81,13 @@
     },
 
     clear: function () {
-      localStorage.removeItem(STORAGE_KEY);
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+        // Сортировка писем хранит ход попытки отдельно от сюжетной позиции.
+        localStorage.removeItem('game4_save_v1');
+      } catch (err) {
+        console.warn('[SaveManager] Не удалось удалить сохранение:', err);
+      }
     },
   };
 

@@ -106,7 +106,7 @@
 
     nextTarget(key, data = {}) {
       const vn = window.VN;
-      if (key === 'MainMenuScene') return { key: 'StoryScene', data: { storySceneIndex: 0, screenIndex: 0 } };
+      if (key === 'MainMenuScene') return vn.systems.GameState.getResumeTarget();
       const index = data.storySceneIndex;
       if (!Number.isInteger(index)) return null;
       if (key === 'StoryScene') {

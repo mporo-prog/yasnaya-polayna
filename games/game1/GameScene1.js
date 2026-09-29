@@ -159,7 +159,7 @@ export class GameScene1 extends Phaser.Scene {
     }
 
     create() {
-        window.VN?.systems.SceneAudio?.enter(this);
+        this.sceneAudio = null;
         this.phase = 'intro';
         this.paused = false;
         this.completed = false;
@@ -306,7 +306,15 @@ export class GameScene1 extends Phaser.Scene {
     }
 
     update() {
-        if (this.phase !== 'finishing' || this.paused) {
+        if (this.paused) {
+            return;
+        }
+
+        if (this.activeHint?.autoDismiss) {
+            this.dismissHint();
+        }
+
+        if (this.phase !== 'finishing') {
             return;
         }
 
@@ -419,11 +427,17 @@ export class GameScene1 extends Phaser.Scene {
         this.input.enabled = true;
         this.input.keyboard.enabled = true;
 
-        this.activeHint = {
+        const hint = {
             overlay,
             onDismiss,
-            timer: this.time.delayedCall(durationSeconds * 1000, () => this.dismissHint())
+            autoDismiss: false,
+            timer: null
         };
+        this.activeHint = hint;
+        hint.timer = this.time.delayedCall(durationSeconds * 1000, () => {
+            hint.autoDismiss = true;
+            if (this.activeHint === hint) this.dismissHint();
+        });
     }
 
     clearHint() {
@@ -438,7 +452,7 @@ export class GameScene1 extends Phaser.Scene {
 
     dismissHint() {
         const hint = this.activeHint;
-        if (!hint) {
+        if (!hint || (hint.waitForAudio && this.sceneAudio?.hasActiveSounds)) {
             return;
         }
 
@@ -522,7 +536,8 @@ export class GameScene1 extends Phaser.Scene {
     createRepeatOverlay() {
         this.repeatOverlay = this.createOverlay(
             'Повторите песню',
-            () => this.dismissHint()
+            () => this.dismissHint(),
+            { panel: INSTRUCTION_PANEL, textStyle: INSTRUCTION_TEXT_STYLE, lineHeight: 64 }
         );
     }
 
@@ -551,11 +566,20 @@ export class GameScene1 extends Phaser.Scene {
     createIntroOverlay() {
         this.introOverlay = this.createOverlay(
             'Прослушайте песню птиц и попробуйте повторить ее.',
-            () => this.dismissHint(),
+            () => {
+                // Если браузер запретил автозапуск, первый клик запускает голос,
+                // но не закрывает инструкцию до окончания записи.
+                this.unlockAudio();
+                this.dismissHint();
+            },
             { panel: INSTRUCTION_PANEL, textStyle: INSTRUCTION_TEXT_STYLE, lineHeight: 64 }
         );
 
         this.showHint(this.introOverlay, () => this.startRound(), 4);
+        // Только первый показ ждёт озвучку; повторные подсказки работают по таймеру.
+        this.activeHint.waitForAudio = true;
+        this.sceneAudio = window.VN?.systems.SceneAudio?.enter(this);
+        this.unlockAudio();
     }
 
     openPauseMenu() {

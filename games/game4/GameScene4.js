@@ -19,7 +19,7 @@ export class GameScene4 extends Phaser.Scene {
         super('GameScene4');
 
         this.handlePageHide = () => {
-            this.storage.clear();
+            this.saveGame4State();
         };
     }
 
@@ -38,7 +38,7 @@ export class GameScene4 extends Phaser.Scene {
 
     create() {
 
-        this.storage = new Game4Storage('game4_save_v1');
+        this.storage = new Game4Storage(GAME4_SAVE_KEY);
 
         this.completed = false;
         this.timeLeft = undefined;
@@ -51,6 +51,11 @@ export class GameScene4 extends Phaser.Scene {
         this.createButtonMenu();
         this.setupDrag();
         this.createLetters();
+        // Перезагрузка возможна и во время анимации последнего отсортированного письма.
+        if (this.checkGameFinished()) {
+            this.finishGame();
+            return;
+        }
         this.createCounter();
         this.createTimer();
         window.VN?.systems.SceneAssets?.prefetchNext(this);
@@ -217,7 +222,7 @@ export class GameScene4 extends Phaser.Scene {
     }
 
     saveGame4State() {
-
+        if (this.completed || !this.letterStack) return;
         this.storage.save({
 
             letters: this.letterStack

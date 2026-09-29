@@ -9,6 +9,7 @@
   const output = document.querySelector('#results');
   const frame = document.querySelector('#site');
   const saved = localStorage.getItem('vn_save_v1');
+  const savedLetters = localStorage.getItem('game4_save_v1');
   const lines = [];
   let game;
   const waitFor = async (condition) => {
@@ -35,6 +36,8 @@
     }
   };
   try {
+    localStorage.removeItem('vn_save_v1');
+    localStorage.removeItem('game4_save_v1');
     frame.src = '../';
     await waitFor(() => frame.contentWindow.game?.scene.isActive('MainMenuScene'));
     await waitFor(() => !frame.contentDocument.getElementById('startup-loading'));
@@ -103,6 +106,8 @@
     frame.remove();
     if (saved === null) localStorage.removeItem('vn_save_v1');
     else localStorage.setItem('vn_save_v1', saved);
+    if (savedLetters === null) localStorage.removeItem('game4_save_v1');
+    else localStorage.setItem('game4_save_v1', savedLetters);
   }
 </script>
 </html>

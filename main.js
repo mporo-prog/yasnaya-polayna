@@ -53,27 +53,5 @@ import { GameScene4 } from './games/game4/GameScene4.js';
     });
   }
 
-  // Страховка на случай сворачивания/закрытия вкладки: даже если
-  // что-то не сохранилось на последнем клике, эти события гарантированно
-  // сбросят актуальное состояние в localStorage.
-  window.addEventListener('pagehide', function () { VN.systems.GameState.save(); });
-  window.addEventListener('beforeunload', function () { VN.systems.GameState.save(); });
-
-  // Слушатель, который считает время ухода если игрок ушёл с вкладки игры
-  //  После 30 минут сбрасывает прогресс и возвращает игрока на стартовый экран.
-  document.addEventListener('visibilitychange', function () {
-    if (document.hidden) {
-      VN.systems.GameState.save();
-      return;
-    }
-
-    const expired = VN.systems.GameState.checkExpiration();
-    if (expired) {
-      window.game.scene.getScenes(true).forEach(function (scene) {
-        if (scene.isAssetLoader) return;
-        window.game.scene.stop(scene.scene.key);
-      });
-      window.game.scene.start('MainMenuScene');
-    }
-  });
+  VN.systems.ProgressLifecycle.install(window.game);
 })();

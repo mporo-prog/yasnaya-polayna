@@ -15,7 +15,7 @@ function fixture(concurrency = 4) {
     localStorage: { getItem: () => null },
     Phaser: { Scene: class {}, Loader: { File: class { constructor(loader) { this.loader = loader; } } } },
   });
-  for (const file of ['AudioManager', 'SceneAudio', 'AssetQueue', 'SceneAssets']) {
+  for (const file of ['SaveManager', 'GameState', 'AudioManager', 'SceneAudio', 'AssetQueue', 'SceneAssets']) {
     vm.runInContext(readFileSync(new URL(`../public/resource/systems/${file}.js`, import.meta.url), 'utf8'), context);
   }
   for (const file of ['start/StartScene', 'story/StoryScene']) {
@@ -40,7 +40,6 @@ function fixture(concurrency = 4) {
   });
   const systems = window.VN.systems;
   const data = window.VN.data;
-  systems.GameState = { state: { storySceneIndex: 0 } };
   data.sceneAudio = { MainMenuScene: { music: 'music/menu.mp3' }, GameScene1: { sounds: ['voice_and_sound/game.mp3'] } };
   data.storyAudio = [{ music: 'music/first.mp3', screens: [{ sounds: ['voice_and_sound/first.mp3'] }] }, {}];
   data.storyLines = [[{ speaker: 'A' }, { speaker: 'A' }], [{ speaker: 'B' }]];
@@ -163,7 +162,7 @@ test('destroy settles both queued and in-flight requests', async () => {
 test('menu needs only its visuals; a story includes only its own speakers, images and audio', () => {
   const f = fixture();
   const menu = f.assets.assetsFor(f.game, 'MainMenuScene', {}, { visualsOnly: true });
-  assert.deepEqual(Array.from(menu, (asset) => asset.key).sort(), ['mainButtonBg', 'menuBackground', 'saveButtonBg']);
+  assert.deepEqual(Array.from(menu, (asset) => asset.key).sort(), ['gameLogo', 'mainButtonBg', 'menuBackground', 'saveButtonBg']);
   assert.ok(menu.every((asset) => asset.type === 'image'));
   const story = f.assets.assetsFor(f.game, 'StoryScene', { storySceneIndex: 0 });
   const keys = story.map((asset) => asset.key);
@@ -181,7 +180,7 @@ test('menu needs only its visuals; a story includes only its own speakers, image
 test('actual menu and story manifests include UI texture aliases backed by existing PNG files', () => {
   const f = fixture();
   const expected = {
-    MainMenuScene: { mainButtonBg: 'main_button.png', saveButtonBg: 'save_button.png' },
+    MainMenuScene: { gameLogo: 'game_logo.png', mainButtonBg: 'main_button.png', saveButtonBg: 'save_button.png' },
     StoryScene: { dialogTextBg: 'dialog_text_bg.png', historyModalBg: 'history_modal_bg.png', closeButton: 'close_button.png' },
   };
   for (const [scene, textures] of Object.entries(expected)) {
@@ -203,6 +202,15 @@ test('look-ahead follows menu -> story -> mini-game -> next story -> final menu'
   assert.equal(f.assets.nextTarget('StoryScene', { storySceneIndex: 1 }).key, 'PlaceholderMinigameScene');
   assert.equal(f.assets.nextTarget('PlaceholderMinigameScene', { storySceneIndex: 1 }).key, 'MainMenuScene');
   assert.equal(f.assets.nextTarget('SettingsScene'), null);
+});
+
+test('menu prefetch follows the saved story or minigame instead of the first story', () => {
+  const f = fixture();
+  Object.assign(f.systems.GameState.state, { status: 'menu', resumeStatus: 'story', storySceneIndex: 1, screenIndex: 3 });
+  assert.equal(f.assets.nextTarget('MainMenuScene').data.storySceneIndex, 1);
+  assert.equal(f.assets.nextTarget('MainMenuScene').data.screenIndex, 3);
+  Object.assign(f.systems.GameState.state, { resumeStatus: 'minigame', storySceneIndex: 0 });
+  assert.equal(f.assets.nextTarget('MainMenuScene').key, 'GameScene1');
 });
 
 test('a scene waits for resources; leaving during the wait cannot revive the stopped scene', async () => {

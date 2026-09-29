@@ -15,8 +15,35 @@
 
     /** Запомнить, что игрок на главном экране (меню). */
     markAtMenu: function () {
+      if (this.state.status !== 'menu') this.state.resumeStatus = this.state.status;
       this.state.status = 'menu';
       this.save();
+    },
+
+    /** Одна точка выбора продолжения для загрузки страницы, меню и предзагрузки. */
+    getResumeTarget: function () {
+      const s = this.state;
+      const storySceneIndex = s.storySceneIndex;
+      const status = s.status === 'menu' ? s.resumeStatus : s.status;
+      if (status === 'minigame') {
+        return {
+          key: window.VN.data.storyMinigameLinks[storySceneIndex] || 'PlaceholderMinigameScene',
+          data: {
+            storySceneIndex: storySceneIndex,
+            minigameId: 'story_' + (storySceneIndex + 1) + '_minigame',
+          },
+        };
+      }
+      return { key: 'StoryScene', data: { storySceneIndex: storySceneIndex, screenIndex: s.screenIndex } };
+    },
+
+    resume: function (scene) {
+      this.checkExpiration();
+      const target = this.getResumeTarget();
+      // Записываем переход до загрузки ресурсов, в том числе при продолжении из меню.
+      this.state.status = target.key === 'StoryScene' ? 'story' : 'minigame';
+      this.save();
+      scene.scene.start(target.key, target.data);
     },
 
     /** Запомнить, на каком экране какой сюжетной сцены сейчас игрок. */
@@ -80,26 +107,12 @@
       this.state = SaveManager.load();
     },
 
-    /** Проверка прогресса */
-    // checkExpiration: function () {
-    //   if (SaveManager.isExpired(this.state)) {
-    //     this.reset();
-    //     return true;
-    //   }
-    //   return false;
-    // }
-
+    /** Проверка срока хранения при возвращении на вкладку или продолжении из меню. */
     checkExpiration: function () {
-
-      if (window.VN.systems.SaveManager.isExpired(this.state)) {
-
-        window.VN.systems.SaveManager.clear();
-
-        this.state = window.VN.systems.SaveManager.load();
-
+      if (SaveManager.isExpired(this.state)) {
+        this.reset();
         return true;
       }
-
       return false;
     }
 

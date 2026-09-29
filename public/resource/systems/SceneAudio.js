@@ -67,6 +67,11 @@
         run(() => controller.playTransition(cue.transitionSound ?? null));
       };
       const session = {
+        // Учитываем также записи, ожидающие разблокировки аудиоконтекста.
+        get hasActiveSounds() {
+          return sceneSounds.some((sound) => !sound.ended)
+            || screenSounds.some((sound) => !sound.ended);
+        },
         showScreen(index) {
           if (destroyed || lastScreen === index) return;
           const first = lastScreen === null;

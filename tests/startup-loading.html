@@ -25,6 +25,7 @@
     output.textContent = lines.join('\n');
   };
   try {
+    localStorage.removeItem('vn_save_v1');
     frame.src = '../';
     await check('Экран виден до загрузки Phaser и CSS шрифтов', async () => {
       await waitFor(() => frame.contentDocument.getElementById('startup-loading'));

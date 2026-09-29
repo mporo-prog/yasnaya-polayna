@@ -93,8 +93,7 @@
      * поэтому одной кнопки достаточно.
      */
     startGame() {
-      const s = window.VN.systems.GameState.state;
-      this.scene.start('StoryScene', { storySceneIndex: 0, screenIndex: 0 });
+      window.VN.systems.GameState.resume(this);
     }
 
     // ---- оверлей для "Авторы" ---------------------------------------------

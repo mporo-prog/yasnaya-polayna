@@ -30,7 +30,13 @@
           return;
       }
 
-      this.scene.start('MainMenuScene');
+      const GameState = window.VN.systems.GameState;
+      GameState.checkExpiration();
+      if (GameState.state.status === 'story' || GameState.state.status === 'minigame') {
+        GameState.resume(this);
+      } else {
+        this.scene.start('MainMenuScene');
+      }
     }
   }
 

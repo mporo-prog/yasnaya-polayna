@@ -13,11 +13,12 @@ function fixture(search = '') {
   };
   const document = { getElementById: (id) => elements[id] };
   const context = vm.createContext({
-    window, URLSearchParams,
+    window, URLSearchParams, Date,
+    localStorage: { getItem: () => null, setItem() {}, removeItem() {} },
     document,
     Phaser: { Scene: class {} },
   });
-  for (const path of ['systems/StartupScreen.js', 'scenes/BootScene.js']) {
+  for (const path of ['systems/SaveManager.js', 'systems/GameState.js', 'systems/StartupScreen.js', 'scenes/BootScene.js']) {
     vm.runInContext(readFileSync(new URL('../public/resource/' + path, import.meta.url), 'utf8'), context);
   }
   return { window, document, elements, screen: window.VN.systems.StartupScreen,

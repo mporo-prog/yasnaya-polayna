@@ -62,15 +62,6 @@
       this.renderCurrentScreen();
       window.VN.systems.SceneAssets.prefetchNext(this);
 
-      // Дополнительная страховка: если вкладку скрыли — сохраняемся
-      // немедленно, не дожидаясь следующего клика.
-      this.onVisibilityChange = () => {
-        if (document.hidden) window.VN.systems.GameState.save();
-      };
-      document.addEventListener('visibilitychange', this.onVisibilityChange);
-      this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-        document.removeEventListener('visibilitychange', this.onVisibilityChange);
-      });
     }
 
     // ---- откуда сейчас брать контент ---------------------------------------

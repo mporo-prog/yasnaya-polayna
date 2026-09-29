@@ -11,7 +11,7 @@ window.VN.data.storyBackgrounds = [
     'images/backgrounds/screen_1.png',
     'images/backgrounds/screen_1.png',
     'images/backgrounds/screen_1.png',
-    'images/backgrounds/road.png',
+    'images/backgrounds/screen_1.png',
   ],
   // Сюжетная сцена 2
   [
@@ -33,28 +33,26 @@ window.VN.data.storyBackgrounds = [
   ],
   // Сюжетная сцена 3
   [
-    'images/backgrounds/zaglushka.jpeg',
-    'images/backgrounds/zaglushka.jpeg',
-    'images/backgrounds/zaglushka.jpeg',
-    'images/backgrounds/zaglushka.jpeg',
-    'images/backgrounds/zaglushka.jpeg',
+    'assets/backgrounds/scene3_screen1.jpg',
+    'assets/backgrounds/scene3_screen2.jpg',
+    'assets/backgrounds/scene3_screen3.jpg',
   ],
   // Сюжетная сцена 4
   [
-    'images/backgrounds/zaglushka.jpeg',
-    'images/backgrounds/zaglushka.jpeg',
+    'assets/backgrounds/scene4_screen1.jpg',
+    'assets/backgrounds/scene4_screen2.jpg',
+    'assets/backgrounds/scene4_screen3.jpg',
   ],
   // Сюжетная сцена 5
   [
-    'images/backgrounds/zaglushka.jpeg',
-    'images/backgrounds/zaglushka.jpeg',
-    'images/backgrounds/zaglushka.jpeg',
-    'images/backgrounds/zaglushka.jpeg',
-    'images/backgrounds/zaglushka.jpeg',
-    'images/backgrounds/zaglushka.jpeg',
+    'assets/backgrounds/scene5_screen1.jpg',
+    'assets/backgrounds/scene5_screen2.jpg',
+    'assets/backgrounds/scene5_screen3.jpg',
   ],
   // Сюжетная сцена 6
   [
-    'images/backgrounds/zaglushka.jpeg',
+    'assets/backgrounds/scene6_screen1.jpg',
+    'assets/backgrounds/scene6_screen2.jpg',
+    'assets/backgrounds/scene6_screen3.jpg',
   ],
 ];

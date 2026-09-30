@@ -18,7 +18,10 @@
     constructor() {
       super('StoryScene');
     }
-
+    /**
+     * 
+     * для цитат
+     */
     getAssetManifest() {
       return {
         images: [

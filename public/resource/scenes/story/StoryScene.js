@@ -275,6 +275,10 @@
       .text(0, 0, '', { fontFamily: dialogueTextStyle.fontFamily, fontStyle: dialogueTextStyle.fontStyle, fontSize: dialogueTextStyle.fontSize })
       .setVisible(false);
     this.glossaryWordOverlays = [];
+    // Порог проявления для каждого слова-ссылки: слово становится жирным
+    // и подчёркнутым только когда "проговорённый" тёмный текст дойдёт до
+    // конца этого слова (см. buildGlossaryWordOverlays/applyGlossaryReveal).
+    this.glossaryWordReveals = [];
 
     this.bottomGroup.add([panelBg, this.speakerNameText, this.dialogueText, this.dialogueRevealedText]);
     
@@ -487,6 +491,17 @@
       const lines = this.dialogueText.getWrappedText(text);
       const lineHeight = this.dialogueText.height / lines.length;
 
+      // Смещение начала каждой строки в тексте, склеенном через \n — так
+      // же, как склеен "проговорённый" тёмный слой (voiceRevealText в
+      // startVoiceReveal). По этому смещению считаем позицию слова в
+      // общем тексте, чтобы сравнивать её с revealCount в applyGlossaryReveal.
+      const lineOffsets = [];
+      let offset = 0;
+      for (const line of lines) {
+        lineOffsets.push(offset);
+        offset += line.length + 1; // +1 — символ \n между строками
+      }
+
       entries.forEach((entry) => {
         for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
           const line = lines[lineIndex];
@@ -497,20 +512,32 @@
           const wordX = this.dialogueText.x + this.glossaryMeasureText.width;
           const wordY = this.dialogueText.y + lineIndex * lineHeight;
 
+          // Тот же шрифт и тот же размер, что у самого текста реплики
+          // (dialogueTextStyle: Ysabeau 32px) — слово остаётся частью той
+          // же строки, а не отдельной подписью другого размера поверх неё.
+          // "Жирность" — не другим начертанием шрифта (это сдвинуло бы
+          // ширину глифов и увело подчёркивание/клик-зону мимо слова), а
+          // обводкой (stroke): она утолщает контур букв, не меняя их
+          // ширину и расположение.
           const wordText = this.add
             .text(wordX, wordY, entry.word, {
-              fontFamily: 'Ysabeau',
-              fontStyle: '700',
-              fontSize: '36px',
+              // Берём шрифт/размер у glossaryMeasureText — он создан с теми
+              // же значениями, что и сам текст реплики (см. buildBottomBar).
+              fontFamily: this.glossaryMeasureText.style.fontFamily,
+              fontSize: this.glossaryMeasureText.style.fontSize,
               color: '#1B1A19',
+              stroke: '#1B1A19',
+              strokeThickness: 1.5,
             })
             .setOrigin(0, 0)
-            .setInteractive({ useHandCursor: true });
+            .setInteractive({ useHandCursor: true })
+            .setVisible(false);
 
           const underline = this.add
             .rectangle(wordX, wordY + wordText.height - 4, wordText.width, 3, 0x1b1a19)
             .setOrigin(0, 0)
-            .setInteractive({ useHandCursor: true });
+            .setInteractive({ useHandCursor: true })
+            .setVisible(false);
 
           const openPopup = () => this.openGlossaryPopup(entry.text);
           wordText.on('pointerup', openPopup);
@@ -518,7 +545,29 @@
 
           this.bottomGroup.add([wordText, underline]);
           this.glossaryWordOverlays.push(wordText, underline);
+          // Слово целиком должно "проговориться" (стать тёмным), прежде
+          // чем поверх него появятся жирное начертание и подчёркивание.
+          this.glossaryWordReveals.push({
+            endIndex: lineOffsets[lineIndex] + charIndex + entry.word.length,
+            objects: [wordText, underline],
+          });
           break;
+        }
+      });
+    }
+
+    /**
+     * Показывает жирное начертание + подчёркивание для тех слов-ссылок,
+     * которые уже полностью "проговорены" (revealCount дошёл до их конца).
+     * Вызывается из updateVoiceReveal на каждый кадр анимации, а также
+     * сразу целиком (revealCount = Infinity), когда текст показывается
+     * без озвучки/анимации (skipVoice, "Назад", ошибка загрузки звука).
+     */
+    applyGlossaryReveal(revealCount) {
+      this.glossaryWordReveals.forEach((entry) => {
+        const shouldShow = revealCount >= entry.endIndex;
+        if (entry.objects[0].visible !== shouldShow) {
+          entry.objects.forEach((obj) => obj.setVisible(shouldShow));
         }
       });
     }
@@ -526,6 +575,7 @@
       destroyGlossaryWordOverlays() {
         this.glossaryWordOverlays.forEach((obj) => obj.destroy());
         this.glossaryWordOverlays = [];
+        this.glossaryWordReveals = [];
       }
 
       buildGlossaryOverlay() {
@@ -636,8 +686,10 @@
         // Есть озвучка — реплика "проговаривается" побуквенно синхронно с ней.
         this.startVoiceReveal(voiceConfig, text);
       } else {
-        // Озвучки нет, либо это возврат "Назад" — реплика сразу целиком.
+        // Озвучки нет, либо это возврат "Назад" — реплика сразу целиком,
+        // все слова-ссылки в ней сразу жирные и подчёркнутые.
         this.dialogueRevealedText.setText(text);
+        this.applyGlossaryReveal(Infinity);
       }
 
       GameState.goToScreen(this.storySceneIndex, this.screenIndex);
@@ -803,6 +855,7 @@
         // просто показываем реплику как обычно, без анимации.
         console.warn('[StoryScene]', error.message);
         this.dialogueRevealedText.setText(text);
+        this.applyGlossaryReveal(Infinity);
         return;
       }
 
@@ -818,6 +871,12 @@
       this.voiceStartTime = now + delay * 1000;
       this.voiceActive = duration > 0;
       this.dialogueRevealedText.setText(this.voiceActive ? '' : text);
+      // Если длительности нет (edge-case) — текст показан сразу целиком,
+      // слова-ссылки тоже сразу жирные; иначе они ещё скрыты (см. build) —
+      // это важно и при повторном запуске после паузы/"Истории"
+      // (resumeVoiceIfNeeded): реплика проигрывается заново с начала,
+      // поэтому уже показанные слова-ссылки тоже скрываются обратно.
+      this.applyGlossaryReveal(this.voiceActive ? 0 : Infinity);
     }
 
     /** Вызывается из update(): подсвечивает "проговорённую" часть текста. */
@@ -834,8 +893,10 @@
       if (elapsedSeconds >= this.voiceRevealDuration) {
         this.dialogueRevealedText.setText(this.voiceFullText);
         // Текст дописан, но звук мог ещё не закончиться (margin) — не
-        // обрываем его, просто завершаем анимацию.
+        // обрываем его, просто завершаем анимацию. Все слова-ссылки к
+        // этому моменту уже "проговорены" — показываем их жирными.
         this.voiceActive = false;
+        this.applyGlossaryReveal(Infinity);
         return;
       }
 
@@ -847,6 +908,9 @@
       // setText перерисовывает canvas текста — вызываем только при реальном
       // изменении, а не каждый кадр (важно для слабых телефонов).
       if (revealed !== this.dialogueRevealedText.text) this.dialogueRevealedText.setText(revealed);
+      // Слово-ссылка становится жирным и подчёркнутым, как только тёмный
+      // текст дойдёт до его конца — не раньше.
+      this.applyGlossaryReveal(revealCount);
     }
 
     /**
@@ -855,6 +919,7 @@
      */
     skipVoice() {
       if (this.voiceFullText != null) this.dialogueRevealedText.setText(this.voiceFullText);
+      this.applyGlossaryReveal(Infinity);
       this.stopVoice();
     }
 

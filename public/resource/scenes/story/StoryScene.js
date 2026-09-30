@@ -311,7 +311,16 @@
     makeIconButton(x, y, texture, onClick, displaySize) {
       const img = this.add.image(x, y, texture).setInteractive({ useHandCursor: true });
       if (displaySize) img.setDisplaySize(displaySize, displaySize);
-      img.on('pointerup', onClick);
+      // Нажатие должно начаться на этой кнопке: отпускание после выхода
+      // из мини-игры не должно пропускать озвучку или первую реплику.
+      let pressedPointer = null;
+      img.on('pointerdown', (pointer) => { pressedPointer = pointer; });
+      img.on('pointerout', () => { pressedPointer = null; });
+      img.on('pointerup', (pointer) => {
+        if (pressedPointer !== pointer) return;
+        pressedPointer = null;
+        onClick();
+      });
       return { bg: img, text: null };
     }
 
@@ -649,10 +658,10 @@
      * (в preload сцены и заранее через prefetchNext предыдущей сцены).
      */
     startVoiceReveal(voiceConfig, text, nowMs) {
-      // nowMs передаётся явно только при отложенном перезапуске после
-      // паузы/истории (см. update()): this.time.now сразу после
-      // scene.resume() ещё "застывший" и дал бы проскок анимации.
-      const now = nowMs != null ? nowMs : this.time.now;
+      // При повторном входе в сцену this.time.now хранит время до мини-игры
+      // вплоть до первого update(). Берём время текущего кадра игры —
+      // в той же шкале, что time в updateVoiceReveal(), даже в create().
+      const now = nowMs != null ? nowMs : this.game.getTime();
       const config = typeof voiceConfig === 'string' ? { path: voiceConfig } : voiceConfig;
       const delay = config.delay || 0;
       const margin = config.margin || 0;

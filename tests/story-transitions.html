@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<title>Проверка первых реплик после мини-игр</title>
+<h1>Переходы game2–5 → сюжетные сцены 3–6</h1>
+<pre id="results">Проверка…</pre>
+<iframe id="site" title="Тестируемая игра" width="960" height="540"></iframe>
+<script type="module">
+  const output = document.querySelector('#results');
+  const frame = document.querySelector('#site');
+  const saves = new Map(['vn_save_v1', 'game4_save_v1'].map((key) => [key, localStorage.getItem(key)]));
+  const lines = [];
+  const assert = (condition, message) => { if (!condition) throw new Error(message); };
+  const waitFor = async (condition) => {
+    const deadline = performance.now() + 30000;
+    while (!condition()) {
+      if (performance.now() > deadline) throw new Error('Timeout: ' + condition);
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+  };
+  let game;
+  const ready = (key) => waitFor(() => game.scene.isActive(key)
+    && !frame.contentDocument.getElementById('startup-loading'));
+  function mouse(type, point) {
+    game.canvas.dispatchEvent(new frame.contentWindow.MouseEvent(type, {
+      bubbles: true, button: 0, buttons: type === 'mouseup' ? 0 : 1,
+      clientX: point.x, clientY: point.y, view: frame.contentWindow,
+    }));
+  }
+  function nextPoint(story) {
+    const bounds = story.nextBtn.bg.getBounds();
+    const camera = story.cameras.main;
+    const rect = game.canvas.getBoundingClientRect();
+    return {
+      x: rect.left + ((bounds.centerX - camera.scrollX) * camera.zoom + camera.x)
+        * rect.width / game.scale.gameSize.width,
+      y: rect.top + ((bounds.centerY - camera.scrollY) * camera.zoom + camera.y)
+        * rect.height / game.scale.gameSize.height,
+    };
+  }
+  try {
+    for (const key of saves.keys()) localStorage.removeItem(key);
+    frame.src = '../';
+    await waitFor(() => frame.contentWindow.game?.scene.isActive('MainMenuScene'));
+    game = frame.contentWindow.game;
+    game.sound.mute = true;
+    game.scene.getScene('MainMenuScene').startGame();
+    await ready('StoryScene');
+    const story = game.scene.getScene('StoryScene');
+
+    for (const number of [2, 3, 4, 5]) {
+      const key = number === 5 ? 'QuoteMinigameScene' : 'GameScene' + number;
+      story.scene.start(key, { storySceneIndex: number - 1, minigameId: 'transition-test-' + number });
+      await ready(key);
+      const mini = game.scene.getScene(key);
+      // Model a long minigame without making the browser test wait for two minutes.
+      // Phaser leaves the stopped story clock untouched until its first update.
+      story.time.now = game.getTime() - 120000;
+      if (number === 4) {
+        mini.winGame();
+        // This press dismisses the victory screen; release happens in StoryScene.
+        mouse('mousedown', { x: game.canvas.getBoundingClientRect().left + 500, y: 450 });
+      } else if (number === 5) {
+        mini.finishMinigame();
+      } else {
+        mini.finishGame();
+      }
+      await ready('StoryScene');
+      assert(story.storySceneIndex === number && story.screenIndex === 0, 'First screen of story ' + (number + 1));
+      const point = nextPoint(story);
+      mouse('mouseup', point);
+      assert(story.voiceActive, 'Voice reveal is active after game' + number);
+      assert(story.screenIndex === 0, 'Release from game' + number + ' did not skip the first line');
+      assert(Math.abs(story.voiceStartTime - game.getTime()) < 2000, 'Reveal starts at the current game time');
+      const before = story.dialogueRevealedText.text.length;
+      await waitFor(() => story.dialogueRevealedText.text.length > before);
+      assert(story.dialogueRevealedText.text.length < story.voiceRevealText.length, 'Text appears gradually');
+      assert(story.voiceTrack.source.buffer.duration > 0, 'Real audio loaded');
+      // A fresh mouse click must still work through Phaser's actual input handling.
+      mouse('mousedown', point);
+      mouse('mouseup', point);
+      assert(!story.voiceActive && story.screenIndex === 0, 'First fresh click reveals without advancing');
+      assert(story.dialogueRevealedText.text === story.voiceFullText, 'First click reveals the full line');
+      if (number < 5) {
+        mouse('mousedown', point);
+        mouse('mouseup', point);
+        assert(story.screenIndex === 1 && story.voiceActive, 'Second fresh click advances normally');
+      }
+      lines.push('PASS game' + number + ' → сюжет ' + (number + 1) + ': анимация, первая реплика и клики');
+      output.textContent = lines.join('\n');
+    }
+    output.textContent += '\nDONE: все 4 перехода проверены с реальным Phaser и аудиофайлами';
+  } catch (error) {
+    output.textContent += '\nFAIL ' + error.stack;
+  } finally {
+    game?.destroy(true);
+    frame.remove();
+    for (const [key, value] of saves) {
+      if (value === null) localStorage.removeItem(key);
+      else localStorage.setItem(key, value);
+    }
+  }
+</script>
+</html>

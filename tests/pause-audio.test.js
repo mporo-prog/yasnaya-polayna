@@ -10,17 +10,17 @@ function pauseFixture() {
   f.window.VN.data.sceneAudio = { PauseScene: { music: 'music/b.mp3' } };
   f.window.VN.data.pauseMenuData = { buttons: [] };
   f.window.VN.data.startMenuData = { title: 'Game' };
-  f.window.VN.systems.Layout = { fill() {} };
+  f.window.VN.systems.Layout = { fill() {}, addBackground() {}, onLayout() {}, isCompact: () => false };
   const scope = vm.createContext({ window: f.window, Phaser: { Scene: class {} } });
   vm.runInContext(readFileSync(new URL('../public/resource/scenes/pause/PauseScene.js', import.meta.url), 'utf8'), scope);
   const pause = Object.assign(new f.window.VN.scenes.PauseScene(), f.scene('PauseScene'));
   const gameScene = { input: { enabled: false }, resumeVoiceIfNeeded() { this.resumedVoice = true; } };
   const actions = [];
   pause.scale = { width: 1920, height: 1080 };
-  pause.add = {
-    rectangle: () => ({ setOrigin() { return this; } }),
-    text: () => ({ setOrigin() { return this; } }),
-  };
+  const display = () => ({
+    setOrigin() { return this; }, setInteractive() { return this; }, on() { return this; },
+  });
+  pause.add = { rectangle: display, text: display, image: display, zone: display };
   pause.scene = {
     get: () => gameScene,
     stop(key) {

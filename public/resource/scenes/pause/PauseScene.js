@@ -28,10 +28,22 @@
     }
 
     preload() {
-      window.VN.systems.SceneAssets.preload(this, { visualsOnly: true });
+      // Вместе с картинками грузится и музыка паузы (sceneAudio.PauseScene).
+      window.VN.systems.SceneAssets.preload(this);
     }
 
     create() {
+      // Своя музыка паузы; после «Продолжить» возвращается трек игры.
+      this.musicController = this.sound.context
+        ? window.VN.systems.MusicController.forScene(this) : null;
+      this.previousMusic = this.musicController?.getCurrentMusic() ?? null;
+      this.sceneAudio = window.VN.systems.SceneAudio.enter(this);
+      const pauseMusic = this.musicController?.current;
+      this.events.once('shutdown', () => {
+        // При выходе в главное меню его трек может ещё загружаться.
+        if (pauseMusic && this.musicController.current === pauseMusic) this.musicController.fadeOut();
+      });
+
       this.layout = window.VN.systems.Layout;
       const menuData = window.VN.data.pauseMenuData;
 

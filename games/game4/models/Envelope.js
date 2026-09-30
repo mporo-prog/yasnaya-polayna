@@ -1,21 +1,22 @@
+// Невидимая зона сброса над лотком, нарисованным на фоне.
 export class Envelope {
 
-    constructor(id, x, y, color) {
+    constructor(id, x, y, width, height) {
         this.id = id;
         this.x = x;
         this.y = y;
-        this.color = color;
+        this.width = width;
+        this.height = height;
         this.sprite = null;
     }
 
-    createSprite(scene, width, height) {
+    createSprite(scene) {
 
-        this.sprite = scene.add.rectangle(
+        this.sprite = scene.add.zone(
             this.x,
             this.y,
-            width,
-            height,
-            this.color
+            this.width,
+            this.height
         ).setOrigin(0);
 
         return this.sprite;

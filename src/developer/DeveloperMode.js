@@ -1,11 +1,13 @@
 /** Управляет только жизненным циклом экрана; игровые сцены о нём не знают. */
 export class DeveloperMode {
-  constructor(game, screen, entries, beforeLaunch, keyboardTarget = window) {
+  constructor(game, screen, entries, beforeLaunch, keyboardTarget = window,
+    navigate = (url) => window.location.assign(url)) {
     this.game = game;
     this.screen = screen;
     this.entries = entries;
     this.beforeLaunch = beforeLaunch;
     this.keyboardTarget = keyboardTarget;
+    this.navigate = navigate;
     this.opened = false;
     this.destroyed = false;
     this.pausedScenes = new Set();
@@ -67,6 +69,12 @@ export class DeveloperMode {
 
   launch(entry) {
     if (!this.opened || !this.entries.includes(entry)) return;
+    // Финальный экран использует отдельную страницу с собственным масштабированием.
+    if (entry.url) {
+      this.close();
+      this.navigate(entry.url);
+      return;
+    }
     const target = this.game.scene.getScene(entry.key);
     if (!target) return;
 

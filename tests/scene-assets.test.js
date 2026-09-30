@@ -204,13 +204,13 @@ test('look-ahead follows menu -> story -> mini-game -> next story -> final menu'
   assert.equal(f.assets.nextTarget('SettingsScene'), null);
 });
 
-test('menu prefetch follows the saved story or minigame instead of the first story', () => {
+test('menu prefetch prepares a new game regardless of saved story or minigame progress', () => {
   const f = fixture();
   Object.assign(f.systems.GameState.state, { status: 'menu', resumeStatus: 'story', storySceneIndex: 1, screenIndex: 3 });
-  assert.equal(f.assets.nextTarget('MainMenuScene').data.storySceneIndex, 1);
-  assert.equal(f.assets.nextTarget('MainMenuScene').data.screenIndex, 3);
+  assert.equal(f.assets.nextTarget('MainMenuScene').data.storySceneIndex, 0);
+  assert.equal(f.assets.nextTarget('MainMenuScene').data.screenIndex, 0);
   Object.assign(f.systems.GameState.state, { resumeStatus: 'minigame', storySceneIndex: 0 });
-  assert.equal(f.assets.nextTarget('MainMenuScene').key, 'GameScene1');
+  assert.equal(f.assets.nextTarget('MainMenuScene').key, 'StoryScene');
 });
 
 test('a scene waits for resources; leaving during the wait cannot revive the stopped scene', async () => {

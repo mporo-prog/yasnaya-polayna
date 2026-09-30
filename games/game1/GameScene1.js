@@ -51,7 +51,7 @@ const BIRDS_AREA = { x: 197, y: 15, width: 1539, height: 894 };
 const PAUSE_BUTTON = {
     x: 100,
     y: 90,
-    size: 110,
+    size: 148,
     texture: 'images/icon_UI/pause_button.png'
 };
 
@@ -551,9 +551,9 @@ export class GameScene1 extends Phaser.Scene {
 
     createWinOverlay() {
         this.winOverlay = this.createOverlay(
-            'Ура пабеда едем дальше',
+            'Игра пройдена!',
             () => this.dismissHint(),
-            { panel: RESULT_MESSAGE_PANEL, textStyle: RESULT_MESSAGE_TEXT_STYLE }
+            { panel: INSTRUCTION_PANEL, textStyle: RESULT_MESSAGE_TEXT_STYLE }
         );
     }
 
@@ -565,7 +565,7 @@ export class GameScene1 extends Phaser.Scene {
 
     createIntroOverlay() {
         this.introOverlay = this.createOverlay(
-            'Прослушайте песню птиц и попробуйте повторить ее.',
+            'Запомни голоса птиц и верно распредели их.',
             () => {
                 // Если браузер запретил автозапуск, первый клик запускает голос,
                 // но не закрывает инструкцию до окончания записи.

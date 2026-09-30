@@ -38,8 +38,8 @@
     getAssetManifest() {
       return {
         images: [
-          { key: IMG.background, url: 'images/backgrounds/plug.png' },
-          { key: IMG.hero, url: 'public/images/hero/Толсто_1.png' },
+          { key: IMG.background, url: 'images/backgrounds/game5.png' },
+          { key: IMG.hero, url: 'images/hero/Толсто_1.png' },
           { key: IMG.plazka, url: 'images/icon_UI/rectangle_game5.png' },
           { key: IMG.dialog, url: 'images/icon_UI/dialog_text_bg.png' },
           { key: IMG.next, url: IMG.next },

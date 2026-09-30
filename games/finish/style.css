@@ -1,0 +1,158 @@
+/* Финал: фиксированный холст 1920×1080 внутри окна любого размера. */
+#app {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+}
+
+#app canvas {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+.finish-social-links {
+    position: relative;
+}
+
+.finish-social-link {
+    position: absolute;
+    top: 0;
+    display: block;
+    border-radius: 50%;
+}
+
+.finish-social-link img {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.finish-social-link:focus-visible {
+    outline: 3px solid #fff1de;
+    outline-offset: 4px;
+}
+
+.finish-replay-button {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 10px;
+    appearance: none;
+    background-color: transparent;
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    color: #6E6056;
+    font-family: 'Philosopher', Georgia, serif;
+    font-weight: 700;
+    font-style: normal;
+    font-size: 36px;
+    line-height: 100%;
+    letter-spacing: 0;
+    text-align: center;
+    cursor: pointer;
+}
+
+.finish-replay-button:focus-visible {
+    outline: 3px solid #fff1de;
+    outline-offset: 4px;
+}
+
+.finish-email-input {
+    position: absolute;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    outline: none;
+    border-radius: 0;
+    appearance: none;
+    background: transparent;
+    color: #6E6056;
+    caret-color: #6E6056;
+    font-family: 'Ysabeau', Arial, sans-serif;
+    font-weight: 400;
+    letter-spacing: 0;
+    -webkit-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
+}
+
+.finish-email-input::placeholder {
+    color: #6E6056;
+    opacity: 1;
+}
+
+.finish-subscribe-form {
+    position: relative;
+    margin: 0;
+    padding: 0;
+}
+
+.finish-subscribe-submit {
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
+.finish-subscribe-submit:focus-visible {
+    outline: 2px solid #6E6056;
+    outline-offset: 3px;
+}
+
+.finish-subscribe-submit:disabled {
+    cursor: wait;
+    background: #986352;
+}
+
+.finish-subscribe-submit:disabled::after {
+    content: '';
+    display: block;
+    box-sizing: border-box;
+    width: 20px;
+    height: 20px;
+    margin: auto;
+    border: 2px solid #fff1de;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: finish-subscribe-spin 0.8s linear infinite;
+}
+
+@keyframes finish-subscribe-spin {
+    to { transform: rotate(360deg); }
+}
+
+.finish-subscribe-dialog {
+    box-sizing: border-box;
+    width: min(520px, calc(100vw - 32px));
+    max-height: calc(100dvh - 32px);
+    padding: 28px;
+    border: 4px solid #986352;
+    border-radius: 16px;
+    background: #fff1de;
+    color: #6E6056;
+    text-align: center;
+    font: 22px/1.3 'Ysabeau', Arial, sans-serif;
+}
+
+.finish-subscribe-dialog::backdrop { background: #0009; }
+.finish-subscribe-dialog h2 {
+    margin: 0 0 18px;
+    font: 700 30px/1.15 'Philosopher', Georgia, serif;
+}
+.finish-subscribe-dialog p { white-space: pre-line; }
+.finish-subscribe-dialog button {
+    padding: 8px 24px;
+    border: 2px solid #986352;
+    border-radius: 8px;
+    background: transparent;
+    color: inherit;
+    font: 700 22px 'Philosopher', Georgia, serif;
+    cursor: pointer;
+}

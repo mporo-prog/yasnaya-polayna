@@ -58,17 +58,17 @@
         assert(!game.scene.isActive('MainMenuScene'), 'Нет сброса в меню');
       }
     });
-    await check('Пауза -> меню -> перезагрузка -> Начать продолжает сюжет', async () => {
+    await check('Пауза -> меню -> перезагрузка -> Начать сбрасывает прохождение', async () => {
       const story = game.scene.getScene('StoryScene');
-      const index = story.screenIndex;
       story.openPauseMenu();
       await ready('PauseScene');
       game.scene.getScene('PauseScene').goToMainMenu();
       await ready('MainMenuScene');
       await reload('MainMenuScene');
       game.scene.getScene('MainMenuScene').startGame();
-      const restored = await ready('StoryScene');
-      assert(restored.screenIndex === index, 'Продолжение с прежней реплики');
+      const fresh = await ready('StoryScene');
+      assert(fresh.storySceneIndex === 0 && fresh.screenIndex === 0, 'Новое прохождение с первой реплики');
+      assert(state().getFullHistory().length === 1, 'В истории только первая реплика новой игры');
     });
     await check('Все мини-игры восстанавливаются с правильным сюжетным контекстом', async () => {
       const links = frame.contentWindow.VN.data.storyMinigameLinks;

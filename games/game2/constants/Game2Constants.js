@@ -22,7 +22,7 @@ export const MESSAGE_PANELS = {
         widthFrac: 1200 / 1920,
         heightFrac: 577 / 1080,
         titleYFrac: 0.5 - 135 / 577,
-        textYFrac: 0.5 + 15 / 577,
+        textYFrac: 0.5,
         textWidthFrac: 1100 / 1200,
         color: '#6E6056',
         lineSpacing: BASE_HEIGHT * (12 / 1080)
@@ -31,9 +31,9 @@ export const MESSAGE_PANELS = {
         widthFrac: 1300 / 1920,
         heightFrac: 577 / 1080,
         titleYFrac: 0.5 - 80 / 577,
-        textYFrac: 0.5 + 25 / 577,
+        textYFrac: 0.5,
         textWidthFrac: 1050 / 1300,
-        color: '#04151F',
+        color: '#6E6056',
         lineSpacing: 0
     }
 };

@@ -314,7 +314,7 @@ export class GameScene3 extends Phaser.Scene {
         }
 
         this.finished = true;
-        this.showHint(this.winOverlay, () => this.finishGame());
+        this.showHint(this.winOverlay, () => this.finishGame(), 7);
     }
 
     createPauseButton() {
@@ -337,7 +337,8 @@ export class GameScene3 extends Phaser.Scene {
         this.activeHint = {
             overlay,
             onDismiss,
-            timer: this.time.delayedCall(durationSeconds * 1000, () => this.dismissHint())
+            timer: durationSeconds == null ? null
+                : this.time.delayedCall(durationSeconds * 1000, () => this.dismissHint())
         };
     }
 
@@ -442,7 +443,7 @@ export class GameScene3 extends Phaser.Scene {
 
     createWinOverlay() {
         this.winOverlay = this.createOverlay(
-            'Завтрак собран!',
+            'Длинный обеденный стол в Большой гостиной называли «столом-сороконожкой». Все дело в конструкции: он раздвижной и имеет 16 ножек.',
             () => this.dismissHint(),
             { panel: INSTRUCTION_PANEL, textStyle: INSTRUCTION_TEXT_STYLE, lineHeight: 64 }
         );

@@ -62,6 +62,7 @@ export class GameScene2 extends Phaser.Scene {
         this.winPanel = null;
         this.winText = null;
         this.winNextButton = null;
+        this.winTimer = null;
     }
 
     init(data = {}) {
@@ -223,7 +224,7 @@ export class GameScene2 extends Phaser.Scene {
     createRulesOverlay() {
         const { overlay, panel, text, nextButton } = this.createMessageOverlay(
             MESSAGE_PANELS.rules,
-            // 'Правила игры',
+            '',
             'Распредели предметы на карте усадьбы.'
         );
         this.rulesOverlay = overlay;
@@ -235,8 +236,8 @@ export class GameScene2 extends Phaser.Scene {
     createWinOverlay() {
         const { overlay, panel, text, nextButton } = this.createMessageOverlay(
             MESSAGE_PANELS.win,
-            'Игра пройдена!',
-            'Все предметы нашли свои места.',
+            '',
+            'Толстой любил пешие путешествия и не отказывался от них даже после 50–60 лет. В 1880-е годы он трижды ходил пешком из Москвы в Ясную Поляну.',
             () => this.finishGame()
         );
         this.winOverlay = overlay;
@@ -589,6 +590,8 @@ export class GameScene2 extends Phaser.Scene {
 
     shutdown() {
         this.stopRulesVoice();
+        this.winTimer?.remove();
+        this.winTimer = null;
 
         this.events.off(
             Phaser.Scenes.Events.RESUME,
@@ -705,7 +708,7 @@ export class GameScene2 extends Phaser.Scene {
     showWinScreen() {
         // Если уже показываем победу,
         // повторно её не создаём.
-        if (this.completed) {
+        if (this.completed || this.phase === 'win') {
             return;
         }
 
@@ -722,6 +725,7 @@ export class GameScene2 extends Phaser.Scene {
 
         // Показываем экран победы.
         this.winOverlay.setVisible(true);
+        this.winTimer = this.time.delayedCall(7000, () => this.finishGame());
     }
 
     finishGame() {
@@ -730,6 +734,8 @@ export class GameScene2 extends Phaser.Scene {
         }
 
         this.completed = true;
+        this.winTimer?.remove();
+        this.winTimer = null;
 
         // Передаём управление общей системе
         // перехода между сценами.

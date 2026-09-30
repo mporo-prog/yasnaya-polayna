@@ -226,14 +226,19 @@ for (const [label, round, lastBird, overlay] of [
     assert.equal(scene[overlay].visible, true, 'Result keeps its full display duration after the songs');
     assert.equal(scene.input.enabled, true);
     advance(1);
-    assert.equal(scene[overlay].visible, false);
     if (round === 3) {
+      advance(6899);
+      assert.equal(scene[overlay].visible, true, 'The victory fact stays open for seven seconds');
+      assert.equal(scene.advances, 0);
+      advance(1);
+      assert.equal(scene[overlay].visible, false);
       assert.equal(scene.advances, 1);
       scene.update();
       advance(1000);
       assert.equal(scene.advances, 1, 'Finish only once');
       return;
     }
+    assert.equal(scene[overlay].visible, false);
 
     assert.equal(scene.round_number, lastBird === 1 ? 3 : 2);
     advance(100);

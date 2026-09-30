@@ -334,7 +334,7 @@ export class GameScene3 extends Phaser.Scene {
         }
 
         this.finished = true;
-        this.showHint(this.winOverlay, () => this.finishGame(), 7);
+        this.showHint(this.winOverlay, () => this.finishGame(), null);
     }
 
     createPauseButton() {

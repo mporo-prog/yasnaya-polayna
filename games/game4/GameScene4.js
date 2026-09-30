@@ -937,7 +937,7 @@ export class GameScene4 extends Phaser.Scene {
                 this.storySceneIndex,
                 this.minigameId
             ),
-            7
+            null
         );
     }
 

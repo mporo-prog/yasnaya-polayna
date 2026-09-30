@@ -108,6 +108,12 @@
         output.textContent = lines.join('\n');
         continue;
       }
+      if (number === 5) {
+        await waitFor(() => story.portraitPhase === 'dialogue');
+        assert(story.voiceActive && story.bottomGroup.visible, 'Dialogue and voice accompany the animation');
+        assert(story.portraitVideo.video.loop === false, 'The portrait plays once');
+        assert(!story.portraitVideo.video.ended, 'Voice starts before the video ends');
+      }
       assert(story.voiceActive, 'Voice reveal is active after game' + number);
       assert(story.screenIndex === 0, 'Release from game' + number + ' did not skip the first line');
       assert(Math.abs(story.voiceStartTime - game.getTime()) < 2000, 'Reveal starts at the current game time');
@@ -120,6 +126,9 @@
       mouse('mouseup', point);
       assert(!story.voiceActive && story.screenIndex === 0, 'First fresh click reveals without advancing');
       assert(story.dialogueRevealedText.text === story.voiceFullText, 'First click reveals the full line');
+      if (number === 5) {
+        assert(!story.portraitVideo.video.ended, 'Skipping the voice cannot skip the video');
+      }
       if (number < 5) {
         mouse('mousedown', point);
         mouse('mouseup', point);

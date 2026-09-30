@@ -70,6 +70,9 @@
           const path = vn.data.storyCharacterPortraits?.[entry.character ?? entry.speaker];
           if (path) assets.push(image(path));
           if (entry.backgroundChange?.path) assets.push(image(entry.backgroundChange.path));
+          if (entry.portraitReveal) {
+            assets.push(image(entry.portraitReveal.poster), image(entry.portraitReveal.titlePanel));
+          }
         }
         for (const name of ['pause', 'history', 'back', 'next', 'main']) {
           assets.push(image('images/icon_UI/' + name + '_button.png'));
@@ -111,6 +114,7 @@
       const index = data.storySceneIndex;
       if (!Number.isInteger(index)) return null;
       if (key === 'StoryScene') {
+        if (vn.data.storyLines[index]?.some((entry) => entry.portraitReveal)) return null;
         return { key: vn.data.storyMinigameLinks[index] || 'PlaceholderMinigameScene', data: { storySceneIndex: index } };
       }
       if (['GameScene1', 'GameScene2', 'GameScene3', 'GameScene4', 'QuoteMinigameScene', 'PlaceholderMinigameScene'].includes(key)) {

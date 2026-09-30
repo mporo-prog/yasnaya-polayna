@@ -7,7 +7,7 @@ window.VN.data.storyBackgrounds = [
   // Сюжетная сцена 1: 6 реплик на 3 фонах; реплики 2–5 идут на одном фоне.
   [
     'images/backgrounds/roadWithSad.png',
-    'images/backgrounds/roadSad.png',
+    'images/backgrounds/screen_1.png',
     'images/backgrounds/screen_1.png',
     'images/backgrounds/screen_1.png',
     'images/backgrounds/screen_1.png',
@@ -47,10 +47,10 @@ window.VN.data.storyBackgrounds = [
   [
     'images/backgrounds/cafetary.png',
     'images/backgrounds/cafetary.png',
-    'images/backgrounds/prud.png',
-    'images/backgrounds/prud.png',
-    'images/backgrounds/prud.png',
-    'images/backgrounds/prud.png',
+    'images/backgrounds/withoutTolstoy.png',
+    'images/backgrounds/withoutTolstoy.png',
+    'images/backgrounds/withoutTolstoy.png',
+    'images/backgrounds/withoutTolstoy.png',
   ],
   // Сюжетная сцена 6
   [

@@ -96,6 +96,7 @@
 
         const scene = this.scene.get(this.returnSceneKey);
 
+        this.musicController?.transitionTo(this.previousMusic);
         this.scene.stop();
         this.scene.resume(this.returnSceneKey);
 

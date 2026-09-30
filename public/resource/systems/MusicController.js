@@ -67,8 +67,12 @@
       fade.connect(this.destination);
       const track = {
         path: config.path, source, level, fade, startAt, stopAt: Infinity, ended: false,
+        volume: config.volume,
         envelope: { from: initialGain, to: initialGain, start: startAt, end: startAt },
-        setVolume: (value) => volume.setVolume(value),
+        setVolume: (value) => {
+          track.volume = value;
+          volume.setVolume(value);
+        },
         stop: () => {
           if (track.ended) return;
           source.stop();
@@ -169,6 +173,14 @@
       this._fadeOldTracks(next, outDuration, outDelay, now);
       this.current = next;
       return next;
+    }
+
+    // Сохраняем параметры фонового трека для возврата из меню паузы.
+    getCurrentMusic() {
+      const track = this.current;
+      return track && !track.ended
+        ? { path: track.path, loop: track.source.loop, volume: track.volume }
+        : null;
     }
 
     // Единая точка для декларативных параметров сцены.

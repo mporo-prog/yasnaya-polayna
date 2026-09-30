@@ -183,20 +183,23 @@ export class GameScene2 extends Phaser.Scene {
         }
     }
 
-    createRulesOverlay() {
-        const panelWidth = 1200;
-        const panelHeight = 577;
+    createMessageOverlay(config, heading, message, onNext) {
+        const panelWidth = BASE_WIDTH * config.widthFrac;
+        const panelHeight = BASE_HEIGHT * config.heightFrac;
+        const panelTop = -panelHeight / 2;
+        const textWidth = panelWidth * config.textWidthFrac;
+        const style = {
+            fontFamily: 'Philosopher',
+            fontStyle: 'normal',
+            fontSize: `${MESSAGE_FONT_SIZE}px`,
+            color: config.color,
+            align: 'center',
+            lineSpacing: config.lineSpacing,
+            wordWrap: { width: textWidth }
+        };
 
-        const panelX = BASE_WIDTH / 2;
-        const panelY = BASE_HEIGHT / 2;
-
-        // Плашка правил.
-        const panel = this.add
-            .image(
-                panelX,
-                panelY,
-                'game2-instruction-panel'
-            )
+        // Дети используют координаты своей плашки, а весь экран — координаты макета.
+        const panel = this.add.image(0, 0, 'game2-instruction-panel')
             .setOrigin(0.5)
             .setDisplaySize(
                 panelWidth,
@@ -220,23 +223,21 @@ export class GameScene2 extends Phaser.Scene {
                 }
             )
             .setOrigin(0.5);
+        const nextButton = this.add.image(
+            BASE_WIDTH * (NEXT_BUTTON.xFrac - 0.5),
+            BASE_HEIGHT * (NEXT_BUTTON.yFrac - 0.5),
+            'game2-next'
+        ).setDisplaySize(NEXT_BUTTON.size, NEXT_BUTTON.size);
 
-        // Кнопка "Далее".
-        // Она полностью непрозрачная.
-        // Нажать её нельзя — правила заканчиваются
-        // автоматически после озвучки.
-        const nextButton = this.add
-            .image(
-                BASE_WIDTH * 0.85 + BASE_WIDTH * 0.13 / 2,
-                BASE_HEIGHT * 0.46 + BASE_HEIGHT * 0.8 / 2,
-                'game2-next'
-            )
-            .setDisplaySize(150, 150)
-            .setAlpha(1);
+        // Правила заканчиваются после озвучки; на победе стрелка доступна для нажатия.
+        if (onNext) {
+            nextButton.setInteractive({ useHandCursor: true });
+            nextButton.on('pointerup', onNext);
+        }
 
-        // Создаём пустой контейнер.
-        this.rulesOverlay = this.add
-            .container(0, 0);
+        const overlay = this.add.container(BASE_WIDTH / 2, BASE_HEIGHT / 2, [
+            panel, title, text, nextButton
+        ]).setDepth(2100).setVisible(false);
 
         // Добавляем готовые объекты.
         this.rulesOverlay.add([
@@ -245,12 +246,16 @@ export class GameScene2 extends Phaser.Scene {
             nextButton
         ]);
 
-        // Контейнер целиком находится поверх игры.
-        this.rulesOverlay
-            .setDepth(2100)
-            .setVisible(false);
+        return { overlay, panel, text, nextButton };
+    }
 
-        // Сохраняем ссылки, если они понадобятся дальше.
+    createRulesOverlay() {
+        const { overlay, panel, text, nextButton } = this.createMessageOverlay(
+            MESSAGE_PANELS.rules,
+            // 'Правила игры',
+            'Распредели предметы на карте усадьбы.'
+        );
+        this.rulesOverlay = overlay;
         this.rulesPanel = panel;
         this.rulesText = text;
         this.rulesNextButton = nextButton;
@@ -329,21 +334,7 @@ export class GameScene2 extends Phaser.Scene {
             'pointerup',
             () => this.showOutro()
         );
-
-        // Создаём контейнер победы.
-        this.winOverlay = this.add
-            .container(0, 0)
-            .setDepth(2100)
-            .setVisible(false);
-
-        this.winOverlay.add([
-            panel,
-            title,
-            text,
-            nextButton
-        ]);
-
-        // Сохраняем ссылки.
+        this.winOverlay = overlay;
         this.winPanel = panel;
         this.winText = text;
         this.winNextButton = nextButton;
@@ -353,7 +344,9 @@ export class GameScene2 extends Phaser.Scene {
         if (this.layout) {
             this.background = this.layout.addBackground(
                 this,
-                'game2-background'
+                'game2-background',
+                // Карта и её зоны сохраняются целиком при любых пропорциях окна.
+                { keep: new Phaser.Geom.Rectangle(0, 0, BASE_WIDTH, BASE_HEIGHT) }
             );
             this.stage = this.background.stage;
             return;
@@ -419,7 +412,7 @@ export class GameScene2 extends Phaser.Scene {
         this.pauseButton.setInteractive({
             useHandCursor: true
         })
-        .setDepth(1100);;
+        .setDepth(1100);
 
         this.pauseButton.on(
             'pointerdown',
@@ -516,6 +509,8 @@ export class GameScene2 extends Phaser.Scene {
                 return;
             }
 
+            this.tweens.killTweensOf(gameObject);
+            thing.dragging = true;
             gameObject.setDepth(100);
         };
 
@@ -548,6 +543,8 @@ export class GameScene2 extends Phaser.Scene {
         ) => {
             const thing =
                 gameObject.getData('thing');
+
+            if (thing) thing.dragging = false;
 
             if (
                 this.phase !== 'game' ||

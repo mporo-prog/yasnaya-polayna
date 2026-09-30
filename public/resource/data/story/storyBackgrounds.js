@@ -26,7 +26,7 @@ window.VN.data.storyBackgrounds = [
     'images/backgrounds/tepliza.png',
     'images/backgrounds/roadWithoutHat.png',
     'images/backgrounds/road2.png',
-    'images/backgrounds/house.png',
+    'images/backgrounds/road2.png',
     'images/backgrounds/hat.png',
     'images/backgrounds/brench.png',
   ],

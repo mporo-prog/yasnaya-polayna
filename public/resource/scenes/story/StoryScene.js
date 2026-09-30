@@ -77,6 +77,7 @@
         document.removeEventListener('visibilitychange', this.onVisibilityChange);
         // Уходим со сцены (например, в мини-игру) — озвучка не должна звучать вслед.
         this.stopVoice();
+        this.clearScreenTimer();
       });
     }
 
@@ -311,7 +312,16 @@
     makeIconButton(x, y, texture, onClick, displaySize) {
       const img = this.add.image(x, y, texture).setInteractive({ useHandCursor: true });
       if (displaySize) img.setDisplaySize(displaySize, displaySize);
-      img.on('pointerup', onClick);
+      // Нажатие должно начаться на этой кнопке: отпускание после выхода
+      // из мини-игры не должно пропускать озвучку или первую реплику.
+      let pressedPointer = null;
+      img.on('pointerdown', (pointer) => { pressedPointer = pointer; });
+      img.on('pointerout', () => { pressedPointer = null; });
+      img.on('pointerup', (pointer) => {
+        if (pressedPointer !== pointer) return;
+        pressedPointer = null;
+        onClick();
+      });
       return { bg: img, text: null };
     }
 
@@ -544,6 +554,7 @@
      */
     renderCurrentScreen(options = {}) {
       const skipVoice = options.skipVoice === true;
+      this.clearScreenTimer();
 
       // Реплика предыдущего экрана могла ещё озвучиваться — обрываем её.
       this.stopVoice();
@@ -560,7 +571,7 @@
       const voiceConfig = storyAudio?.screens?.[this.screenIndex]?.voice || null;
 
       this.setBackground(backgroundPath);
-      this.setCharacter(speakerName);
+      this.setCharacter(entry.character ?? speakerName);
       this.speakerNameText.setText(speakerName || '');
       this.dialogueText.setText(text);
 
@@ -606,16 +617,61 @@
       this.backBtn.bg.setAlpha(isFirstScreen ? 0.4 : 1);
       if (isFirstScreen) this.backBtn.bg.disableInteractive();
       else this.backBtn.bg.setInteractive({ useHandCursor: true });
+
+      this.scheduleScreenAction(entry);
+    }
+
+    clearScreenTimer() {
+      this.screenTimer?.remove(false);
+      this.screenTimer = null;
+    }
+
+    scheduleScreenAction(entry) {
+      this.pendingBackgroundPath = entry.backgroundChange?.path ?? null;
+      const delay = this.pendingBackgroundPath ? entry.backgroundChange.delay : entry.autoAdvanceDelay;
+      this.scheduleScreenTimer(delay, () => {
+        if (this.pendingBackgroundPath) this.changeScreenBackground();
+        else this.advanceScreen();
+      });
+    }
+
+    scheduleScreenTimer(delay, callback) {
+      this.clearScreenTimer();
+      if (delay == null) return;
+
+      // Часы Phaser останавливаются вместе со сценой в меню паузы.
+      this.screenTimer = this.time.delayedCall(delay, () => {
+        this.screenTimer = null;
+        callback();
+      });
+      this.screenTimer.paused = this.historyVisible;
+    }
+
+    changeScreenBackground() {
+      if (!this.pendingBackgroundPath) return false;
+      this.clearScreenTimer();
+      this.setBackground(this.pendingBackgroundPath);
+      this.pendingBackgroundPath = null;
+      this.scheduleScreenTimer(this.currentLines[this.screenIndex].autoAdvanceDelay, () => this.advanceScreen());
+      return true;
     }
 
     goNext() {
+      // Смена фона — отдельный шаг внутри экрана. После него следующий
+      // клик переходит дальше, даже если озвучка ещё не закончилась.
+      if (this.changeScreenBackground()) return;
+
       // Пока играет озвучка — первый клик "Далее" только обрывает её и
       // сразу дозаполняет текст реплики целиком, экран пока не меняется.
-      if (this.voiceActive) {
+      if (this.voiceActive && !this.currentLines[this.screenIndex].backgroundChange) {
         this.skipVoice();
         return;
       }
 
+      this.advanceScreen();
+    }
+
+    advanceScreen() {
       if (this.screenIndex < this.totalScreensInThisScene - 1) {
         this.screenIndex += 1;
         this.renderCurrentScreen();
@@ -649,10 +705,10 @@
      * (в preload сцены и заранее через prefetchNext предыдущей сцены).
      */
     startVoiceReveal(voiceConfig, text, nowMs) {
-      // nowMs передаётся явно только при отложенном перезапуске после
-      // паузы/истории (см. update()): this.time.now сразу после
-      // scene.resume() ещё "застывший" и дал бы проскок анимации.
-      const now = nowMs != null ? nowMs : this.time.now;
+      // При повторном входе в сцену this.time.now хранит время до мини-игры
+      // вплоть до первого update(). Берём время текущего кадра игры —
+      // в той же шкале, что time в updateVoiceReveal(), даже в create().
+      const now = nowMs != null ? nowMs : this.game.getTime();
       const config = typeof voiceConfig === 'string' ? { path: voiceConfig } : voiceConfig;
       const delay = config.delay || 0;
       const margin = config.margin || 0;
@@ -749,6 +805,7 @@
     }
 
     startMinigame() {
+      this.clearScreenTimer();
       const GameState = window.VN.systems.GameState;
       GameState.markMinigameStarted();
 
@@ -770,6 +827,7 @@
       }
 
       this.historyVisible = !this.historyVisible;
+      if (this.screenTimer) this.screenTimer.paused = this.historyVisible;
       this.historyContainer.setVisible(this.historyVisible);
       // Иконка "История" пропадает, пока открыто окно, и появляется снова
       // при закрытии — один toggle, без повторного переключения.

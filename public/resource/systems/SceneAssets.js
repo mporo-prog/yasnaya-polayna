@@ -67,8 +67,9 @@
         const index = data.storySceneIndex ?? vn.systems.GameState.state.storySceneIndex;
         for (const path of vn.data.storyBackgrounds[index] ?? []) assets.push(image(path));
         for (const entry of vn.data.storyLines[index] ?? []) {
-          const path = vn.data.storyCharacterPortraits?.[entry.speaker];
+          const path = vn.data.storyCharacterPortraits?.[entry.character ?? entry.speaker];
           if (path) assets.push(image(path));
+          if (entry.backgroundChange?.path) assets.push(image(entry.backgroundChange.path));
         }
         for (const name of ['pause', 'history', 'back', 'next', 'main']) {
           assets.push(image('images/icon_UI/' + name + '_button.png'));

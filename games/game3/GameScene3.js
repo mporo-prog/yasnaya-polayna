@@ -97,7 +97,7 @@ export class GameScene3 extends Phaser.Scene {
     }
 
     create() {
-        window.VN?.systems.SceneAudio?.enter(this);
+        this.sceneAudio = null;
         this.started = false;
         this.paused = false;
         this.finished = false;
@@ -314,7 +314,7 @@ export class GameScene3 extends Phaser.Scene {
         }
 
         this.finished = true;
-        this.showHint(this.winOverlay, () => this.finishGame());
+        this.showHint(this.winOverlay, () => this.finishGame(), 7);
     }
 
     createPauseButton() {
@@ -337,7 +337,8 @@ export class GameScene3 extends Phaser.Scene {
         this.activeHint = {
             overlay,
             onDismiss,
-            timer: this.time.delayedCall(durationSeconds * 1000, () => this.dismissHint())
+            timer: durationSeconds == null ? null
+                : this.time.delayedCall(durationSeconds * 1000, () => this.dismissHint())
         };
     }
 
@@ -346,19 +347,25 @@ export class GameScene3 extends Phaser.Scene {
             return;
         }
 
-        this.activeHint.timer.remove();
+        this.activeHint.timer?.remove();
         this.activeHint.overlay.setVisible(false);
         this.activeHint = null;
     }
 
     dismissHint() {
         const hint = this.activeHint;
-        if (!hint) {
+        if (!hint || (hint.waitForAudio && this.sceneAudio?.hasActiveSounds)) {
             return;
         }
 
         this.clearHint();
         hint.onDismiss();
+    }
+
+    update() {
+        if (!this.paused && this.activeHint?.waitForAudio) {
+            this.dismissHint();
+        }
     }
 
     createOverlay(text, onClick, { panel: panelConfig = null, textStyle = {}, lineHeight = null } = {}) {
@@ -436,7 +443,7 @@ export class GameScene3 extends Phaser.Scene {
 
     createWinOverlay() {
         this.winOverlay = this.createOverlay(
-            'Завтрак собран!',
+            'Длинный обеденный стол в Большой гостиной называли «столом-сороконожкой». Все дело в конструкции: он раздвижной и имеет 16 ножек.',
             () => this.dismissHint(),
             { panel: INSTRUCTION_PANEL, textStyle: INSTRUCTION_TEXT_STYLE, lineHeight: 64 }
         );
@@ -445,11 +452,30 @@ export class GameScene3 extends Phaser.Scene {
     createIntroOverlay() {
         this.introOverlay = this.createOverlay(
             'Собери завтрак графа Толстого.',
-            () => this.dismissHint(),
+            () => {
+                // Первый клик разблокирует звук, если браузер запретил автозапуск.
+                this.unlockAudio();
+                this.dismissHint();
+            },
             { panel: INSTRUCTION_PANEL, textStyle: INSTRUCTION_TEXT_STYLE, lineHeight: 64 }
         );
 
         this.showHint(this.introOverlay, () => this.startGame(), 4);
+        this.sceneAudio = window.VN?.systems.SceneAudio?.enter(this);
+        if (this.sceneAudio?.hasActiveSounds) {
+            // Закрываем правила по окончании голоса; таймер нужен только при ошибке загрузки.
+            this.activeHint.timer.remove();
+            this.activeHint.timer = null;
+            this.activeHint.waitForAudio = true;
+        }
+        this.unlockAudio();
+    }
+
+    unlockAudio() {
+        const context = this.sound?.context;
+        if (context?.state === 'suspended') {
+            context.resume();
+        }
     }
 
     startGame() {

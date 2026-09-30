@@ -223,7 +223,7 @@ export class GameScene2 extends Phaser.Scene {
     createRulesOverlay() {
         const { overlay, panel, text, nextButton } = this.createMessageOverlay(
             MESSAGE_PANELS.rules,
-            'Правила игры',
+            // 'Правила игры',
             'Распредели предметы на карте усадьбы.'
         );
         this.rulesOverlay = overlay;

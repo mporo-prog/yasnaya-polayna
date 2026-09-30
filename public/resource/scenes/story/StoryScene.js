@@ -296,17 +296,17 @@
       const menuBtnSize = 150;
       const menuBtnLeft = WIDTH * 0.015 + menuBtnSize / 2; // ≈ 104
       const menuBtnTop = HEIGHT * 0.023 + menuBtnSize / 2; // ≈ 100
-      const menuBtn = this.makeIconButton(menuBtnLeft, menuBtnTop, 'images/icon_UI/pause_button.png', () => this.openPauseMenu(), menuBtnSize);
-      this.pauseBtn = menuBtn;
-      menuBtn.bg.setDepth(20);
+      // const menuBtn = this.makeIconButton(menuBtnLeft, menuBtnTop, 'images/icon_UI/pause_button.png', () => this.openPauseMenu(), menuBtnSize);
+      // this.pauseBtn = menuBtn;
+      // menuBtn.bg.setDepth(20);
 
       this.historyBtn = this.makeIconButton(100, 220, 'images/icon_UI/history_button.png', () => this.toggleHistory(), 70);
 //       // Позиции и размеры — в layoutTopButtons().
-//       this.menuBtn = this.makeIconButton(0, 0, 'images/icon_UI/pause_button.png', () => this.openPauseMenu());
+      this.menuBtn = this.makeIconButton(0, 0, 'images/icon_UI/pause_button.png', () => this.openPauseMenu());
 //       this.menuBtn.bg.setDepth(20);
 
 //       this.historyBtn = this.makeIconButton(0, 0, 'images/icon_UI/history_button.png', () => this.toggleHistory());
-      this.historyBtn.bg.setDepth(20);
+      // this.historyBtn.bg.setDepth(20);
     }
 
     // ---- раскладка: компьютер / телефон -------------------------------------

@@ -2,6 +2,7 @@
  * Каждая реплика — { speaker, text }.
  * character задаёт спрайт независимо от имени говорящего;
  * autoAdvanceDelay и backgroundChange.delay задаются в миллисекундах.
+ * Если есть backgroundChange, autoAdvanceDelay отсчитывается после смены фона.
  
  */
 window.VN.data.storyLines = [
@@ -37,6 +38,7 @@ window.VN.data.storyLines = [
     {
       speaker: '', text: '',
       backgroundChange: { path: 'images/backgrounds/house.png', delay: 2000 },
+      autoAdvanceDelay: 2000,
     },
     { speaker: 'ПОСЕТИТЕЛЬ ', text: 'А вот и следы! И ведут они к скамейке.'},
     { speaker: 'ПОСЕТИТЕЛЬ', text: 'Дневник Толстого! Не мог же он его потерять? Возможно, что-то случилось? Нужно срочно отнести его в усадьбу!'},

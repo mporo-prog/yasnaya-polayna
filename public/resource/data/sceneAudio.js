@@ -11,7 +11,7 @@ window.VN.data.sceneAudio = {
   GameScene2: { music: null },
   GameScene3: { music: null },
   GameScene4: { music: null },
-  QuoteMinigameScene: { music: null },
+  QuoteMinigameScene: { music: { path: 'sound/voice_and_sound/music_gameplay_5.mp33', loop: true } },
   PlaceholderMinigameScene: { music: null },
   // Пауза и настройки продолжают текущую музыку, поэтому здесь не перечислены.
 };

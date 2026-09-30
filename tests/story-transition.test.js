@@ -154,15 +154,49 @@ test('an early click on screen 12 changes the background; the second advances an
   ]);
 });
 
-test('an early background change stays on screen 12 past the original deadline', () => {
+test('screen 12 advances automatically two seconds after the timed background change', () => {
   const f = fixture();
   f.start(1, 11);
+  f.tick(3000);
+  assert.equal(f.story.screenIndex, 11);
+  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/house.png');
+  f.tick(4999);
+  assert.equal(f.story.screenIndex, 11);
+  f.tick(5000);
+  assert.equal(f.story.screenIndex, 12);
+  assert.deepEqual(f.savedScreens.at(-1), [1, 12]);
+  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/hat.png');
+  f.tick(9000);
+  assert.equal(f.story.screenIndex, 12, 'The timer must only advance once');
+});
+
+test('an early background change starts a fresh two-second countdown to the next screen', () => {
+  const f = fixture();
+  f.start(1, 11);
+  f.tick(1500);
   f.story.goNext();
-  f.tick(6000);
+  f.tick(3000);
   assert.equal(f.story.screenIndex, 11);
   assert.equal(f.backgrounds.length, 2);
-  f.story.goNext();
+  f.tick(3499);
+  assert.equal(f.story.screenIndex, 11);
+  f.tick(3500);
   assert.equal(f.story.screenIndex, 12);
+});
+
+test('back and shutdown cancel the auto-advance after the background has changed', () => {
+  for (const exit of ['back', 'shutdown']) {
+    const f = fixture();
+    f.start(1, 11);
+    f.tick(3000);
+    if (exit === 'back') f.story.goBack();
+    else f.story.events.emit('shutdown');
+    const screen = f.story.screenIndex;
+    const backgroundCount = f.backgrounds.length;
+    f.tick(6000);
+    assert.equal(f.story.screenIndex, screen);
+    assert.equal(f.backgrounds.length, backgroundCount);
+  }
 });
 
 test('back cancels the background timer and returning to screen 12 starts again from road2', () => {
@@ -193,24 +227,27 @@ test('leaving the scene cancels both kinds of screen timer', () => {
   }
 });
 
-test('history suspends a screen timer and closing it continues the remaining delay', () => {
-  const f = fixture();
-  f.start(1, 0);
-  Object.assign(f.story, {
-    historyContainer: displayObject(), historyBtn: { bg: displayObject() },
-    historyText: displayObject(), setHistoryScroll() {},
+for (const screenIndex of [0, 11]) {
+  test(`history suspends auto-advance on screen ${screenIndex + 1} and closing it continues the remaining delay`, () => {
+    const f = fixture();
+    f.start(1, screenIndex);
+    if (screenIndex === 11) f.story.goNext();
+    Object.assign(f.story, {
+      historyContainer: displayObject(), historyBtn: { bg: displayObject() },
+      historyText: displayObject(), setHistoryScroll() {},
+    });
+    f.window.VN.systems.GameState.getFullHistory = () => [];
+    f.tick(2000);
+    f.story.toggleHistory();
+    f.tick(10000);
+    assert.equal(f.story.screenIndex, screenIndex);
+    f.story.toggleHistory();
+    f.tick(10999);
+    assert.equal(f.story.screenIndex, screenIndex);
+    f.tick(11000);
+    assert.equal(f.story.screenIndex, screenIndex + 1);
   });
-  f.window.VN.systems.GameState.getFullHistory = () => [];
-  f.tick(2000);
-  f.story.toggleHistory();
-  f.tick(10000);
-  assert.equal(f.story.screenIndex, 0);
-  f.story.toggleHistory();
-  f.tick(10999);
-  assert.equal(f.story.screenIndex, 0);
-  f.tick(11000);
-  assert.equal(f.story.screenIndex, 1);
-});
+}
 
 for (const game of [2, 3, 4, 5]) {
   test(`game${game} -> story ${game + 1}: reused scene animates its first line after a long minigame`, () => {

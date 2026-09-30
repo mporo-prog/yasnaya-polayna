@@ -629,13 +629,20 @@
     scheduleScreenAction(entry) {
       this.pendingBackgroundPath = entry.backgroundChange?.path ?? null;
       const delay = this.pendingBackgroundPath ? entry.backgroundChange.delay : entry.autoAdvanceDelay;
+      this.scheduleScreenTimer(delay, () => {
+        if (this.pendingBackgroundPath) this.changeScreenBackground();
+        else this.advanceScreen();
+      });
+    }
+
+    scheduleScreenTimer(delay, callback) {
+      this.clearScreenTimer();
       if (delay == null) return;
 
       // Часы Phaser останавливаются вместе со сценой в меню паузы.
       this.screenTimer = this.time.delayedCall(delay, () => {
         this.screenTimer = null;
-        if (this.pendingBackgroundPath) this.changeScreenBackground();
-        else this.advanceScreen();
+        callback();
       });
       this.screenTimer.paused = this.historyVisible;
     }
@@ -645,6 +652,7 @@
       this.clearScreenTimer();
       this.setBackground(this.pendingBackgroundPath);
       this.pendingBackgroundPath = null;
+      this.scheduleScreenTimer(this.currentLines[this.screenIndex].autoAdvanceDelay, () => this.advanceScreen());
       return true;
     }
 

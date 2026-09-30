@@ -202,6 +202,20 @@ test('actual menu and story manifests include UI texture aliases backed by exist
   }
 });
 
+test('portrait preloads its initial frame and game3 title panel without entering a placeholder minigame', () => {
+  const f = fixture();
+  f.data.storyLines[1] = [{ portraitReveal: {
+    poster: 'images/backgrounds/tolstoy-portrait-start.png',
+    titlePanel: 'images/game3/item_label_panel.png',
+  } }];
+  const assets = f.assets.assetsFor(f.game, 'StoryScene', { storySceneIndex: 1 });
+  for (const path of Object.values(f.data.storyLines[1][0].portraitReveal)) {
+    assert.ok(assets.some(asset => asset.type === 'image' && asset.key === path));
+    assert.ok(existsSync(new URL('../public/' + path, import.meta.url)));
+  }
+  assert.equal(f.assets.nextTarget('StoryScene', { storySceneIndex: 1 }), null);
+});
+
 test('look-ahead follows menu -> story -> mini-game -> next story -> final menu', () => {
   const f = fixture();
   assert.equal(f.assets.nextTarget('MainMenuScene').data.storySceneIndex, 0);

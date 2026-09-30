@@ -15,12 +15,14 @@ const BIRDS = [
         x: 1120,
         y: 75,
         image: 'Zyablik',
+        label: 'Зяблик',
         voice: 'voice_and_sound/zyablik_2.wav'
     },
     {
         x: 400,
         y: 0,
         image: 'Zaryanka',
+        label: 'Зарянка',
         voice: 'voice_and_sound/zaryanka_2.wav'
     },
     {
@@ -30,6 +32,7 @@ const BIRDS = [
         width: 455,
         height: 429,
         image: 'Korostel',
+        label: 'Коростель',
         voice: 'voice_and_sound/korostel_2.wav'
     },
     {
@@ -39,6 +42,7 @@ const BIRDS = [
         width: 385,
         height: 363,
         image: 'Drozd',
+        label: 'Дрозд',
         voice: 'voice_and_sound/drozd_2.wav'
     }
 ];
@@ -79,6 +83,13 @@ const INSTRUCTION_PANEL = {
     width: 1300,
     height: 577.04,
     texture: 'images/icon_UI/instruction_panel.png'
+};
+
+// Та же плашка и положение в макете, что в GameScene3.
+const BIRD_NAME_PANEL = {
+    x: 760,
+    y: 880,
+    texture: 'images/game3/item_label_panel.png'
 };
 
 const COLOR_BACKGROUND = 0xe5e5e5;
@@ -137,6 +148,7 @@ export class GameScene1 extends Phaser.Scene {
                 { key: HINT_NEXT_ARROW.texture, url: `${import.meta.env.BASE_URL}${HINT_NEXT_ARROW.texture}` },
                 { key: RESULT_MESSAGE_PANEL.texture, url: `${import.meta.env.BASE_URL}${RESULT_MESSAGE_PANEL.texture}` },
                 { key: INSTRUCTION_PANEL.texture, url: `${import.meta.env.BASE_URL}${INSTRUCTION_PANEL.texture}` },
+                { key: BIRD_NAME_PANEL.texture, url: `${import.meta.env.BASE_URL}${BIRD_NAME_PANEL.texture}` },
                 ...BIRDS.flatMap((bird) => [
                     { key: `${bird.image}_idle`, url: `${imagesPath}${bird.image}_1.png` },
                     { key: `${bird.image}_sing`, url: `${imagesPath}${bird.image}_2.png` },
@@ -175,6 +187,7 @@ export class GameScene1 extends Phaser.Scene {
         this.layout = window.VN.systems.Layout;
         this.createBackground();
         this.createBirds();
+        this.createBirdNamePanel();
         this.createPauseOverlay();
         this.createPauseButton();
         this.createRepeatOverlay();
@@ -201,6 +214,7 @@ export class GameScene1 extends Phaser.Scene {
     createBirds() {
         this.birds = BIRDS.map((data, index) => {
             const bird = {
+                label: data.label,
                 voice: window.VN.systems.AudioManager.add(this, data.voice),
                 timer: null,
                 width: data.width ?? BIRD_WIDTH,
@@ -214,12 +228,109 @@ export class GameScene1 extends Phaser.Scene {
                 .setDisplaySize(bird.width, bird.height);
 
             bird.box.setInteractive({ useHandCursor: true });
+            bird.box.on('pointerover', (pointer) => {
+                if (!pointer.wasTouch && !this.birdNameTouchQuery?.matches) {
+                    this.showBirdName(bird);
+                }
+            });
+            bird.box.on('pointerout', () => this.hideBirdName(bird));
             bird.box.on('pointerdown', () => this.selectBird(index));
 
             this.stage.add(bird.box);
 
             return bird;
         });
+    }
+
+    createBirdNamePanel() {
+        this.birdNameTouchQuery = window.matchMedia?.('(pointer: coarse)');
+        this.hoveredBird = null;
+        this.singingBirdName = null;
+        this.birdNamePaused = false;
+
+        const panel = this.add.image(0, 0, BIRD_NAME_PANEL.texture).setOrigin(0);
+        this.birdNameText = this.add.text(panel.width / 2, panel.height / 2, '', {
+            fontFamily: 'Ysabeau',
+            fontStyle: 'normal',
+            fontSize: '36px',
+            color: '#04151F',
+            align: 'center',
+            letterSpacing: 0,
+            wordWrap: { width: panel.width * 0.86, useAdvancedWrap: true }
+        }).setOrigin(0.5);
+
+        // UI остаётся в безопасной области экрана даже при увеличении фона с птицами.
+        this.birdNamePanel = this.add.container(BIRD_NAME_PANEL.x, BIRD_NAME_PANEL.y, [
+            panel, this.birdNameText
+        ]).setVisible(false);
+
+        const updateLineHeight = () => this.birdNameText.setLineSpacing(
+            36 - this.birdNameText.style.metrics.fontSize
+        );
+        updateLineHeight();
+        const fonts = globalThis.document?.fonts;
+        fonts?.addEventListener('loadingdone', updateLineHeight);
+
+        const clearHover = () => this.hideBirdName();
+        const pause = () => {
+            this.birdNamePaused = true;
+            clearHover();
+        };
+        const resume = () => {
+            this.birdNamePaused = false;
+            this.updateBirdNamePlayback();
+            this.refreshBirdName();
+        };
+        this.birdNameTouchQuery?.addEventListener('change', clearHover);
+        this.input.on('gameout', clearHover);
+        this.events.on('pause', pause);
+        this.events.on('resume', resume);
+        this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+            this.clearBirdName();
+            fonts?.removeEventListener('loadingdone', updateLineHeight);
+            this.birdNameTouchQuery?.removeEventListener('change', clearHover);
+            this.input.off('gameout', clearHover);
+            this.events.off('pause', pause);
+            this.events.off('resume', resume);
+        });
+    }
+
+    showBirdName(bird) {
+        if (this.phase !== 'input' || this.paused || this.birdNamePaused || this.completed ||
+            this.activeHint || this.singingBirdName) return;
+        this.hoveredBird = bird;
+        this.refreshBirdName();
+    }
+
+    hideBirdName(bird) {
+        if (bird && this.hoveredBird !== bird) return;
+        this.hoveredBird = null;
+        this.refreshBirdName();
+    }
+
+    clearBirdName() {
+        this.hoveredBird = null;
+        this.singingBirdName = null;
+        this.birdNamePanel?.setVisible(false);
+    }
+
+    refreshBirdName() {
+        if (!this.birdNamePanel) return;
+        const bird = this.singingBirdName || this.hoveredBird;
+        const visible = Boolean(bird && !this.paused && !this.birdNamePaused &&
+            !this.completed && !this.activeHint);
+        if (visible) this.birdNameText.setText(bird.label.toLocaleUpperCase('ru-RU'));
+        this.birdNamePanel.setVisible(visible);
+    }
+
+    updateBirdNamePlayback() {
+        const bird = this.singingBirdName;
+        if (!bird) return;
+        // Звук и таймер сцены могут завершаться в разное время, особенно после паузы.
+        const singing = bird.nameUsesAudio
+            ? bird.voice.isPlaying || bird.voice.isPaused
+            : Boolean(bird.timer);
+        if (!singing) this.clearBirdName();
     }
 
     buildSequence(sequence_len) {
@@ -279,7 +390,7 @@ export class GameScene1 extends Phaser.Scene {
     }
 
     selectBird(index) {
-        if (this.phase !== 'input' || this.paused) {
+        if (this.phase !== 'input' || this.paused || this.birdNamePaused || this.completed || this.activeHint) {
             return;
         }
 
@@ -310,6 +421,8 @@ export class GameScene1 extends Phaser.Scene {
             return;
         }
 
+        this.updateBirdNamePlayback();
+
         if (this.activeHint?.autoDismiss) {
             this.dismissHint();
         }
@@ -339,6 +452,10 @@ export class GameScene1 extends Phaser.Scene {
         }
 
         this.playVoice(index);
+        bird.nameUsesAudio = Boolean(bird.voice.isPlaying || bird.voice.isPaused);
+        this.hoveredBird = null;
+        this.singingBirdName = bird;
+        this.refreshBirdName();
 
         bird.box
             .setTexture(bird.singKey)
@@ -360,6 +477,7 @@ export class GameScene1 extends Phaser.Scene {
     }
 
     resetBirds() {
+        this.clearBirdName();
         this.time.removeAllEvents();
 
         this.birds.forEach(bird => {
@@ -423,6 +541,7 @@ export class GameScene1 extends Phaser.Scene {
 
     showHint(overlay, onDismiss, durationSeconds = this.hintDurationSeconds) {
         this.clearHint();
+        this.clearBirdName();
         overlay.setVisible(true);
         this.input.enabled = true;
         this.input.keyboard.enabled = true;

@@ -108,6 +108,16 @@
         output.textContent = lines.join('\n');
         continue;
       }
+      if (number === 5) {
+        assert(story.portraitPhase === 'animation', 'Story 6 starts with the portrait animation');
+        assert(!story.voiceActive && !story.bottomGroup.visible, 'No dialogue during the animation');
+        assert(story.portraitVideo.video.loop === false, 'The portrait plays once');
+        mouse('mousedown', point);
+        mouse('mouseup', point);
+        assert(story.portraitPhase === 'animation', 'Clicks cannot skip the portrait');
+        await waitFor(() => story.portraitPhase === 'dialogue');
+        assert(story.portraitVideo.video.ended, 'Dialogue starts after the actual video end');
+      }
       assert(story.voiceActive, 'Voice reveal is active after game' + number);
       assert(story.screenIndex === 0, 'Release from game' + number + ' did not skip the first line');
       assert(Math.abs(story.voiceStartTime - game.getTime()) < 2000, 'Reveal starts at the current game time');

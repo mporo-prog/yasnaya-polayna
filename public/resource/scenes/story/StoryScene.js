@@ -39,6 +39,10 @@
       this.storySceneIndex = data.storySceneIndex != null ? data.storySceneIndex : GameState.state.storySceneIndex;
       this.screenIndex = data.screenIndex != null ? data.screenIndex : GameState.state.screenIndex;
       this.historyVisible = false;
+      this.portraitPhase = null;
+      this.portraitAnimationComplete = false;
+      this._pendingVoiceResume = false;
+      this.voiceInterruptedByOverlay = false;
       this.minigameFadeInMs = data.minigameFadeInMs || 0;
       // Даже при повторной загрузке отсутствующего ресурса сохраняем чёрный экран.
       if (this.minigameFadeInMs > 0) this.cameras.main.setAlpha(0);
@@ -49,7 +53,12 @@
     }
 
     create() {
-      this.sceneAudio = window.VN.systems.SceneAudio.enter(this);
+      // У финального портрета звук появляется только после анимации.
+      this.sceneAudio = this.currentLines[this.screenIndex].portraitReveal
+        ? null : window.VN.systems.SceneAudio.enter(this);
+      if (!this.sceneAudio) {
+        window.VN.systems.SceneAudio.enter(this, { music: null, transition: { fadeOutDuration: 0 } });
+      }
       this.layout = window.VN.systems.Layout;
       this.buildBackgroundLayer();
       // Персонаж, плашка реплики и кнопки «далее/назад» живут в одной
@@ -84,6 +93,7 @@
         this.clearScreenTimer();
         this.cancelBackgroundTransition?.();
         this.pendingBackgroundPath = null;
+        this.clearPortraitSequence?.();
       });
     }
 
@@ -107,6 +117,11 @@
     }
 
     update(time) {
+      if (this.portraitPhase === 'animation' && this.portraitAnimationComplete) {
+        this.portraitPhase = 'dialogue';
+        this.setPortraitControlsVisible(true);
+        this.renderCurrentScreen();
+      }
       // Отложенный перезапуск озвучки после паузы/истории — см. комментарий
       // в resumeVoiceIfNeeded(): его нельзя делать синхронно в обработчике
       // клика "Продолжить", поэтому здесь мы забираем его на первом же
@@ -116,6 +131,10 @@
         this.startVoiceReveal(this._voiceConfigForCurrentScreen, this._textForCurrentScreen, time);
       }
       this.updateVoiceReveal(time);
+      if (this.portraitPhase === 'dialogue' && !this.historyVisible
+        && this.voiceTrack?.ended) {
+        this.showPortraitTitle();
+      }
       if (this.pendingBackgroundPath && this.currentLines[this.screenIndex].backgroundChange?.afterVoice
         && !this.historyVisible && (!this.voiceTrack || this.voiceTrack.ended)) {
         this.changeScreenBackground();
@@ -151,7 +170,10 @@
       // ещё нет на диске) — просто рисуем серый плейсхолдер с подписью
       // (путь к файлу), чтобы было видно, чего не хватает.
       // Фон растягивается на весь экран (Layout.addBackground).
-      this.background = this.layout.addBackground(this, null);
+      // На планшетах сохраняем в кадре раму и место для названия справа.
+      const keep = this.currentLines[this.screenIndex].portraitReveal
+        ? new Phaser.Geom.Rectangle(780, 40, 1090, 1000) : null;
+      this.background = this.layout.addBackground(this, null, { keep });
 
       this.bgLabel = this.add.text(WIDTH / 2, BAR_Y / 2, 'Фон', { fontSize: '40px', color: '#000000' }).setOrigin(0.5).setVisible(false);
     }
@@ -326,6 +348,7 @@
       const menuBtnLeft = WIDTH * 0.015 + menuBtnSize / 2; // ≈ 104
       const menuBtnTop = HEIGHT * 0.023 + menuBtnSize / 2; // ≈ 100
       const menuBtn = this.makeIconButton(menuBtnLeft, menuBtnTop, 'images/icon_UI/pause_button.png', () => this.openPauseMenu(), menuBtnSize);
+      this.pauseBtn = menuBtn;
       menuBtn.bg.setDepth(20);
 
       this.historyBtn = this.makeIconButton(100, 220, 'images/icon_UI/history_button.png', () => this.toggleHistory(), 70);
@@ -582,6 +605,11 @@
      * для "Назад" (goBack()): переслушивать реплику при возврате не нужно.
      */
     renderCurrentScreen(options = {}) {
+      const entry = this.currentLines[this.screenIndex];
+      if (entry.portraitReveal && !this.portraitPhase) {
+        this.startPortraitSequence(entry.portraitReveal);
+        return;
+      }
       const skipVoice = options.skipVoice === true;
       this.clearScreenTimer();
       this.cancelBackgroundTransition?.();
@@ -589,9 +617,9 @@
       // Реплика предыдущего экрана могла ещё озвучиваться — обрываем её.
       this.stopVoice();
 
+      this.sceneAudio ??= window.VN.systems.SceneAudio.enter(this);
       this.sceneAudio.showScreen(this.screenIndex);
       const GameState = window.VN.systems.GameState;
-      const entry = this.currentLines[this.screenIndex];
       const text = entry.text;
       const speakerName = entry.speaker || '';
       const backgroundPath = this.currentBackgrounds[this.screenIndex];
@@ -649,6 +677,101 @@
       else this.backBtn.bg.setInteractive({ useHandCursor: true });
 
       this.scheduleScreenAction(entry);
+    }
+
+    // ---- финальный портрет --------------------------------------------------
+
+    setPortraitControlsVisible(visible) {
+      this.bottomGroup.setVisible(visible);
+      this.historyBtn.bg.setVisible(visible);
+    }
+
+    startPortraitSequence(config) {
+      this.portraitPhase = 'animation';
+      this.portraitAnimationComplete = false;
+      this.stopVoice();
+      this.clearScreenTimer();
+      this.setBackground(this.currentBackgrounds[this.screenIndex]);
+      this.setPortraitControlsVisible(false);
+      window.VN.systems.GameState.goToScreen(this.storySceneIndex, this.screenIndex);
+
+      const { x, y, width, height } = config.frame;
+      const camera = this.cameras.main;
+      const poster = this.add.image(x, y, config.poster).setOrigin(0).setDisplaySize(width, height);
+      const video = this.add.video(x, y).setOrigin(0).setVisible(false);
+      this.background.stage.add([poster, video]);
+      this.portraitVideo = video;
+
+      // Последний кадр остаётся в раме до ухода со сцены.
+      video.once('created', () => video.setDisplaySize(width, height).setVisible(true));
+      video.once('complete', () => { this.portraitAnimationComplete = true; });
+      video.once('error', () => {
+        // При недоступном видео остаётся исходная картина; реплику можно прочитать.
+        video.setVisible(false);
+        poster.setVisible(false);
+        this.portraitAnimationComplete = true;
+      });
+      video.loadURL(config.video, true);
+      let started = false;
+      const play = () => { started = true; video.play(false); };
+      const pause = () => { if (started) video.setPaused(true); };
+      const resume = () => {
+        if (started && this.portraitPhase === 'animation' && !this.portraitAnimationComplete) {
+          video.setPaused(false);
+        }
+      };
+      this.events.on('pause', pause);
+      this.events.on('resume', resume);
+      if (this.minigameFadeInMs > 0) camera.once('camerafadeincomplete', play);
+      else play();
+
+      this.clearPortraitSequence = () => {
+        // CameraManager уже может убрать main до пользовательского shutdown.
+        camera.off('camerafadeincomplete', play);
+        this.events.off('pause', pause);
+        this.events.off('resume', resume);
+        video.removeAllListeners();
+        video.destroy();
+        poster.destroy();
+        this.portraitTitle?.destroy();
+        this.portraitTitle = null;
+        this.portraitVideo = null;
+        this.portraitPhase = null;
+        this.portraitAnimationComplete = false;
+        this.clearPortraitSequence = null;
+      };
+    }
+
+    showPortraitTitle() {
+      if (this.portraitPhase !== 'dialogue') return;
+      this.portraitPhase = 'hold';
+      this.stopVoice();
+      this._pendingVoiceResume = false;
+      this.voiceInterruptedByOverlay = false;
+      this.setPortraitControlsVisible(false);
+      this.pauseBtn.bg.setVisible(false);
+      this.destroyGlossaryWordOverlays();
+
+      const config = this.currentLines[this.screenIndex].portraitReveal;
+      const panel = this.add.image(0, 0, config.titlePanel).setDisplaySize(640, 183);
+      const title = this.add.text(0, 0, config.title, {
+        fontFamily: 'Ysabeau', fontSize: '36px', color: '#04151F',
+        align: 'center', wordWrap: { width: 550, useAdvancedWrap: true },
+      }).setOrigin(0.5);
+      this.portraitTitle = this.add.container(1515, HEIGHT / 2, [panel, title]);
+      this.background.stage.add(this.portraitTitle);
+      const duration = Number.isFinite(config.holdDuration) && config.holdDuration >= 0
+        ? config.holdDuration : 4000;
+      this.scheduleScreenTimer(duration, () => this.finishPortraitSequence());
+    }
+
+    finishPortraitSequence() {
+      if (this.portraitPhase !== 'hold') return;
+      this.portraitPhase = 'finished';
+      this.clearScreenTimer();
+      window.VN.systems.GameState.save();
+      this.scene.stop();
+      window.location.assign('games/finish/index.html');
     }
 
     clearScreenTimer() {
@@ -734,6 +857,7 @@
     }
 
     goNext() {
+      if (this.portraitPhase && this.portraitPhase !== 'dialogue') return;
       // Смена фона — отдельный шаг внутри экрана. После него следующий
       // клик переходит дальше, даже если озвучка ещё не закончилась.
       if (this.changeScreenBackground()) return;
@@ -749,6 +873,10 @@
     }
 
     advanceScreen() {
+      if (this.portraitPhase) {
+        this.showPortraitTitle();
+        return;
+      }
       if (this.cancelBackgroundTransition) return;
       if (this.screenIndex < this.totalScreensInThisScene - 1) {
         this.screenIndex += 1;
@@ -759,6 +887,7 @@
     }
 
     goBack() {
+      if (this.portraitPhase) return;
       if (this.cancelBackgroundTransition) return;
       if (this.screenIndex > 0) {
         this.screenIndex -= 1;
@@ -884,6 +1013,10 @@
     }
 
     startMinigame() {
+      if (this.portraitPhase) {
+        this.showPortraitTitle();
+        return;
+      }
       this.clearScreenTimer();
       const GameState = window.VN.systems.GameState;
       GameState.markMinigameStarted();
@@ -898,6 +1031,7 @@
     }
 
     toggleHistory() {
+      if (this.portraitPhase && this.portraitPhase !== 'dialogue') return;
       // Открытие "Истории" останавливает текущую озвучку; запоминаем, была ли
       // она прервана, чтобы при закрытии окна проиграть реплику заново.
       if (!this.historyVisible) {
@@ -932,6 +1066,7 @@
     }
 
     openPauseMenu() {
+      if (this.portraitPhase === 'hold' || this.portraitPhase === 'finished') return;
       // Пока сцена на паузе, её update() не выполняется, но Web Audio
       // продолжил бы играть в фоне — останавливаем озвучку.
       this.voiceInterruptedByOverlay = this.voiceActive;

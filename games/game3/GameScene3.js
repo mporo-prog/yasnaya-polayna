@@ -97,7 +97,7 @@ export class GameScene3 extends Phaser.Scene {
     }
 
     create() {
-        window.VN?.systems.SceneAudio?.enter(this);
+        this.sceneAudio = null;
         this.started = false;
         this.paused = false;
         this.finished = false;
@@ -346,19 +346,25 @@ export class GameScene3 extends Phaser.Scene {
             return;
         }
 
-        this.activeHint.timer.remove();
+        this.activeHint.timer?.remove();
         this.activeHint.overlay.setVisible(false);
         this.activeHint = null;
     }
 
     dismissHint() {
         const hint = this.activeHint;
-        if (!hint) {
+        if (!hint || (hint.waitForAudio && this.sceneAudio?.hasActiveSounds)) {
             return;
         }
 
         this.clearHint();
         hint.onDismiss();
+    }
+
+    update() {
+        if (!this.paused && this.activeHint?.waitForAudio) {
+            this.dismissHint();
+        }
     }
 
     createOverlay(text, onClick, { panel: panelConfig = null, textStyle = {}, lineHeight = null } = {}) {
@@ -444,12 +450,31 @@ export class GameScene3 extends Phaser.Scene {
 
     createIntroOverlay() {
         this.introOverlay = this.createOverlay(
-            'Собери завтрак графа Толстого.',
-            () => this.dismissHint(),
+            'Соберите завтрак для Толстого',
+            () => {
+                // Первый клик разблокирует звук, если браузер запретил автозапуск.
+                this.unlockAudio();
+                this.dismissHint();
+            },
             { panel: INSTRUCTION_PANEL, textStyle: INSTRUCTION_TEXT_STYLE, lineHeight: 64 }
         );
 
         this.showHint(this.introOverlay, () => this.startGame(), 4);
+        this.sceneAudio = window.VN?.systems.SceneAudio?.enter(this);
+        if (this.sceneAudio?.hasActiveSounds) {
+            // Закрываем правила по окончании голоса; таймер нужен только при ошибке загрузки.
+            this.activeHint.timer.remove();
+            this.activeHint.timer = null;
+            this.activeHint.waitForAudio = true;
+        }
+        this.unlockAudio();
+    }
+
+    unlockAudio() {
+        const context = this.sound?.context;
+        if (context?.state === 'suspended') {
+            context.resume();
+        }
     }
 
     startGame() {

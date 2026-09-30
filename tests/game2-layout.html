@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Game2 — проверка адаптива</title>
+<link rel="stylesheet" href="../resource/core/screen.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Philosopher&display=swap">
+<style>
+  #checks { position: fixed; top: 0; left: 0; z-index: 10; background: white; color: black; padding: 8px; font: 14px sans-serif; }
+  #report { margin: 5px 0 0; max-width: 95vw; white-space: pre-wrap; }
+</style>
+<div id="checks">
+  <button data-screen="rules">Правила</button>
+  <button data-screen="game">Игра</button>
+  <button data-screen="win">Победа</button>
+  <pre id="report">Загрузка…</pre>
+</div>
+<div id="app"></div>
+<script src="../resource/lib/phaser.min.js"></script>
+<script src="../resource/core/namespace.js"></script>
+<script src="../resource/systems/Layout.js"></script>
+<script type="module">
+  import { GameScene2 } from '../games/game2/GameScene2.js';
+  const report = document.querySelector('#report');
+  const layout = window.VN.systems.Layout;
+  let scene;
+  let selected = 'rules';
+  const epsilon = 0.1;
+  const contains = (parent, child) => child.left >= parent.left - epsilon
+    && child.top >= parent.top - epsilon && child.right <= parent.right + epsilon
+    && child.bottom <= parent.bottom + epsilon;
+  function verify() {
+    if (!scene?.rulesOverlay) return;
+    try {
+      const visible = layout.getVisibleRect(scene);
+      const ui = layout.getUiRect(scene);
+      const assert = (value, message) => { if (!value) throw new Error(message); };
+      assert(contains(visible, scene.background.image.getBounds()), 'Карта обрезана');
+      assert(contains(ui, scene.pauseButton.getBounds()), 'Пауза вне safe area');
+      for (const thing of scene.things) {
+        if (thing.sprite && !thing.dragging && !thing.isLocked()) {
+          assert(contains(ui, thing.sprite.getBounds()), 'Предмет за краем экрана');
+        }
+        const target = scene.targets.find(target => target.id === thing.targetId);
+        assert(scene.findMatchingTarget(thing, target.getWorldCenter()) === target, 'Не совпадает зона сброса');
+      }
+      for (const overlay of [scene.rulesOverlay, scene.winOverlay]) {
+        const [panel, title, text, next] = overlay.list;
+        assert(contains(ui, panel.getBounds()), 'Плашка за краем экрана');
+        assert(contains(panel.getBounds(), title.getBounds()), 'Заголовок за краем плашки');
+        assert(contains(panel.getBounds(), text.getBounds()), 'Текст за краем плашки');
+        assert(title.getBounds().bottom < text.getBounds().top, 'Заголовок наезжает на текст');
+        assert(contains(ui, next.getBounds()), 'Стрелка за краем экрана');
+      }
+      assert(document.fonts.check('64px Philosopher', 'Правила игры'), 'Шрифт не загружен');
+      report.textContent = `PASS · ${innerWidth}×${innerHeight} · ${selected}\nКарта, текст, кнопки и зоны сброса в границах.`;
+    } catch (error) {
+      report.textContent = `FAIL: ${error.message}`;
+    }
+  }
+  function show(screen) {
+    selected = screen;
+    scene.rulesOverlay.setVisible(screen === 'rules');
+    scene.winOverlay.setVisible(screen === 'win');
+    scene.phase = screen;
+    if (screen === 'rules') scene.dimGameScene();
+    else scene.restoreGameScene();
+    verify();
+  }
+  class Preview extends GameScene2 {
+    // В этом стенде проверяется только GameScene2, без общего меню паузы.
+    openPauseMenu() {}
+    preload() {
+      for (const image of this.getAssetManifest().images) this.load.image(image.key, image.url);
+    }
+    showRulesScreen() {
+      scene = this;
+      show('rules');
+      this.scale.on('resize', () => requestAnimationFrame(verify));
+    }
+  }
+  await document.fonts.load('64px Philosopher', 'Правила игры');
+  new Phaser.Game({ type: Phaser.CANVAS, scale: layout.getScaleConfig('app'), audio: { noAudio: true }, scene: [Preview] });
+  document.querySelectorAll('[data-screen]').forEach(button => {
+    button.addEventListener('click', () => show(button.dataset.screen));
+  });
+  window.addEventListener('error', event => { report.textContent = `FAIL: ${event.message}`; });
+</script>
+</html>

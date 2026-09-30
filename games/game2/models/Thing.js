@@ -10,6 +10,7 @@ export class Thing {
         this.startX = 0;
         this.startY = 0;
         this.locked = false;
+        this.dragging = false;
     }
 
     createSprite(scene, x, y, size) {

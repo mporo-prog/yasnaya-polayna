@@ -8,7 +8,20 @@
       this.returnSceneKey = (data && data.returnSceneKey) || 'StoryScene';
     }
 
+    preload() {
+      window.VN.systems.SceneAssets.preload(this);
+    }
+
     create() {
+      this.musicController = this.sound.context
+        ? window.VN.systems.MusicController.forScene(this) : null;
+      this.previousMusic = this.musicController?.getCurrentMusic() ?? null;
+      this.sceneAudio = window.VN.systems.SceneAudio.enter(this);
+      const pauseMusic = this.musicController?.current;
+      this.events.once('shutdown', () => {
+        // При выходе в главное меню его трек может ещё загружаться.
+        if (pauseMusic && this.musicController.current === pauseMusic) this.musicController.fadeOut();
+      });
 
       const width = this.scale.width;
       const height = this.scale.height;
@@ -48,6 +61,7 @@
 
         const scene = this.scene.get(this.returnSceneKey);
 
+        this.musicController?.transitionTo(this.previousMusic);
         this.scene.stop();
         this.scene.resume(this.returnSceneKey);
 

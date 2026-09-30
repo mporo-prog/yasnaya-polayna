@@ -21,8 +21,7 @@
   const INTRO_NEXT_ARROW = { x: 1600, y: 825, size: 150 };
     // Плашка экрана правил и финального экрана — тот же файл и тот же
     // размер, что в GameScene1-3 (public/images/icon_UI/instruction_panel.png).
-    instructionPanel: 'images/icon_UI/instruction_panel.png',
-  };
+    // instructionPanel: 'images/icon_UI/instruction_panel.png',
 
   // Короткие звуки-реакции на ответ (папка ui/ — как остальные интерфейсные
   // звуки, громкость общая с настройками «Громкость звуков»). Файлов пока
@@ -161,6 +160,7 @@
       this.startRound(this.currentRoundIndex);
       // Правила игры поверх первого раунда.
       this.showPanelOverlay(null, INTRO_TEXT);
+    }
 
       // Сначала создаём оба overlay (правила/финал) — как в GameScene2 —
       // и только потом показываем правила; сам первый раунд соберётся
@@ -171,9 +171,9 @@
 //       this.events.on(Phaser.Scenes.Events.RESUME, this.handleResume, this);
 //       this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.stopRulesVoice());
 
-      window.VN.systems.SceneAssets.prefetchNext(this);
-      this.showRulesScreen();
-    }
+    //   window.VN.systems.SceneAssets.prefetchNext(this);
+    //   this.showRulesScreen();
+    // }
 
     // ---- экран правил и финальный экран -----------------------------------
 
@@ -220,70 +220,70 @@
      * таймеру (на случай, если браузер не даёт звук или файла ещё нет).
      * Кнопка «Далее» на этом экране декоративная — нажать её нельзя.
      */
-    createRulesOverlay() {
-      const parts = this.buildResultPanel(
-        'Правила игры',
-        'Прочитайте цитату и выберите слово, которое в ней пропущено.\n' +
-          'Неправильный вариант закроется красным — пробуйте другой.'
-      );
+    // createRulesOverlay() {
+    //   const parts = this.buildResultPanel(
+    //     'Правила игры',
+    //     'Прочитайте цитату и выберите слово, которое в ней пропущено.\n' +
+    //       'Неправильный вариант закроется красным — пробуйте другой.'
+    //   );
 
-      const nextIcon = this.add.image(
-        WIDTH / 2 + RESULT_PANEL_WIDTH / 2 - 110,
-        HEIGHT / 2 + RESULT_PANEL_HEIGHT / 2 - 110,
-        IMG.next
-      ).setDisplaySize(150, 150);
+    //   const nextIcon = this.add.image(
+    //     WIDTH / 2 + RESULT_PANEL_WIDTH / 2 - 110,
+    //     HEIGHT / 2 + RESULT_PANEL_HEIGHT / 2 - 110,
+    //     IMG.next
+    //   ).setDisplaySize(150, 150);
 
-      this.rulesOverlay = this.add
-        .container(0, 0, [parts.dim, parts.panel, parts.title, parts.body, nextIcon])
-        .setDepth(50)
-        .setVisible(false);
-    }
+    //   this.rulesOverlay = this.add
+    //     .container(0, 0, [parts.dim, parts.panel, parts.title, parts.body, nextIcon])
+    //     .setDepth(50)
+    //     .setVisible(false);
+    // }
 
     /**
      * Финальный экран: показывается после того, как игрок закрыл реплику
      * героя в последнем раунде. Кнопка «Далее» здесь настоящая — по клику
      * мини-игра завершается и сюжет продолжается (finishMinigame).
      */
-    createWinOverlay() {
-      const parts = this.buildResultPanel('Ура, победа!', 'Вы успешно продолжили все цитаты.');
+    // createWinOverlay() {
+    //   const parts = this.buildResultPanel('Ура, победа!', 'Вы успешно продолжили все цитаты.');
 
-      const nextBtn = this.makeIconButton(
-        WIDTH / 2 + RESULT_PANEL_WIDTH / 2 - 110,
-        HEIGHT / 2 + RESULT_PANEL_HEIGHT / 2 - 110,
-        IMG.next,
-        () => this.finishMinigame(),
-        150
-      );
+    //   const nextBtn = this.makeIconButton(
+    //     WIDTH / 2 + RESULT_PANEL_WIDTH / 2 - 110,
+    //     HEIGHT / 2 + RESULT_PANEL_HEIGHT / 2 - 110,
+    //     IMG.next,
+    //     () => this.finishMinigame(),
+    //     150
+    //   );
 
-      this.winOverlay = this.add
-        .container(0, 0, [parts.dim, parts.panel, parts.title, parts.body, nextBtn])
-        .setDepth(50)
-        .setVisible(false);
-    }
+    //   this.winOverlay = this.add
+    //     .container(0, 0, [parts.dim, parts.panel, parts.title, parts.body, nextBtn])
+    //     .setDepth(50)
+    //     .setVisible(false);
+    // }
 
-    showRulesScreen() {
-      this.phase = 'rules';
-      this.rulesOverlay.setVisible(true);
-      this.stopRulesVoice();
+    // showRulesScreen() {
+    //   this.phase = 'rules';
+    //   this.rulesOverlay.setVisible(true);
+    //   this.stopRulesVoice();
 
-      // Если аудио недоступно ИЛИ файла ещё нет (см. SND.rules выше) —
-      // не блокируем игрока навсегда: сразу переходим к игре по таймеру.
-      this.rulesVoice = window.VN.systems.AudioManager
-        ? safeSound(() => window.VN.systems.AudioManager.add(this, SND.rules))
-        : null;
+    //   // Если аудио недоступно ИЛИ файла ещё нет (см. SND.rules выше) —
+    //   // не блокируем игрока навсегда: сразу переходим к игре по таймеру.
+    //   this.rulesVoice = window.VN.systems.AudioManager
+    //     ? safeSound(() => window.VN.systems.AudioManager.add(this, SND.rules))
+    //     : null;
 
-      const finishRules = () => this.startGameAfterRules();
+    //   const finishRules = () => this.startGameAfterRules();
 
-      if (this.rulesVoice) {
-        this.rulesVoice.once('complete', finishRules);
-        safeSound(() => this.rulesVoice.play());
-      }
+    //   if (this.rulesVoice) {
+    //     this.rulesVoice.once('complete', finishRules);
+    //     safeSound(() => this.rulesVoice.play());
+    //   }
 
-      // Запасной таймер — на случай, если браузер не пришлёт 'complete'
-      // (или звукового файла ещё нет, как сейчас).
-      const duration = Math.max(4000, (this.rulesVoice?.totalDuration || 0) * 1000 + 500);
-      this.rulesTimer = this.time.delayedCall(duration, finishRules);
-    }
+    //   // Запасной таймер — на случай, если браузер не пришлёт 'complete'
+    //   // (или звукового файла ещё нет, как сейчас).
+    //   const duration = Math.max(4000, (this.rulesVoice?.totalDuration || 0) * 1000 + 500);
+    //   this.rulesTimer = this.time.delayedCall(duration, finishRules);
+    // }
 
     stopRulesVoice() {
       if (this.rulesTimer) {

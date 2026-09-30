@@ -553,7 +553,7 @@ export class GameScene1 extends Phaser.Scene {
         this.winOverlay = this.createOverlay(
             'Ура пабеда едем дальше',
             () => this.dismissHint(),
-            { panel: RESULT_MESSAGE_PANEL, textStyle: RESULT_MESSAGE_TEXT_STYLE }
+            { panel: INSTRUCTION_PANEL, textStyle: RESULT_MESSAGE_TEXT_STYLE }
         );
     }
 

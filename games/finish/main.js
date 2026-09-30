@@ -1,15 +1,18 @@
-import Phaser from 'phaser';
 import { FinishScene } from './FinishScene.js';
 import { AuthorsScene } from './AuthorsScene.js';
-import '../../src/styles/reset.css';
+import './style.css';
 
 const config = {
     type: Phaser.AUTO,
+    dom: { createContainer: true },
 
+    // Весь макет масштабируется целиком, сохраняя пропорции 16:9.
     scale: {
-        mode: Phaser.Scale.RESIZE,
-        width: '100%',
-        height: '100%'
+        parent: 'app',
+        mode: Phaser.Scale.FIT,
+        width: 1920,
+        height: 1080,
+        autoCenter: Phaser.Scale.CENTER_BOTH
     },
 
     scene: [FinishScene, AuthorsScene]

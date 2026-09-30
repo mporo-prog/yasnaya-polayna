@@ -43,10 +43,13 @@ function fixture(states) {
     destroy() { this.removed = true; },
   };
   const entry = { key: 'GameScene4', data: { storySceneIndex: 3, minigameId: 'story_4_minigame' } };
+  const finishEntry = { key: 'FinishScene', url: '/yasnaya-polayna/games/finish/index.html' };
   const saved = [];
-  const mode = new DeveloperMode(game, screen, [entry], (item) => saved.push(item.data), keyboard);
+  const navigations = [];
+  const mode = new DeveloperMode(game, screen, [entry, finishEntry], (item) => saved.push(item.data),
+    keyboard, (url) => navigations.push(url));
   return {
-    game, mode, screen, scenes, entry, saved,
+    game, mode, screen, scenes, entry, finishEntry, saved, navigations,
     press(overrides = {}) {
       const event = new Event('keydown', { cancelable: true });
       Object.assign(event, { code: 'KeyD', key: 'd', ctrlKey: true, ...overrides });
@@ -127,6 +130,23 @@ test('unknown entries cannot replace the current game or change the save', () =>
   assert.equal(f.screen.visible, true);
   f.mode.close();
   assert.equal(f.scenes[0].status, 'running');
+  f.mode.destroy();
+});
+
+test('the final screen opens its page without starting a minigame or overwriting progress', () => {
+  const f = fixture({ StoryScene: 'running' });
+  f.mode.launch(f.finishEntry);
+  assert.deepEqual(f.navigations, [], 'Navigation requires the developer screen to be open');
+  f.mode.open();
+  f.mode.launch({ ...f.finishEntry });
+  assert.deepEqual(f.navigations, [], 'Only registered entries can navigate');
+  f.mode.launch(f.finishEntry);
+  f.frame();
+  assert.deepEqual(f.navigations, [f.finishEntry.url]);
+  assert.deepEqual(f.saved, [], 'A preview must not write a minigame or reset progress');
+  assert.equal(f.screen.visible, false);
+  assert.equal(f.scenes[0].status, 'running', 'Browser Back must not restore a paused game');
+  assert.equal(f.scenes[0].starts, 0);
   f.mode.destroy();
 });
 

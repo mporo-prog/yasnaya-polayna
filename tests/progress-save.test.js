@@ -86,29 +86,41 @@ test('reload restores every minigame with its real story index and completion id
   }
 });
 
-test('deliberate menu visits preserve the story or minigame for Start, including after reload', () => {
+test('Start clears story and minigame progress only on click, including after a menu reload', () => {
   for (const status of ['story', 'minigame']) {
     const f = fixture();
     f.state.goToScreen(3, 4);
+    f.state.addHistoryEntry(3, 4, 'Прошлая реплика');
+    f.state.markMinigameCompleted('story_3_minigame');
+    f.storage.set('game4_save_v1', '{"letters":[]}');
+    f.storage.set('vn_audio_settings_v1', '{"music":25}');
     if (status === 'minigame') f.state.markMinigameStarted();
-    const expected = plain(f.state.getResumeTarget());
+    const expected = { key: 'StoryScene', data: { storySceneIndex: 0, screenIndex: 0 } };
     f.state.markAtMenu();
     f.state.markAtMenu();
     const reloaded = f.reload();
     assert.deepEqual(reloaded.boot(), { key: 'MainMenuScene' });
+    assert.equal(reloaded.state.state.screenIndex, 4, 'Entering or reloading the menu alone does not reset progress');
+    assert.equal(reloaded.state.state.history.length, 1);
     reloaded.menu.startGame();
     assert.deepEqual(reloaded.calls.at(-1), expected);
-    assert.equal(reloaded.stored().status, status);
-    assert.deepEqual(reloaded.reload().boot(), expected, 'Reload during resumed asset loading preserves the target');
+    assert.equal(reloaded.stored().status, 'story');
+    assert.deepEqual(reloaded.stored().history, []);
+    assert.deepEqual(reloaded.stored().visitedScreens, []);
+    assert.deepEqual(reloaded.stored().completedMinigames, []);
+    assert.equal(reloaded.stored().resumeStatus, undefined);
+    assert.equal(f.storage.has('game4_save_v1'), false);
+    assert.equal(f.storage.get('vn_audio_settings_v1'), '{"music":25}');
+    assert.deepEqual(reloaded.reload().boot(), expected, 'Reload during new-game loading preserves the new beginning');
   }
 });
 
-test('saves from the old menu format still continue from their story screen', () => {
+test('Start also resets saves from the old menu format', () => {
   const f = fixture({ storage: new Map([['vn_save_v1', JSON.stringify({
     status: 'menu', storySceneIndex: 2, screenIndex: 3, lastActiveAt: START,
   })]]) });
   f.menu.startGame();
-  assert.deepEqual(f.calls.at(-1), { key: 'StoryScene', data: { storySceneIndex: 2, screenIndex: 3 } });
+  assert.deepEqual(f.calls.at(-1), { key: 'StoryScene', data: { storySceneIndex: 0, screenIndex: 0 } });
   assert.deepEqual(f.stored().history, []);
 });
 
@@ -129,7 +141,7 @@ test('expiry boundary: 30 minutes retained, more than 30 cleared along with the 
   }
 });
 
-test('Start checks expiration while the menu remains open; reset also removes minigame state', () => {
+test('Start also clears expired progress; reset removes minigame state', () => {
   const f = fixture();
   f.state.goToScreen(3, 2);
   f.state.markMinigameStarted();

@@ -2,7 +2,7 @@
 <html lang="ru">
 <meta charset="utf-8">
 <title>Проверка первых реплик после мини-игр</title>
-<h1>Переходы game2–5 → сюжетные сцены 3–6</h1>
+<h1>Переходы game1–5 → сюжетные сцены 2–6</h1>
 <pre id="results">Проверка…</pre>
 <iframe id="site" title="Тестируемая игра" width="960" height="540"></iframe>
 <script type="module">
@@ -48,11 +48,35 @@
     await ready('StoryScene');
     const story = game.scene.getScene('StoryScene');
 
-    for (const number of [2, 3, 4, 5]) {
+    for (const number of [1, 2, 3, 4, 5]) {
       const key = number === 5 ? 'QuoteMinigameScene' : 'GameScene' + number;
-      story.scene.start(key, { storySceneIndex: number - 1, minigameId: 'transition-test-' + number });
+      assert(!story.cameras.main.fadeEffect.isRunning, 'Story is fully visible before gameplay');
+      story.startMinigame();
       await ready(key);
       const mini = game.scene.getScene(key);
+      assert(!mini.cameras.main.fadeEffect.isRunning, 'Story -> gameplay has no fade');
+      // Check both the default and a changed total duration on real scene restarts.
+      const duration = number === 3 ? 1.2 : 0.75;
+      frame.contentWindow.VN.data.minigameStoryTransition.duration = duration;
+      let fadeStartedAt;
+      let fadeOutDuration;
+      let darkAt;
+      let fullyVisibleAt;
+      mini.cameras.main.once('camerafadeoutstart', (camera, effect, ms) => {
+        fadeStartedAt = game.getTime();
+        fadeOutDuration = ms;
+      });
+      mini.cameras.main.once('camerafadeoutcomplete', (camera) => {
+        assert(camera.fadeEffect.alpha === 1, 'Gameplay ends fully black');
+        darkAt = game.getTime();
+      });
+      story.events.once('create', () => {
+        const camera = story.cameras.main;
+        assert(camera.fadeEffect.alpha === 1, 'Story starts fully black');
+        assert(!story.input.enabled, 'Story input is blocked while fading');
+        assert(camera.fadeEffect.duration === duration * 500, 'Fade-in is half the configured duration');
+        camera.once('camerafadeincomplete', () => { fullyVisibleAt = game.getTime(); });
+      });
       // Model a long minigame without making the browser test wait for two minutes.
       // Phaser leaves the stopped story clock untouched until its first update.
       story.time.now = game.getTime() - 120000;
@@ -69,6 +93,21 @@
       assert(story.storySceneIndex === number && story.screenIndex === 0, 'First screen of story ' + (number + 1));
       const point = nextPoint(story);
       mouse('mouseup', point);
+      await waitFor(() => fullyVisibleAt !== undefined);
+      assert(darkAt >= fadeStartedAt, 'The scene changes after fade-out');
+      // Phaser uses smoothed frame deltas; wall time also includes dropped frames
+      // and canvas/text creation. Exact animation timing is covered by the Node tests.
+      assert(fullyVisibleAt > darkAt, 'Fade-in follows the black midpoint');
+      assert(fadeOutDuration + story.cameras.main.fadeEffect.duration === duration * 1000,
+        'The two animation halves add up to the configured total');
+      assert(story.input.enabled && story.input.keyboard.enabled, 'Input restored after fade-in');
+      assert(story.cameras.main.fadeEffect.alpha === 0, 'Story finishes at full brightness');
+      if (number === 1) {
+        assert(story.screenIndex === 0, 'The visitor intro survives the fade');
+        lines.push('PASS game1 → сюжет 2: затухание 0,75 с и ввод');
+        output.textContent = lines.join('\n');
+        continue;
+      }
       assert(story.voiceActive, 'Voice reveal is active after game' + number);
       assert(story.screenIndex === 0, 'Release from game' + number + ' did not skip the first line');
       assert(Math.abs(story.voiceStartTime - game.getTime()) < 2000, 'Reveal starts at the current game time');
@@ -89,7 +128,7 @@
       lines.push('PASS game' + number + ' → сюжет ' + (number + 1) + ': анимация, первая реплика и клики');
       output.textContent = lines.join('\n');
     }
-    output.textContent += '\nDONE: все 4 перехода проверены с реальным Phaser и аудиофайлами';
+    output.textContent += '\nDONE: все 5 переходов проверены с реальным Phaser и аудиофайлами';
   } catch (error) {
     output.textContent += '\nFAIL ' + error.stack;
   } finally {

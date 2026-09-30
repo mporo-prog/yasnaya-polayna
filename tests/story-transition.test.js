@@ -1,9 +1,25 @@
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import test from 'node:test';
 import vm from 'node:vm';
 import { fixture as audioFixture } from './helpers/audio-fixture.js';
+
+const Fade = createRequire(import.meta.url)('../node_modules/phaser/src/cameras/2d/effects/Fade.js');
+const flush = () => new Promise((resolve) => setImmediate(resolve));
+
+function camera() {
+  const result = new EventEmitter();
+  result.alpha = 1;
+  result.fadeEffect = new Fade(result);
+  result.setAlpha = (alpha) => { result.alpha = alpha; return result; };
+  result.fadeOut = (duration, red, green, blue, callback, context) =>
+    result.fadeEffect.start(true, duration, red, green, blue, true, callback, context);
+  result.fadeIn = (duration, red, green, blue, callback, context) =>
+    result.fadeEffect.start(false, duration, red, green, blue, true, callback, context);
+  return result;
+}
 
 function displayObject() {
   const object = new EventEmitter();
@@ -27,7 +43,7 @@ function fixture() {
       state: {}, save() {}, addHistoryEntry() {}, markMinigameCompleted() {},
       goToScreen: (...screen) => savedScreens.push(screen),
     },
-    SceneAssets: { prefetchNext() {} },
+    SceneAssets: { prefetchNext() {}, prefetch: () => Promise.resolve() },
     Layout: { onLayout() {} },
   });
   const scope = vm.createContext({
@@ -55,6 +71,7 @@ function fixture() {
   f.game.getTime = () => now;
   const story = new f.window.VN.scenes.StoryScene();
   Object.assign(story, f.scene(), {
+    cameras: { main: camera() }, input: { enabled: true, keyboard: { enabled: true } },
     time: { now, delayedCall(delay, callback) {
       const timer = { remaining: delay, paused: false, callback, remove() { timers.delete(timer); } };
       timers.add(timer);
@@ -82,6 +99,7 @@ function fixture() {
     const delta = time - now;
     now = time;
     story.time.now = time;
+    story.cameras.main.fadeEffect.update(time, delta);
     for (const timer of [...timers]) {
       if (timer.paused) continue;
       timer.remaining -= delta;
@@ -92,16 +110,30 @@ function fixture() {
     }
     story.update(time);
   }
-  function finishMinigame(index) {
-    f.window.VN.systems.finishMinigameAndAdvance({
-      scene: { start(key, data) {
-        assert.equal(key, 'StoryScene');
+  const starts = [];
+  const mini = {
+    cameras: { main: camera() }, input: { enabled: true, keyboard: { enabled: true } },
+    events: new EventEmitter(),
+    scene: { start(key, data) {
+      starts.push({ key, data });
+      mini.events.emit('shutdown');
+      if (key === 'StoryScene') {
         story.init(data);
         story.create();
-      } },
-    }, index, `story_${index + 1}_minigame`);
+      }
+    } },
+  };
+  function beginMinigameExit(index = 1) {
+    f.window.VN.systems.finishMinigameAndAdvance(mini, index, `story_${index + 1}_minigame`);
   }
-  return { ...f, story, start, tick, finishMinigame, savedScreens, backgrounds, setNow: (time) => { now = time; } };
+  async function finishMinigame(index) {
+    beginMinigameExit(index);
+    await flush();
+    const fade = mini.cameras.main.fadeEffect;
+    fade.update(0, fade.duration);
+  }
+  return { ...f, story, mini, starts, start, tick, beginMinigameExit, finishMinigame,
+    savedScreens, backgrounds, setNow: (time) => { now = time; } };
 }
 
 test('story 2 opens with the visitor and advances after two seconds despite active audio', () => {
@@ -250,13 +282,13 @@ for (const screenIndex of [0, 11]) {
 }
 
 for (const game of [2, 3, 4, 5]) {
-  test(`game${game} -> story ${game + 1}: reused scene animates its first line after a long minigame`, () => {
+  test(`game${game} -> story ${game + 1}: reused scene animates its first line after a long minigame`, async () => {
     const f = fixture();
     f.start(game - 1);
     f.tick(2000);
     f.story.events.emit('shutdown');
     f.setNow(120000); // Phaser's scene clock stays at 2000 until the next scene update.
-    f.finishMinigame(game - 1);
+    await f.finishMinigame(game - 1);
     const { story } = f;
     assert.equal(story.screenIndex, 0);
     assert.equal(story.dialogueRevealedText.text, '');
@@ -352,4 +384,126 @@ test('pause resume restarts the current voice on the next frame; back still reve
   assert.equal(f.story.screenIndex, 0);
   assert.equal(f.story.voiceActive, false);
   assert.equal(f.story.dialogueRevealedText.text, f.story.currentLines[0].text);
+});
+
+for (const duration of [0.75, 1.2, 0.1]) {
+  test(`minigame -> story fades through black in ${duration} seconds total`, async () => {
+    const f = fixture();
+    if (duration !== 0.75) f.window.VN.data.minigameStoryTransition.duration = duration;
+    const halfMs = duration * 500;
+    f.beginMinigameExit();
+    assert.equal(f.mini.input.enabled, false);
+    assert.equal(f.mini.input.keyboard.enabled, false);
+    await flush();
+    const fadeOut = f.mini.cameras.main.fadeEffect;
+    assert.equal(fadeOut.duration, halfMs);
+    assert.ok(fadeOut.alpha < 0.001);
+    fadeOut.update(0, halfMs / 2);
+    assert.equal(fadeOut.alpha, 0.5);
+    assert.equal(f.starts.length, 0, 'The minigame stays visible until fully dark');
+    fadeOut.update(0, halfMs / 2);
+    assert.equal(fadeOut.alpha, 1);
+    assert.equal(f.starts.length, 1);
+    const fadeIn = f.story.cameras.main.fadeEffect;
+    assert.equal(fadeIn.alpha, 1, 'The first story frame is black');
+    assert.equal(fadeIn.duration, halfMs);
+    assert.equal(f.story.input.enabled, false);
+    assert.equal(f.story.input.keyboard.enabled, false);
+    fadeIn.update(0, halfMs / 2);
+    assert.equal(fadeIn.alpha, 0.5);
+    fadeIn.update(0, halfMs / 2);
+    assert.equal(fadeIn.alpha, 0);
+    assert.equal(f.story.input.enabled, true);
+    assert.equal(f.story.input.keyboard.enabled, true);
+    assert.equal(f.story.cameras.main.listenerCount('camerafadeincomplete'), 0);
+  });
+}
+
+test('slow loading finishes before fading and repeated completion cannot restart the transition', async () => {
+  const f = fixture();
+  let ready;
+  f.window.VN.systems.SceneAssets.prefetch = () => new Promise((resolve) => { ready = resolve; });
+  f.beginMinigameExit();
+  f.beginMinigameExit();
+  await flush();
+  assert.equal(f.mini.cameras.main.fadeEffect.isRunning, false);
+  assert.equal(f.starts.length, 0);
+  assert.equal(f.savedScreens.length, 1);
+  ready();
+  await flush();
+  f.beginMinigameExit();
+  assert.equal(f.mini.cameras.main.listenerCount('camerafadeoutcomplete'), 1);
+  f.mini.cameras.main.fadeEffect.update(0, 375);
+  assert.equal(f.starts.length, 1);
+});
+
+for (const duringFade of [false, true]) {
+  test(`leaving the minigame cancels a pending transition (fading: ${duringFade})`, async () => {
+    const f = fixture();
+    f.beginMinigameExit();
+    if (duringFade) await flush();
+    f.mini.events.emit('shutdown');
+    await flush();
+    f.mini.cameras.main.fadeEffect.update(0, 1000);
+    assert.equal(f.starts.length, 0);
+    assert.equal(f.mini.input.enabled, true);
+    assert.equal(f.mini.input.keyboard.enabled, true);
+    assert.equal(f.mini.cameras.main.listenerCount('camerafadeoutcomplete'), 0);
+  });
+}
+
+test('zero duration returns immediately; invalid duration falls back to 0.75 seconds', async () => {
+  for (const duration of [0, -1, NaN, Infinity, '1']) {
+    const f = fixture();
+    f.window.VN.data.minigameStoryTransition.duration = duration;
+    f.beginMinigameExit();
+    if (duration === 0) {
+      assert.equal(f.starts.length, 1);
+      assert.equal(f.mini.cameras.main.fadeEffect.isRunning, false);
+      assert.equal(f.story.cameras.main.fadeEffect.isRunning, false);
+      assert.equal(f.story.input.enabled, true);
+    } else {
+      await flush();
+      assert.equal(f.mini.cameras.main.fadeEffect.duration, 375);
+    }
+  }
+});
+
+test('normal story entry and story -> gameplay keep their immediate transition', () => {
+  const f = fixture();
+  f.start(1);
+  assert.equal(f.story.cameras.main.fadeEffect.isRunning, false);
+  assert.equal(f.story.cameras.main.alpha, 1);
+  f.window.VN.systems.GameState.markMinigameStarted = () => {};
+  f.window.VN.data.storyMinigameLinks = [null, 'GameScene2'];
+  const starts = [];
+  f.story.scene = { start: (key, data) => starts.push({ key, data }) };
+  f.story.startMinigame();
+  assert.equal(starts.length, 1);
+  assert.equal(starts[0].key, 'GameScene2');
+  assert.deepEqual(Object.keys(starts[0].data), ['storySceneIndex', 'minigameId']);
+  assert.equal(f.story.cameras.main.fadeEffect.isRunning, false);
+});
+
+test('interrupting the story fade restores input and clears its listener for the next entry', async () => {
+  const f = fixture();
+  await f.finishMinigame(1);
+  f.story.events.emit('shutdown');
+  assert.equal(f.story.input.enabled, true);
+  assert.equal(f.story.input.keyboard.enabled, true);
+  assert.equal(f.story.cameras.main.listenerCount('camerafadeincomplete'), 0);
+  f.story.cameras.main = camera(); // Phaser recreates the camera when restarting a scene.
+  f.start(1);
+  assert.equal(f.story.minigameFadeInMs, 0);
+  assert.equal(f.story.cameras.main.fadeEffect.isRunning, false);
+});
+
+test('the end-of-story return to the menu remains immediate', () => {
+  const f = fixture();
+  let resets = 0;
+  f.window.VN.systems.GameState.reset = () => { resets++; };
+  f.beginMinigameExit(f.window.VN.data.storyLines.length - 1);
+  assert.equal(f.starts[0].key, 'MainMenuScene');
+  assert.equal(resets, 1);
+  assert.equal(f.mini.cameras.main.fadeEffect.isRunning, false);
 });

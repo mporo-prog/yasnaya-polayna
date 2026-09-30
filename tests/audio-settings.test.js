@@ -55,6 +55,7 @@ function fixture(raw, options = {}) {
 
 // Сравниваем копии из vm в текущем realm.
 const settings = (manager) => ({ ...manager.getSettings() });
+const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-9, `${actual} != ${expected}`);
 
 test('defaults are 50%; opening/editing a draft does not apply or persist it', () => {
   const f = fixture();
@@ -91,8 +92,8 @@ test('saving applies independent linear volumes to every sound across scenes, in
   const quietMusic = f.manager.play(f.scene(), 'music/two.mp3', { volume: 0.4, loop: true });
   const ui = f.manager.play(f.scene(), 'ui/click.mp3');
   const voice = f.manager.play(f.scene(), 'voice_and_sound/line.mp3');
-  assert.equal(music.volume, 0.5);
-  assert.equal(quietMusic.volume, 0.2);
+  near(music.volume, 0.4);
+  near(quietMusic.volume, 0.16);
   voice.pause();
 
   assert.equal(f.manager.saveSettings({ music: 0, ui: 25, voice: 100 }), true);
@@ -103,11 +104,14 @@ test('saving applies independent linear volumes to every sound across scenes, in
 
   f.manager.saveSettings({ music: 50, ui: 50, voice: 50 });
   f.manager.saveSettings({ music: 50, ui: 50, voice: 50 });
-  assert.equal(quietMusic.volume, 0.2, 'Saving twice must not multiply the already-scaled volume');
+  near(quietMusic.volume, 0.16); // Повторное сохранение не накапливает коэффициент.
   f.manager.saveSettings({ music: 100, ui: 0, voice: 0 });
-  assert.deepEqual([music.volume, quietMusic.volume, ui.volume, voice.volume], [1, 0.4, 0, 0]);
+  near(music.volume, 0.8);
+  near(quietMusic.volume, 0.32);
+  assert.deepEqual([ui.volume, voice.volume], [0, 0]);
+  near(f.manager.play(f.scene(), 'music/chapter/new.mp3').volume, 0.8);
   f.manager.setVolume(quietMusic, 0.6);
-  assert.equal(quietMusic.volume, 0.6);
+  near(quietMusic.volume, 0.48);
 });
 
 test('saved values survive reload, preserve zero, and remain separate from story progress', () => {

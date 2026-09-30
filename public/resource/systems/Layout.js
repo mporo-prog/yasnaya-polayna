@@ -98,6 +98,18 @@
     );
   }
 
+  /**
+   * Телефон: холст ниже COMPACT_MAX_CSS_HEIGHT CSS-пикселей. На таком экране
+   * сцены включают «компактную» раскладку по мобильным макетам — крупный
+   * текст и кнопки под палец.
+   */
+  const COMPACT_MAX_CSS_HEIGHT = 600;
+
+  function isCompact(scene) {
+    const cssHeight = scene.scale.displaySize.height || window.innerHeight;
+    return cssHeight < COMPACT_MAX_CSS_HEIGHT;
+  }
+
   // ---- подписка сцены на изменения размера ------------------------------
 
   function isAlive(obj) {
@@ -349,6 +361,7 @@
     getVisibleRect: getVisibleRect,
     getUiRect: getUiRect,
     getSafeInsets: getSafeInsets,
+    isCompact: isCompact,
     attach: attach,
     onLayout: onLayout,
     pin: pin,

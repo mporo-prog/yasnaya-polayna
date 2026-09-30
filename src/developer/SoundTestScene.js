@@ -10,6 +10,8 @@ export class SoundTestScene extends window.VN.scenes.SettingsScene {
     super('SoundTestScene');
     this.settingsTitle = 'САУНДТЕСТ';
     this.autoSave = true;
+    // Кнопки дорожек рассчитаны на раскладку компьютера.
+    this.forceDesktopLayout = true;
     this.onBack = onBack;
   }
 
@@ -20,6 +22,8 @@ export class SoundTestScene extends window.VN.scenes.SettingsScene {
       fontSize: '38px', color: '#000000',
     }).setOrigin(0.5);
     this.trackKeys = TRACKS.map((track) => window.VN.systems.AudioManager.load(this, track.path));
+    // Картинки экрана настроек (фон, плашки, слайдеры).
+    window.VN.systems.SceneAssets.preload(this, { visualsOnly: true });
   }
 
   create() {
@@ -28,8 +32,8 @@ export class SoundTestScene extends window.VN.scenes.SettingsScene {
     this.loadingText.destroy();
     super.create();
     this.testSounds = [];
-    this.add.text(55, 745, 'Громкость сохраняется автоматически.\nПовторное нажатие на кнопку останавливает звук.', {
-      fontSize: '28px', color: '#333333', lineSpacing: 8,
+    this.add.text(313, 835, 'Громкость сохраняется автоматически.\nПовторное нажатие на кнопку останавливает звук.', {
+      fontSize: '28px', color: '#FFF1DE', lineSpacing: 8, stroke: '#3f2f22', strokeThickness: 6,
     });
 
     TRACKS.forEach((track, index) => this.createTrackButton(track, index));
@@ -43,11 +47,12 @@ export class SoundTestScene extends window.VN.scenes.SettingsScene {
   }
 
   createTrackButton(track, index) {
-    const x = 1485;
-    const y = 365 + index * 120;
-    const button = this.add.rectangle(x, y, 620, 82, 0xd9d9d9);
+    // Справа от плашки настроек, напротив строк слайдеров.
+    const x = 1765;
+    const y = this.rowLayout.rows[index];
+    const button = this.add.rectangle(x, y, 290, 82, 0xd9d9d9);
     const label = this.add.text(x, y, '▶ ' + track.label, {
-      fontSize: '32px', color: '#000000',
+      fontSize: '24px', color: '#000000',
     }).setOrigin(0.5);
 
     if (!this.cache.audio.exists(this.trackKeys[index])) {
@@ -71,7 +76,7 @@ export class SoundTestScene extends window.VN.scenes.SettingsScene {
     button.setInteractive({ useHandCursor: true });
     button.on('pointerup', () => {
       if (sound.isPlaying || sound.isPaused) sound.stop();
-      else if (!sound.play()) this.statusText.setText('Не удалось запустить звук. Попробуйте нажать ещё раз.');
+      else if (!sound.play()) this.statusText.setText('Не удалось запустить звук. Попробуй нажать ещё раз.');
     });
   }
 

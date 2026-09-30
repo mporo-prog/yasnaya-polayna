@@ -127,9 +127,9 @@ test('touch panel is always visible and retains the last tapped name after relea
     const egg = scene.items.find(item => item.id === 'egg');
     const cup = scene.items.find(item => item.id === 'cup');
     assert.equal(scene.itemNamePanel.visible, true);
-    assert.equal(scene.itemNameText.text, 'НАЖМИТЕ НА ПРЕДМЕТ');
+    assert.equal(scene.itemNameText.text, 'НАЖМИ НА ПРЕДМЕТ');
     egg.box.emit('pointerover', touch);
-    assert.equal(scene.itemNameText.text, 'НАЖМИТЕ НА ПРЕДМЕТ');
+    assert.equal(scene.itemNameText.text, 'НАЖМИ НА ПРЕДМЕТ');
     egg.box.emit('pointerdown', touch);
     egg.box.emit('pointerout', touch);
     scene.input.emit('gameout');

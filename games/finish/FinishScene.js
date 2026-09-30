@@ -1,80 +1,59 @@
 // Phaser подключается глобально (resource/lib/phaser.min.js), как во всей игре.
-import { createSubscribeForm } from './SubscribeForm.js';
 
 const BASE_WIDTH = 1920;
 const BASE_HEIGHT = 1080;
-const BACKGROUND_KEY = 'finishBackground';
+const FINISH_IMAGES = `${import.meta.env.BASE_URL}images/finish/`;
+
+const BACKGROUND = {
+    image: 'background.PNG',
+    color: '#8fa3a3'
+};
 
 const MAP = {
-    key: 'finishMap',
-    // Левый верхний угол: −3,33333% × 18,33333% макета 1920×1080.
-    xFrac: -0.0333333,
-    yFrac: 0.1833333,
-    width: 1673.58,
-    height: 975
+    key: 'finishRouteMap',
+    image: 'map.png',
+    x: 0,
+    y: 250,
+    width: 1420,
+    height: 831
 };
 
 const STATS_PANEL = {
     key: 'finishStatsPanel',
-    // Левый верхний угол: 3,229167% × 2,962963% макета 1920×1080.
-    xFrac: 0.03229167,
-    yFrac: 0.02962963,
-    width: 681,
-    height: 344,
-    color: '#6E6056',
-    title: 'В Ясной Поляне Вы бы:',
+    x: 122,
+    y: 58,
+    width: 846,
+    height: 420,
+    color: '#231f20',
+    title: 'Маршрут в Ясной Поляне',
+    iconX: 268,
+    textX: 315,
+    firstRowY: 152,
+    rowStep: 65,
     rows: [
-        { icon: 'finish_steps', width: 31, height: 31, text: 'Прошли 22. 000 шагов' },
-        { icon: 'finish_calories', width: 32, height: 32, text: 'Сожгли 5. 000 ккал' },
-        { icon: 'finish_photos', width: 31, height: 27, text: 'Сделали 126 живописных фото' },
-        { icon: 'finish_stories', width: 31, height: 31, text: 'Выложили 10 сториз.' }
+        { icon: 'finishBoot', image: 'boot.png', width: 43, height: 46, text: '5 350 шагов' },
+        { icon: 'finishKilometers', image: 'kilometrs.png', width: 51, height: 53, text: '4 километра' },
+        { icon: 'finishPhoto', image: 'photo.png', width: 40, height: 31, text: '126 живописных фото' },
+        { icon: 'finishStories', image: 'stories.png', width: 27, height: 44, text: '10 сториз' }
     ]
 };
 
-const SUBSCRIBE_PANEL = {
-    key: 'finishSubscribePanel',
-    // Левый верхний угол: 83,85417% × 56,01852% макета 1920×1080.
-    xFrac: 0.8385417,
-    yFrac: 0.5601852,
-    width: 290,
-    height: 82,
-    text: 'Подписывайтесь!',
-    color: '#6E6056'
-};
-
-const EMAIL_FIELD = {
-    key: 'finishEmailField',
-    // Левый верхний угол: 85,3125% × 67,22222% макета 1920×1080.
-    xFrac: 0.853125,
-    yFrac: 0.6722222,
-    width: 237,
-    height: 41,
-    placeholder: 'ваш email'
-};
-
 const SOCIAL_LINKS = {
-    // Левый верхний угол: 85,52083% × 74,16667% макета 1920×1080.
-    xFrac: 0.8552083,
-    yFrac: 0.7416667,
-    width: 190,
-    height: 75,
-    buttonSize: 75,
+    x: 1540,
+    size: 221,
     items: [
-        { name: 'ВКонтакте', image: 'finish_vk.png', href: 'https://vk.ru/yaspol' },
-        { name: 'Telegram', image: 'finish_telegram.png', href: 'https://t.me/ypmuseum' }
+        { name: 'ВКонтакте', image: 'Group 60.png', href: 'https://vk.ru/yaspol', y: 120 },
+        { name: 'Telegram', image: 'Group 62.png', href: 'https://t.me/ypmuseum', y: 380 }
     ]
 };
 
 const REPLAY_BUTTON = {
-    // Левый верхний угол: 84,47917% × 89,90741% макета 1920×1080.
-    xFrac: 0.8447917,
-    yFrac: 0.8990741,
-    width: 233,
-    height: 66,
+    x: 1253,
+    y: 832,
+    width: 575,
+    height: 153,
     text: 'Повторить'
 };
-
-const COLOR_BACKGROUND = 0x604c3f;
 
 export class FinishScene extends Phaser.Scene {
 
@@ -83,13 +62,10 @@ export class FinishScene extends Phaser.Scene {
     }
 
     preload() {
-        this.load.image(BACKGROUND_KEY, `${import.meta.env.BASE_URL}images/backgrounds/finish_screen.png`);
-        this.load.image(MAP.key, `${import.meta.env.BASE_URL}images/backgrounds/finish_map.png`);
+        this.load.image(MAP.key, `${FINISH_IMAGES}${MAP.image}`);
         this.load.image(STATS_PANEL.key, `${import.meta.env.BASE_URL}images/icon_UI/finish_stats_panel.png`);
-        this.load.image(SUBSCRIBE_PANEL.key, `${import.meta.env.BASE_URL}images/icon_UI/finish_subscribe_panel.png`);
-        this.load.image(EMAIL_FIELD.key, `${import.meta.env.BASE_URL}images/icon_UI/finish_email_field.png`);
-        STATS_PANEL.rows.forEach(({ icon }) => {
-            this.load.svg(icon, `${import.meta.env.BASE_URL}images/icon_UI/${icon}.svg`, { scale: 4 });
+        STATS_PANEL.rows.forEach(({ icon, image }) => {
+            this.load.image(icon, `${FINISH_IMAGES}${image}`);
         });
     }
 
@@ -99,21 +75,9 @@ export class FinishScene extends Phaser.Scene {
         this.createBackground();
         this.createMap();
         this.createStatsPanel();
-        this.createSubscribePanel();
-        this.createEmailField();
         this.createSocialLinks();
         this.createReplayButton();
         this.refreshFonts();
-    }
-
-    createBackground() {
-        this.cameras.main.setBackgroundColor(COLOR_BACKGROUND);
-
-        // Фон занимает только макет. Масштабирование всего холста делает FIT.
-        this.background = this.add.image(0, 0, BACKGROUND_KEY)
-            .setOrigin(0, 0)
-            .setDisplaySize(BASE_WIDTH, BASE_HEIGHT);
-        this.frame.add(this.background);
     }
 
     createFrame() {
@@ -131,8 +95,18 @@ export class FinishScene extends Phaser.Scene {
         });
     }
 
+    createBackground() {
+        // Холст прозрачный, а обои лежат под ним на всё окно (cover):
+        // так они заполняют и поля, которые оставляет FIT, без стыков.
+        const app = this.game.canvas.parentElement;
+        app.style.background = `${BACKGROUND.color} url("${encodeURI(FINISH_IMAGES + BACKGROUND.image)}") center / cover no-repeat`;
+        this.events.once('shutdown', () => {
+            app.style.background = '';
+        });
+    }
+
     createMap() {
-        const map = this.add.image(BASE_WIDTH * MAP.xFrac, BASE_HEIGHT * MAP.yFrac, MAP.key)
+        const map = this.add.image(MAP.x, MAP.y, MAP.key)
             .setOrigin(0, 0)
             .setDisplaySize(MAP.width, MAP.height);
         this.frame.add(map);
@@ -140,7 +114,7 @@ export class FinishScene extends Phaser.Scene {
 
     createStatsPanel() {
         const { width, height, color } = STATS_PANEL;
-        const panel = this.add.container(BASE_WIDTH * STATS_PANEL.xFrac, BASE_HEIGHT * STATS_PANEL.yFrac);
+        const panel = this.add.container(STATS_PANEL.x, STATS_PANEL.y);
         this.statsPanel = panel;
         this.frame.add(panel);
 
@@ -149,32 +123,25 @@ export class FinishScene extends Phaser.Scene {
             .setDisplaySize(width, height);
         panel.add(background);
 
-        // Все отступы и размеры — относительно родительской плашки.
-        const title = this.add.text(width / 2, height * (44 / 344), STATS_PANEL.title, {
+        const title = this.add.text(width / 2, 50, STATS_PANEL.title, {
             fontFamily: 'Philosopher, Georgia, serif',
             fontStyle: 'bold',
-            fontSize: height * (48 / 344),
+            fontSize: 60,
             color,
             align: 'center',
-            wordWrap: { width: width * (565 / 681) },
             resolution: 2
         }).setOrigin(0.5, 0);
         panel.add(title);
-
         this.textObjects.push(title);
-        const textX = width * (132 / 681);
-        const rightPadding = width * (38 / 681);
-        const rowStep = height * (44 / 344);
 
         STATS_PANEL.rows.forEach((row, index) => {
-            const centerY = height * (137 / 344) + rowStep * index;
-            const icon = this.add.image(width * (96 / 681), centerY, row.icon)
-                .setDisplaySize(width * (row.width / 681), height * (row.height / 344));
-            const text = this.add.text(textX, centerY, row.text, {
+            const centerY = STATS_PANEL.firstRowY + STATS_PANEL.rowStep * index;
+            const icon = this.add.image(STATS_PANEL.iconX, centerY, row.icon)
+                .setDisplaySize(row.width, row.height);
+            const text = this.add.text(STATS_PANEL.textX, centerY, row.text, {
                 fontFamily: 'Ysabeau, Arial, sans-serif',
-                fontSize: height * (36 / 344),
+                fontSize: 40,
                 color,
-                wordWrap: { width: width - textX - rightPadding },
                 resolution: 2
             }).setOrigin(0, 0.5);
             panel.add([icon, text]);
@@ -182,89 +149,30 @@ export class FinishScene extends Phaser.Scene {
         });
     }
 
-    createSubscribePanel() {
-        const { width, height, text, color } = SUBSCRIBE_PANEL;
-        const panel = this.add.container(BASE_WIDTH * SUBSCRIBE_PANEL.xFrac, BASE_HEIGHT * SUBSCRIBE_PANEL.yFrac);
-        this.subscribePanel = panel;
-        this.frame.add(panel);
-
-        const background = this.add.image(0, 0, SUBSCRIBE_PANEL.key)
-            .setOrigin(0, 0)
-            .setDisplaySize(width, height);
-        const label = this.add.text(width / 2, height / 2, text, {
-            fontFamily: 'Philosopher, Georgia, serif',
-            fontStyle: 'bold',
-            fontSize: height * (26 / 82),
-            color,
-            align: 'center',
-            lineSpacing: 0,
-            letterSpacing: 0,
-            wordWrap: { width: width * (250 / 290) },
-            resolution: 2
-        }).setOrigin(0.5);
-        panel.add([background, label]);
-        this.textObjects.push(label);
-    }
-
-    createEmailField() {
-        const { width, height, placeholder } = EMAIL_FIELD;
-        const x = BASE_WIDTH * EMAIL_FIELD.xFrac;
-        const y = BASE_HEIGHT * EMAIL_FIELD.yFrac;
-        const background = this.add.image(x, y, EMAIL_FIELD.key)
-            .setOrigin(0, 0)
-            .setDisplaySize(width, height);
-        this.frame.add(background);
-
-        const form = createSubscribeForm({ width, height, placeholder });
-        this.emailInput = this.add.dom(x, y, form.node)
-            .setOrigin(0, 0);
-        this.frame.add(this.emailInput);
-
-        // Phaser отменяет стандартный mousedown холста, поэтому снимаем
-        // фокус с поля явно при нажатии на остальную часть игры.
-        const blurOnCanvas = () => form.input.blur();
-        this.input.on('pointerdown', blurOnCanvas);
-        this.events.once('shutdown', () => {
-            this.input.off('pointerdown', blurOnCanvas);
-            form.destroy();
-        });
-    }
-
     createSocialLinks() {
-        const { width, height, buttonSize, items } = SOCIAL_LINKS;
-        const nav = document.createElement('nav');
-        nav.className = 'finish-social-links';
-        nav.setAttribute('aria-label', 'Ясная Поляна в социальных сетях');
-        nav.style.width = `${width}px`;
-        nav.style.height = `${height}px`;
-
-        items.forEach(({ name, image, href }, index) => {
+        const { x, size, items } = SOCIAL_LINKS;
+        this.socialLinks = items.map(({ name, image, href, y }) => {
             const link = document.createElement('a');
             link.className = 'finish-social-link';
             link.href = href;
             link.target = '_blank';
             link.rel = 'noopener noreferrer';
             link.setAttribute('aria-label', `${name} — открыть в новой вкладке`);
-            link.style.left = `${index * (width - buttonSize)}px`;
-            link.style.width = `${buttonSize}px`;
-            link.style.height = `${buttonSize}px`;
+            link.style.width = `${size}px`;
+            link.style.height = `${size}px`;
 
             const icon = document.createElement('img');
-            icon.src = `${import.meta.env.BASE_URL}images/icon_UI/${image}`;
+            icon.src = encodeURI(`${FINISH_IMAGES}${image}`);
             icon.alt = '';
-            icon.width = buttonSize;
-            icon.height = buttonSize;
+            icon.width = size;
+            icon.height = size;
             icon.draggable = false;
             link.append(icon);
-            nav.append(link);
-        });
 
-        this.socialLinks = this.add.dom(
-            BASE_WIDTH * SOCIAL_LINKS.xFrac,
-            BASE_HEIGHT * SOCIAL_LINKS.yFrac,
-            nav
-        ).setOrigin(0, 0);
-        this.frame.add(this.socialLinks);
+            const element = this.add.dom(x, y, link).setOrigin(0, 0);
+            this.frame.add(element);
+            return element;
+        });
     }
 
     createReplayButton() {
@@ -285,11 +193,8 @@ export class FinishScene extends Phaser.Scene {
         button.addEventListener('click', returnToMenu);
         this.events.once('shutdown', () => button.removeEventListener('click', returnToMenu));
 
-        this.replayButton = this.add.dom(
-            BASE_WIDTH * REPLAY_BUTTON.xFrac,
-            BASE_HEIGHT * REPLAY_BUTTON.yFrac,
-            button
-        ).setOrigin(0, 0);
+        this.replayButton = this.add.dom(REPLAY_BUTTON.x, REPLAY_BUTTON.y, button)
+            .setOrigin(0, 0);
         this.frame.add(this.replayButton);
     }
 
@@ -298,9 +203,8 @@ export class FinishScene extends Phaser.Scene {
         const textObjects = this.textObjects;
         if (document.fonts) {
             Promise.all([
-                document.fonts.load('bold 48px Philosopher', STATS_PANEL.title),
-                document.fonts.load('bold 26px Philosopher', SUBSCRIBE_PANEL.text),
-                document.fonts.load('36px Ysabeau', STATS_PANEL.rows.map(row => row.text).join(' '))
+                document.fonts.load('bold 60px Philosopher', STATS_PANEL.title),
+                document.fonts.load('40px Ysabeau', STATS_PANEL.rows.map(row => row.text).join(' '))
             ]).then(() => {
                 textObjects.forEach(text => {
                     if (text.scene) text.style.update(true);

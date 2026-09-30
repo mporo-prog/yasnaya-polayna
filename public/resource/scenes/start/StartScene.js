@@ -15,7 +15,6 @@
         images: [
           { key: 'gameLogo', url: 'images/icon_UI/game_logo.png' },
           { key: 'mainButtonBg', url: 'images/icon_UI/main_button.png' },
-          { key: 'saveButtonBg', url: 'images/icon_UI/save_button.png' },
         ],
       };
     }
@@ -34,7 +33,6 @@
       this.buildBackground();
       this.buildTitle();
       this.buildButtons();
-      this.buildOverlay(); // оверлей для "Авторы"
       window.VN.systems.SceneAssets.enterMenu(this);
     }
 
@@ -62,7 +60,7 @@
         const w = slot.width;
         const h = slot.height;
 
-        const texture = buttonData.action === 'start' ? 'mainButtonBg' : 'saveButtonBg';
+        const texture = 'mainButtonBg';
         const bg = this.add.image(x, y, texture)
           .setOrigin(0, 0)
           .setDisplaySize(w, h)
@@ -82,7 +80,8 @@
         this.scene.sleep();
         this.scene.launch('SettingsScene', { returnSceneKey: 'MainMenuScene' });
       } else if (action === 'credits') {
-        this.showOverlay(this.menuData.creditsText);
+        this.scene.sleep();
+        this.scene.launch('AuthorsScene', { returnSceneKey: 'MainMenuScene' });
       }
     }
 
@@ -91,43 +90,6 @@
       const GameState = window.VN.systems.GameState;
       GameState.reset();
       GameState.resume(this);
-    }
-
-    // ---- оверлей для "Авторы" ---------------------------------------------
-
-    buildOverlay() {
-      this.overlayContainer = this.add.container(0, 0).setDepth(10).setVisible(false);
-
-      // Подложка закрывает весь экран, включая поля.
-      const panelBg = this.add.rectangle(0, 0, WIDTH, HEIGHT, 0x3f3f3f, 0.98).setOrigin(0, 0).setInteractive();
-      this.layout.fill(this, panelBg);
-      this.overlayText = this.add.text(WIDTH * 0.2, HEIGHT * 0.25, '', {
-        fontSize: '32px',
-        color: '#ffffff',
-        align: 'left',
-        wordWrap: { width: WIDTH * 0.6 },
-        lineSpacing: 16,
-      });
-
-      const closeBtn = this.add
-        .rectangle(WIDTH - 70, 60, 60, 60, 0xd9d9d9)
-        .setInteractive({ useHandCursor: true });
-      const closeText = this.add.text(WIDTH - 70, 60, '✕', { fontSize: '36px', color: '#000000' }).setOrigin(0.5);
-      closeBtn.on('pointerup', () => this.hideOverlay());
-      // Крестик — в правом верхнем углу экрана, а не макета.
-      this.layout.pin(this, closeBtn, { right: 70, top: 60 });
-      this.layout.pin(this, closeText, { right: 70, top: 60 });
-
-      this.overlayContainer.add([panelBg, this.overlayText, closeBtn, closeText]);
-    }
-
-    showOverlay(text) {
-      this.overlayText.setText(text);
-      this.overlayContainer.setVisible(true);
-    }
-
-    hideOverlay() {
-      this.overlayContainer.setVisible(false);
     }
   }
 

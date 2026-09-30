@@ -222,15 +222,12 @@ for (const [label, round, lastBird, overlay] of [
 
     scene.selectBird(3);
     assert.deepEqual(scene.birds.map((bird) => bird.voice.plays), plays);
-    advance(99);
-    assert.equal(scene[overlay].visible, true, 'Result keeps its full display duration after the songs');
-    assert.equal(scene.input.enabled, true);
-    advance(1);
     if (round === 3) {
-      advance(6899);
-      assert.equal(scene[overlay].visible, true, 'The victory fact stays open for seven seconds');
+      // The victory fact stays until the player clicks it away.
+      advance(1000);
+      assert.equal(scene[overlay].visible, true, 'The fact waits for a click');
       assert.equal(scene.advances, 0);
-      advance(1);
+      scene.dismissHint();
       assert.equal(scene[overlay].visible, false);
       assert.equal(scene.advances, 1);
       scene.update();
@@ -238,6 +235,10 @@ for (const [label, round, lastBird, overlay] of [
       assert.equal(scene.advances, 1, 'Finish only once');
       return;
     }
+    advance(99);
+    assert.equal(scene[overlay].visible, true, 'Result keeps its full display duration after the songs');
+    assert.equal(scene.input.enabled, true);
+    advance(1);
     assert.equal(scene[overlay].visible, false);
 
     assert.equal(scene.round_number, lastBird === 1 ? 3 : 2);

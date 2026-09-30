@@ -8,7 +8,7 @@ const sceneLabels = {
   GameScene2: 'Цветные зоны',
   GameScene3: 'Завтрак Толстого',
   GameScene4: 'Сортировка писем',
-  QuoteMinigameScene: 'Продолжите цитату',
+  QuoteMinigameScene: 'Продолжи цитату',
 };
 
 // Каталог следует за игровым маршрутом; новым мини-играм достаточно добавить

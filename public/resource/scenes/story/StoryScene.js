@@ -63,9 +63,7 @@
       this.buildHistoryOverlay();
       this.buildGlossaryOverlay();
 
-      this.layout.onLayout(this, (visible, ui) => {
-        this.bottomGroup.y = ui.bottom - HEIGHT;
-      });
+      this.layout.onLayout(this, (visible, ui) => this.applyLayout(visible, ui));
 
       this.renderCurrentScreen();
       this.fadeInAfterMinigame();
@@ -195,55 +193,26 @@
     }
 
     buildBottomBar() {
-
-      // Плашка диалога — по дизайну задан её ПРАВЫЙ ВЕРХНИЙ угол:
-      // 8.63% от правого края макета, 68.58% от верхнего края,
-      // фиксированный размер 1580.17 x 314.3px (не доля ширины экрана,
-      // как было раньше).
-      const panelWidth = 1580.17;
-      const panelHeight = 314.3;
-      const panelRight = WIDTH - WIDTH * 0.0863;
-      const panelLeft = panelRight - panelWidth;
-      const panelY = HEIGHT * 0.6858;
-      const panelCenterY = panelY + panelHeight / 2;
-
-      this.panelY = panelY;
-      this.panelHeight = panelHeight;
-
-      this.panelLeft = panelLeft;
-      this.panelWidth = panelWidth;
-      this.panelCenterY = panelCenterY;
+      // Позиции и размеры плашки, имени и текста выставляет
+      // layoutBottomBar() — отдельно для компьютера и для телефона.
 
       // Плашка реплики — бежевая, однотонная (без градиента/текстуры).
-      const panelBg = this.add.image(panelLeft, panelY, 'dialogTextBg').setOrigin(0, 0).setDisplaySize(panelWidth, panelHeight);
+      const panelBg = this.add.image(0, 0, 'dialogTextBg').setOrigin(0, 0);
       this.panelBg = panelBg;
 
-      // Имя героя — родитель "Диалоговое окно", позиция задана в % от его
-      // размеров (от левого верхнего угла панели): 5.643% / 18.231%.
-      const nameX = panelLeft + panelWidth * 0.0564306372099;
-      const nameY = panelY + panelHeight * 0.25;
-      const nameAreaWidth = panelWidth * 0.32;
-
       this.speakerNameText = this.add
-        .text(nameX, nameY, '', {
+        .text(0, 0, '', {
           fontFamily: 'Philosopher',
           fontSize: '40px',
           color: '#6E6056',
           align: 'left',
-          wordWrap: { width: nameAreaWidth - 55 },
         })
         .setOrigin(0, 0);
-
-      // Текст реплики — родитель "Диалоговое окно", позиция 29.185% / 16.322%
-      // от размеров панели, фиксированная ширина 922px (высота — по контенту).
-      const textX = panelLeft + panelWidth * 0.291848345431;
-      this.dialogueTextY = panelY + panelHeight * 0.25;
 
       const dialogueTextStyle = {
         fontFamily: 'Ysabeau',
         fontSize: '32px',
         align: 'left',
-        wordWrap: { width: 922 },
       };
 
       // Реплика рисуется двумя наложенными друг на друга текстами:
@@ -262,13 +231,13 @@
       // Оба слоя живут в bottomGroup вместе с плашкой, поэтому на любых
       // пропорциях экрана (Layout) они двигаются вместе с ней.
       this.dialogueText = this.add
-        .text(textX, this.dialogueTextY, '', { ...dialogueTextStyle, color: '#E3D8CA' })
+        .text(0, 0, '', { ...dialogueTextStyle, color: '#E3D8CA' })
         .setOrigin(0, 0);
     /**
      * для цитат начало
-     */  
+     */
      this.dialogueRevealedText = this.add
-      .text(textX, this.dialogueTextY, '', { ...dialogueTextStyle, color: '#1B1A19' })
+      .text(0, 0, '', { ...dialogueTextStyle, color: '#1B1A19' })
       .setOrigin(0, 0);
 
     this.glossaryMeasureText = this.add
@@ -288,33 +257,9 @@
      */  
 
     buildNavButtons() {
-      // "Далее" — абсолютная позиция на макете (не привязана к плашке):
-      // левый верхний угол на 85.417% / 76.389%, размер 150x150.
-      // makeIconButton ставит x/y в ЦЕНТР картинки (origin 0.5,0.5 по
-      // умолчанию у Phaser.Image), поэтому смещаем на половину размера.
-      const nextBtnSize = 150;
-      const nextBtnX = WIDTH * 0.8541666667 + nextBtnSize / 2;
-      const nextBtnY = HEIGHT * 0.7638888889 + nextBtnSize / 2;
-      this.nextBtn = this.makeIconButton(
-        nextBtnX,
-        nextBtnY,
-        'images/icon_UI/next_button.png',
-        () => this.goNext(),
-        nextBtnSize
-      );
-
-      // "Назад" — левый верхний угол на 6.77% / 86.389%, размер 96x96.
-      const backBtnSize = 96;
-      const backBtnX = WIDTH * 0.0677 + backBtnSize / 2;
-      const backBtnY = HEIGHT * 0.8638888889 + backBtnSize / 2;
-      this.backBtn = this.makeIconButton(
-        backBtnX,
-        backBtnY,
-        'images/icon_UI/back_button.png',
-        () => this.goBack(),
-        backBtnSize
-      );
-
+      // Позиции и размеры — в layoutBottomBar().
+      this.nextBtn = this.makeIconButton(0, 0, 'images/icon_UI/next_button.png', () => this.goNext());
+      this.backBtn = this.makeIconButton(0, 0, 'images/icon_UI/back_button.png', () => this.goBack());
       this.bottomGroup.add([this.nextBtn.bg, this.backBtn.bg]);
     }
 
@@ -322,27 +267,143 @@
       // depth выше, чем у historyContainer (10) — чтобы кнопки оставались
       // видимыми и кликабельными поверх открытой вкладки "История"
       // (крестика для закрытия больше нет, закрывают тем же тумблером).
-      // Позиция по дизайну: левый верхний угол кнопки на 1.5% / 2.3% от
-      // краёв макета 1920x1080, размер 150x150. У Phaser.Image origin
-      // по умолчанию (0.5, 0.5) — x/y это центр, поэтому смещаем на
-      // половину размера, чтобы угол картинки совпал с макетом.
-      const menuBtnSize = 150;
-      const menuBtnLeft = WIDTH * 0.015 + menuBtnSize / 2; // ≈ 104
-      const menuBtnTop = HEIGHT * 0.023 + menuBtnSize / 2; // ≈ 100
-      const menuBtn = this.makeIconButton(menuBtnLeft, menuBtnTop, 'images/icon_UI/pause_button.png', () => this.openPauseMenu(), menuBtnSize);
-      menuBtn.bg.setDepth(20);
+      // Позиции и размеры — в layoutTopButtons().
+      this.menuBtn = this.makeIconButton(0, 0, 'images/icon_UI/pause_button.png', () => this.openPauseMenu());
+      this.menuBtn.bg.setDepth(20);
 
-      this.historyBtn = this.makeIconButton(100, 220, 'images/icon_UI/history_button.png', () => this.toggleHistory(), 70);
+      this.historyBtn = this.makeIconButton(0, 0, 'images/icon_UI/history_button.png', () => this.toggleHistory());
       this.historyBtn.bg.setDepth(20);
+    }
 
-      // Прижимаем к левому верхнему углу экрана (с учётом выреза телефона),
-      // а не к углу макета — на широком экране они уходят на поле.
-      this.layout.pin(this, menuBtn.bg, { left: menuBtnLeft, top: menuBtnTop });
-      this.layout.pin(this, this.historyBtn.bg, { left: 100, top: 240 });
+    // ---- раскладка: компьютер / телефон -------------------------------------
+
+    applyLayout(visible, ui) {
+      // Телефон — «компактная» раскладка по мобильному макету.
+      const compact = this.layout.isCompact(this);
+      // Плашка, персонаж и кнопки «далее/назад» прижаты к нижнему краю.
+      this.bottomGroup.y = ui.bottom - HEIGHT;
+      this.layoutBottomBar(ui, compact);
+      this.layoutTopButtons(ui, compact);
+      this.layoutHistoryOverlay(ui, compact);
+      this.layoutGlossaryOverlay(ui, compact);
+      this.compactLayout = compact;
+    }
+
+    /**
+     * Плашка реплики и кнопки «далее/назад». Координаты — внутри
+     * bottomGroup (по вертикали — макет 1080, прижатый к низу экрана).
+     */
+    layoutBottomBar(ui, compact) {
+      let panel, name, text, next, back;
+      if (compact) {
+        // Мобильный макет: плашка почти во всю ширину экрана, крупный текст,
+        // кнопки под палец. «Далее» и «Назад» заходят на края плашки.
+        const panelLeft = ui.x + ui.width * 0.076;
+        const panelRight = ui.right - ui.width * 0.062;
+        panel = { x: panelLeft, y: 688, width: panelRight - panelLeft, height: 340 };
+        next = { x: ui.right - 176, y: 891, size: 230 };
+        back = { x: ui.x + 189, y: 930, size: 160 };
+        const dividerX = panel.x + panel.width * 0.275;
+        name = { x: panel.x + panel.width * 0.07, y: panel.y + 70, size: 52, wrap: dividerX - panel.x - panel.width * 0.07 - 30 };
+        const textX = dividerX + 60;
+        text = {
+          x: textX,
+          y: panel.y + 62,
+          size: 42,
+          minSize: 32,
+          lineSpacing: 6,
+          wrap: next.x - next.size / 2 - 30 - textX,
+          maxHeight: panel.height - 62 - 45,
+        };
+      } else {
+        // Плашка диалога — по дизайну задан её ПРАВЫЙ ВЕРХНИЙ угол:
+        // 8.63% от правого края макета, 68.58% от верхнего края,
+        // фиксированный размер 1580.17 x 314.3px.
+        const width = 1580.17;
+        const height = 314.3;
+        panel = { x: WIDTH - WIDTH * 0.0863 - width, y: HEIGHT * 0.6858, width: width, height: height };
+        // Имя героя: 5.643% / 25% от левого верхнего угла плашки.
+        name = { x: panel.x + width * 0.0564306372099, y: panel.y + height * 0.25, size: 40, wrap: width * 0.32 - 55 };
+        // Текст реплики: 29.185% / 25% от плашки, ширина 922px.
+        text = {
+          x: panel.x + width * 0.291848345431,
+          y: panel.y + height * 0.25,
+          size: 32,
+          minSize: 26,
+          lineSpacing: 0,
+          wrap: 922,
+          maxHeight: height * 0.62,
+        };
+        // «Далее» — левый верхний угол на 85.417% / 76.389%, размер 150;
+        // «Назад» — на 6.77% / 86.389%, размер 96. x/y — центр кнопки.
+        next = { x: WIDTH * 0.8541666667 + 75, y: HEIGHT * 0.7638888889 + 75, size: 150 };
+        back = { x: WIDTH * 0.0677 + 48, y: HEIGHT * 0.8638888889 + 48, size: 96 };
+      }
+
+      this.panelBg.setPosition(panel.x, panel.y).setDisplaySize(panel.width, panel.height);
+      this.speakerNameText
+        .setPosition(name.x, name.y)
+        .setFontSize(name.size)
+        .setWordWrapWidth(name.wrap);
+
+      this.dialogueTextY = text.y;
+      this.dialogueLayout = text;
+      [this.dialogueText, this.dialogueRevealedText].forEach((t) => {
+        t.setPosition(text.x, text.y).setLineSpacing(text.lineSpacing).setWordWrapWidth(text.wrap);
+      });
+
+      this.nextBtn.bg.setPosition(next.x, next.y).setDisplaySize(next.size, next.size);
+      this.backBtn.bg.setPosition(back.x, back.y).setDisplaySize(back.size, back.size);
+
+      // Переносы строк зависят от ширины — пересобираем текущую реплику.
+      if (this._textForCurrentScreen != null) this.refreshDialogueLayout();
+    }
+
+    /** Пауза и «История» — у верхних углов экрана (с учётом выреза). */
+    layoutTopButtons(ui, compact) {
+      if (compact) {
+        this.menuBtn.bg.setPosition(ui.x + 125, ui.y + 120).setDisplaySize(190, 190);
+        this.historyBtn.bg.setPosition(ui.right - 130, ui.y + 115).setDisplaySize(150, 150);
+      } else {
+        // Левый верхний угол паузы — 1.5% / 2.3% макета, размер 150.
+        this.menuBtn.bg.setPosition(ui.x + WIDTH * 0.015 + 75, ui.y + HEIGHT * 0.023 + 75).setDisplaySize(150, 150);
+        this.historyBtn.bg.setPosition(ui.x + 100, ui.y + 240).setDisplaySize(70, 70);
+      }
+    }
+
+    /**
+     * Подбирает размер шрифта реплики: если текст не помещается в плашку,
+     * шрифт уменьшается (не меньше minSize). Оба слоя — одного размера.
+     */
+    fitDialogueText() {
+      const layout = this.dialogueLayout;
+      const layers = [this.dialogueText, this.dialogueRevealedText];
+      let size = layout.size;
+      layers.forEach((t) => t.setFontSize(size));
+      while (size > layout.minSize && this.dialogueText.height > layout.maxHeight) {
+        size -= 2;
+        layers.forEach((t) => t.setFontSize(size));
+      }
+      this.dialogueFontSize = size;
+    }
+
+    /** После смены раскладки: переносит строки текущей реплики заново. */
+    refreshDialogueLayout() {
+      const text = this._textForCurrentScreen;
+      this.dialogueText.setText(text);
+      this.fitDialogueText();
+      if (this.voiceActive) {
+        this.voiceRevealText = this.dialogueText.getWrappedText(text).join('\n');
+      } else if (this.dialogueRevealedText.text !== '') {
+        this.dialogueRevealedText.setText(text);
+      }
+      const glossaryEntries = window.VN.data.getGlossaryLinksFor(this.storySceneIndex, this.screenIndex);
+      this.buildGlossaryWordOverlays(text, glossaryEntries);
     }
 
     /** Кнопка-иконка (картинка вместо прямоугольника с текстом). */
     makeIconButton(x, y, texture, onClick, displaySize) {
+      // x/y — центр кнопки (origin Phaser.Image по умолчанию 0.5, 0.5).
       const img = this.add.image(x, y, texture).setInteractive({ useHandCursor: true });
       if (displaySize) img.setDisplaySize(displaySize, displaySize);
       // Нажатие должно начаться на этой кнопке: отпускание после выхода
@@ -359,22 +420,11 @@
     }
 
     buildHistoryOverlay() {
-      // Небольшое окно по центру экрана, а не на весь экран — фон сюжетной
-      // сцены остаётся виден (просто слегка притемнён) вокруг него.
-      const panelW = WIDTH * 0.62;
-      const panelH = HEIGHT * 0.82;
-      const panelX = (WIDTH - panelW) / 2;
-      const panelY = (HEIGHT - panelH) / 2;
-
-      // Видимая область под текст истории — за её пределами текст обрезается
-      // маской, доступ к остальному — прокруткой.
-      const viewport = {
-        x: panelX + 90,
-        y: panelY + 150,
-        width: panelW - 200,
-        height: panelH - 150 - 100,
-      };
-      this.historyViewport = viewport;
+      // Окно по центру экрана — фон сюжетной сцены остаётся виден (просто
+      // слегка притемнён) вокруг него. Размеры — в layoutHistoryOverlay().
+      // Видимая область под текст (historyViewport) — за её пределами текст
+      // обрезается маской, доступ к остальному — прокруткой.
+      this.historyViewport = { x: 0, y: 0, width: 1, height: 1 };
       this.historyScrollY = 0;
       this.historyMaxScroll = 0;
       this.historyDragStartY = null;
@@ -387,14 +437,15 @@
       const dimBg = this.add.rectangle(0, 0, WIDTH, HEIGHT, 0x000000, 0.35).setOrigin(0, 0).setInteractive();
       this.layout.fill(this, dimBg); // затемнение — на весь экран, включая поля
 
-      // Сама панель "История" — небольшая, по центру, картинка-рамка.
+      // Сама панель "История" — по центру, картинка-рамка.
       const windowBg = this.add
-        .image(panelX, panelY, 'historyModalBg')
+        .image(0, 0, 'historyModalBg')
         .setOrigin(0, 0)
-        .setDisplaySize(panelW, panelH)
         .setInteractive();
+      this.historyWindowBg = windowBg;
 
-      const title = this.add.text(WIDTH / 2, panelY + 90, 'История', { fontFamily: 'Philosopher', fontSize: '48px', color: '#3f2f22' }).setOrigin(0.5);
+      const title = this.add.text(0, 0, 'История', { fontFamily: 'Philosopher', fontSize: '48px', color: '#3f2f22' }).setOrigin(0.5);
+      this.historyTitle = title;
 
       /**
        * Крестик для закрытия вкладки "История" — часть самого окна истории,
@@ -402,30 +453,27 @@
        * чтобы появляться и исчезать вместе с окном, а не жить отдельно.
        */
       const closeBtn = this.add
-        .image(panelX + panelW - 50, panelY + 50, 'closeButton')
-        .setDisplaySize(60, 60)
+        .image(0, 0, 'closeButton')
         .setInteractive({ useHandCursor: true });
       closeBtn.on('pointerup', () => this.toggleHistory());
+      this.historyCloseBtn = closeBtn;
 
       // Сам текст — внутри отдельного контейнера, который двигается вверх/
       // вниз при прокрутке; видна только часть внутри viewport благодаря маске.
       this.historyText = this.add.text(0, 0, '', {
+        fontFamily: 'Ysabeau',
         fontSize: '28px',
         color: '#3f2f22',
-        wordWrap: { width: viewport.width },
         lineSpacing: 24,
       });
-      this.historyContentContainer = this.add.container(viewport.x, viewport.y, [this.historyText]);
+      this.historyContentContainer = this.add.container(0, 0, [this.historyText]);
 
-      const maskShape = this.make.graphics({ x: 0, y: 0 }, false);
-      maskShape.fillStyle(0xffffff);
-      maskShape.fillRect(viewport.x, viewport.y, viewport.width, viewport.height);
-      this.historyContentContainer.setMask(maskShape.createGeometryMask());
+      this.historyMaskShape = this.make.graphics({ x: 0, y: 0 }, false);
+      this.historyContentContainer.setMask(this.historyMaskShape.createGeometryMask());
 
       // Полоса прокрутки справа от текста, внутри панели.
-      const trackX = viewport.x + viewport.width + 30;
-      this.historyScrollTrack = this.add.rectangle(trackX, viewport.y, 6, viewport.height, 0x5a4632, 0.5).setOrigin(0.5, 0);
-      this.historyScrollThumb = this.add.rectangle(trackX, viewport.y, 10, viewport.height, 0x5a4632).setOrigin(0.5, 0);
+      this.historyScrollTrack = this.add.rectangle(0, 0, 6, 1, 0x5a4632, 0.5).setOrigin(0.5, 0);
+      this.historyScrollThumb = this.add.rectangle(0, 0, 10, 1, 0x5a4632).setOrigin(0.5, 0);
 
       this.historyContainer.add([
         dimBg,
@@ -458,6 +506,53 @@
       const stopHistoryDrag = () => { this.historyDragStartY = null; };
       windowBg.on('pointerup', stopHistoryDrag);
       windowBg.on('pointerupoutside', stopHistoryDrag);
+    }
+
+    layoutHistoryOverlay(ui, compact) {
+      let panel, titleY, titleSize, close, pad, fontSize, lineSpacing;
+      if (compact) {
+        // Мобильный макет: окно почти на весь экран, крупный текст и крестик.
+        const width = Math.min(ui.width * 0.8, 1950);
+        const height = Math.min(ui.height - 50, 1010);
+        panel = { x: ui.centerX - width / 2, y: ui.centerY - height / 2, width: width, height: height };
+        titleY = panel.y + 110;
+        titleSize = 68;
+        close = { x: panel.x + width - 45, y: panel.y + 75, size: 180 };
+        pad = { left: 140, top: 210, right: 180, bottom: 90 };
+        fontSize = 42;
+        lineSpacing = 14;
+      } else {
+        const width = WIDTH * 0.62;
+        const height = HEIGHT * 0.82;
+        panel = { x: (WIDTH - width) / 2, y: (HEIGHT - height) / 2, width: width, height: height };
+        titleY = panel.y + 90;
+        titleSize = 48;
+        close = { x: panel.x + width - 50, y: panel.y + 50, size: 60 };
+        pad = { left: 90, top: 150, right: 110, bottom: 100 };
+        fontSize = 28;
+        lineSpacing = 24;
+      }
+
+      const viewport = this.historyViewport;
+      viewport.x = panel.x + pad.left;
+      viewport.y = panel.y + pad.top;
+      viewport.width = panel.width - pad.left - pad.right;
+      viewport.height = panel.height - pad.top - pad.bottom;
+
+      this.historyWindowBg.setPosition(panel.x, panel.y).setDisplaySize(panel.width, panel.height);
+      this.historyTitle.setPosition(panel.x + panel.width / 2, titleY).setFontSize(titleSize);
+      this.historyCloseBtn.setPosition(close.x, close.y).setDisplaySize(close.size, close.size);
+      this.historyText.setFontSize(fontSize).setLineSpacing(lineSpacing).setWordWrapWidth(viewport.width);
+
+      this.historyMaskShape.clear();
+      this.historyMaskShape.fillStyle(0xffffff);
+      this.historyMaskShape.fillRect(viewport.x, viewport.y, viewport.width, viewport.height);
+
+      const trackX = viewport.x + viewport.width + 30;
+      this.historyScrollTrack.setPosition(trackX, viewport.y).setSize(6, viewport.height);
+      this.historyScrollThumb.x = trackX;
+      this.historyContentContainer.x = viewport.x;
+      this.setHistoryScroll(this.historyScrollY);
     }
 
     /** Двигает содержимое истории на заданную позицию (с ограничением). */
@@ -508,7 +603,7 @@
           const charIndex = line.indexOf(entry.word);
           if (charIndex === -1) continue;
 
-          this.glossaryMeasureText.setText(line.slice(0, charIndex));
+          this.glossaryMeasureText.setFontSize(this.dialogueFontSize).setText(line.slice(0, charIndex));
           const wordX = this.dialogueText.x + this.glossaryMeasureText.width;
           const wordY = this.dialogueText.y + lineIndex * lineHeight;
 
@@ -579,38 +674,59 @@
       }
 
       buildGlossaryOverlay() {
-        const panelW = WIDTH * 0.4;
-        const panelH = HEIGHT * 0.35;
-        const panelX = (WIDTH - panelW) / 2;
-        const panelY = (HEIGHT - panelH) / 2;
-        const textPadding = 70;
-
+        // Размеры — в layoutGlossaryOverlay().
         this.glossaryContainer = this.add.container(0, 0).setDepth(11).setVisible(false);
 
         const dimBg = this.add.rectangle(0, 0, WIDTH, HEIGHT, 0x000000, 0.4).setOrigin(0, 0).setInteractive();
         this.layout.fill(this, dimBg);
 
-        const panelBg = this.add
-          .image(panelX, panelY, 'glossaryPopupBg')
+        this.glossaryPanelBg = this.add
+          .image(0, 0, 'glossaryPopupBg')
           .setOrigin(0, 0)
-          .setDisplaySize(panelW, panelH)
           .setInteractive();
 
-        this.glossaryText = this.add.text(panelX + textPadding, panelY + textPadding, '', {
+        this.glossaryText = this.add.text(0, 0, '', {
           fontFamily: 'Ysabeau',
           fontSize: '28px',
           color: '#3f2f22',
-          wordWrap: { width: panelW - textPadding * 2 },
           lineSpacing: 10,
         });
 
-        const closeBtn = this.add
-          .image(panelX + panelW - 50, panelY + 50, 'closeButton')
-          .setDisplaySize(60, 60)
+        this.glossaryCloseBtn = this.add
+          .image(0, 0, 'closeButton')
           .setInteractive({ useHandCursor: true });
-        closeBtn.on('pointerup', () => this.closeGlossaryPopup());
+        this.glossaryCloseBtn.on('pointerup', () => this.closeGlossaryPopup());
 
-        this.glossaryContainer.add([dimBg, panelBg, this.glossaryText, closeBtn]);
+        this.glossaryContainer.add([dimBg, this.glossaryPanelBg, this.glossaryText, this.glossaryCloseBtn]);
+      }
+
+      layoutGlossaryOverlay(ui, compact) {
+        let panel, padding, fontSize, closeSize, closeInset;
+        if (compact) {
+          const width = Math.min(ui.width * 0.62, 1500);
+          const height = 540;
+          panel = { x: ui.centerX - width / 2, y: ui.centerY - height / 2, width: width, height: height };
+          padding = 100;
+          fontSize = 42;
+          closeSize = 150;
+          closeInset = 40;
+        } else {
+          const width = WIDTH * 0.4;
+          const height = HEIGHT * 0.35;
+          panel = { x: (WIDTH - width) / 2, y: (HEIGHT - height) / 2, width: width, height: height };
+          padding = 70;
+          fontSize = 28;
+          closeSize = 60;
+          closeInset = 50;
+        }
+        this.glossaryPanelBg.setPosition(panel.x, panel.y).setDisplaySize(panel.width, panel.height);
+        this.glossaryText
+          .setPosition(panel.x + padding, panel.y + padding)
+          .setFontSize(fontSize)
+          .setWordWrapWidth(panel.width - padding * 2);
+        this.glossaryCloseBtn
+          .setPosition(panel.x + panel.width - closeInset, panel.y + closeInset)
+          .setDisplaySize(closeSize, closeSize);
       }
 
       openGlossaryPopup(text) {
@@ -654,6 +770,7 @@
       this.setCharacter(entry.character ?? speakerName);
       this.speakerNameText.setText(speakerName || '');
       this.dialogueText.setText(text);
+      this.fitDialogueText();
 
       // Если у реплики нет ни персонажа, ни текста — плашка диалога не
       // нужна, делаем её полностью прозрачной. Всё остальное (кнопки

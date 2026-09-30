@@ -1,0 +1,75 @@
+(function () {
+  class PauseScene extends Phaser.Scene {
+    constructor() {
+      super('PauseScene');
+    }
+
+    init(data) {
+      this.returnSceneKey = (data && data.returnSceneKey) || 'StoryScene';
+    }
+
+    create() {
+
+      const width = this.scale.width;
+      const height = this.scale.height;
+      // const width = window.innerWidth;
+      // const height = window.innerHeight;
+      const menuData = window.VN.data.pauseMenuData;
+      const title = window.VN.data.startMenuData.title; // используем то же название игры, что и на стартовом экране
+
+      // Полупрозрачная тёмная подложка на весь экран — сцена под паузой
+      // (например, StoryScene) остаётся видна, просто притемнена.
+      // Растягивается на весь экран, включая поля (Layout.fill).
+      window.VN.systems.Layout.fill(this, this.add.rectangle(0, 0, width, height, 0x000000, 0.6).setOrigin(0, 0));
+
+      this.add.rectangle(width / 2, height * 0.2, width * 0.55, height * 0.18, 0xd9d9d9);
+      this.add.text(width / 2, height * 0.2, title, { fontSize: '38px', color: '#000000' }).setOrigin(0.5);
+
+      const yPositions = [0.45, 0.6, 0.75];
+      menuData.buttons.forEach((buttonData, i) => {
+        this.makeMenuButton(width / 2, height * yPositions[i], buttonData.label, () => this.onButtonClick(buttonData.action));
+      });
+    }
+
+    makeMenuButton(x, y, label, onClick) {
+      const buttonWidth = this.scale.width * 0.28;
+      const bg = this.add.rectangle(x, y, buttonWidth, 100, 0xd9d9d9).setInteractive({ useHandCursor: true });
+      this.add.text(x, y, label, { fontSize: '30px', color: '#000000' }).setOrigin(0.5);
+      bg.on('pointerup', onClick);
+    }
+
+    onButtonClick(action) {
+      if (action === 'resume') this.resumeGame();
+      else if (action === 'settings') this.openSettings();
+      else if (action === 'menu') this.goToMainMenu();
+    }
+
+    resumeGame() {
+
+        const scene = this.scene.get(this.returnSceneKey);
+
+        this.scene.stop();
+        this.scene.resume(this.returnSceneKey);
+
+        if (scene) {
+            scene.input.enabled = true;
+            // Если пауза открывалась во время озвучки реплики (StoryScene) —
+            // проиграть её заново с начала. Другие сцены этот метод не реализуют.
+            if (typeof scene.resumeVoiceIfNeeded === 'function') scene.resumeVoiceIfNeeded();
+        }
+    }
+
+    openSettings() {
+      this.scene.sleep();
+      this.scene.launch('SettingsScene', { returnSceneKey: 'PauseScene' });
+    }
+
+    goToMainMenu() {
+      this.scene.stop();
+      this.scene.stop(this.returnSceneKey);
+      this.scene.start('MainMenuScene');
+    }
+  }
+
+  window.VN.scenes.PauseScene = PauseScene;
+})();

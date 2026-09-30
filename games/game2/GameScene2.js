@@ -1,279 +1,364 @@
-import Phaser from 'phaser';
+import { THINGS } from './data/things.js';
+import { TARGETS } from './data/targets.js';
+import {
+    BASE_WIDTH,
+    BASE_HEIGHT,
+    TARGET_SIZE,
+    ITEM_SIZE,
+    PAUSE_BUTTON
+} from './constants/Game2Constants.js';
+import { Thing } from './models/Thing.js';
+import { Target } from './models/Target.js';
+import { Game2Matcher } from './systems/Game2Matcher.js';
+import { Game2Audio } from './systems/Game2Audio.js';
+import { Game2PanelLayout } from './systems/Game2PanelLayout.js';
 
 export class GameScene2 extends Phaser.Scene {
 
     constructor() {
         super('GameScene2');
+
+        this.matcher = new Game2Matcher();
+        this.audio = new Game2Audio(this);
+
+        this.things = [];
+        this.targets = [];
+        this.completed = false;
+    }
+
+    init(data = {}) {
+        this.storySceneIndex = data.storySceneIndex;
+        this.minigameId = data.minigameId;
+    }
+
+    getAssetManifest() {
+        const imagesPath =
+            `${import.meta.env.BASE_URL}images/game2/`;
+        const uiPath =
+            `${import.meta.env.BASE_URL}images/icon_UI/`;
+
+        return {
+            images: [
+                {
+                    key: 'game2-background',
+                    url: `${imagesPath}background.png`
+                },
+                ...THINGS.map((thing) => ({
+                    key: `game2-${thing.image}`,
+                    url: `${imagesPath}${thing.image}.png`
+                })),
+                {
+                    key: 'game2-pause',
+                    url: `${uiPath}pause_button.png`
+                }
+            ],
+
+            audio: [...THINGS.map((thing) => thing.sound), 'voice_and_sound/gameplay2_neverniy_vybor.wav']
+        };
+    }
+
+    preload() {
+        if (window.VN?.systems.SceneAssets) {
+            window.VN.systems.SceneAssets.preload(this);
+            return;
+        }
+
+        // Отдельная страница games/game2/index.html.
+        const assets = this.getAssetManifest();
+
+        assets.images.forEach(({ key, url }) => {
+            this.load.image(key, url);
+        });
     }
 
     create() {
-        this.calculateScale();
-        this.createBackground();
-        this.createGameField();
-        this.createZones();
-        this.createElements();
-        this.createButtonMenu();
-    }
+        this.layout = window.VN?.systems.Layout || null;
 
-    calculateScale() {
-        const baseWidth = 1920;
-        const baseHeight = 1080;
-        const scaleX = this.scale.width / baseWidth;
-        const scaleY = this.scale.height / baseHeight;
-        this.gameScale = Math.min(scaleX, scaleY);
+        window.VN?.systems.SceneAudio?.enter(this);
+
+        this.createBackground();
+        this.createTargets();
+        this.createPauseButton();
+        this.createThings();
+        this.createPanelLayout();
+        this.setupDrag();
+
+        this.events.once(
+            Phaser.Scenes.Events.SHUTDOWN,
+            this.shutdown,
+            this
+        );
+
+        window.VN?.systems.SceneAssets?.prefetchNext(this);
     }
 
     createBackground() {
-        this.add.rectangle(
-            0,
-            0,
-            this.scale.width,
-            this.scale.height,
-            0x3a3a3a
-        ).setOrigin(0);
+        if (this.layout) {
+            this.background = this.layout.addBackground(
+                this,
+                'game2-background'
+            );
+            this.stage = this.background.stage;
+            return;
+        }
+
+        this.background = this.add.image(
+            BASE_WIDTH / 2,
+            BASE_HEIGHT / 2,
+            'game2-background'
+        ).setDisplaySize(
+            BASE_WIDTH,
+            BASE_HEIGHT
+        );
+
+        this.stage = this.add.container(0, 0);
+        this.stage.add(this.background);
     }
 
-    createGameField() {
-        const width = this.scale.width;
-        const height = this.scale.height;
-        this.mapWidth = width * 0.9;
-        this.panelX = this.mapWidth;
+    createTargets() {
+        this.targets = TARGETS.map((data) => {
+            const target = new Target(data);
+            const thing = THINGS.find(
+                (item) => item.targetId === target.id
+            );
 
-        this.add.rectangle(
-            0,
-            0,
-            this.mapWidth,
-            height
-        ).setOrigin(0);
-
-        this.add.rectangle(
-            this.panelX,
-            0,
-            width - this.panelX,
-            height
-        ).setOrigin(0);
-    }
-
-    createZones() {
-        const zoneWidth = 134 * this.gameScale;
-        const zoneHeight = 126 * this.gameScale;
-
-        this.zones = [
-            {
-                id: 'red',
-                x: this.mapWidth * 0.4,
-                y: this.scale.height * 0.2,
-                color: 0xd12626
-            },
-            {
-                id: 'green',
-                x: this.mapWidth * 0.5,
-                y: this.scale.height * 0.45,
-                color: 0x8eb41b
-            },
-            {
-                id: 'emerald',
-                x: this.mapWidth * 0.7,
-                y: this.scale.height * 0.4,
-                color: 0x17937b
-            },
-            {
-                id: 'blue',
-                x: this.mapWidth * 0.6,
-                y: this.scale.height * 0.8,
-                color: 0x17249b
-            },
-            {
-                id: 'purple',
-                x: this.mapWidth * 0.9,
-                y: this.scale.height * 0.6,
-                color: 0x8d187f
+            if (!thing) {
+                return target;
             }
-        ];
 
-        this.zones.forEach(zone => {
-            this.add.rectangle(
-                zone.x,
-                zone.y,
-                zoneWidth,
-                zoneHeight,
-                zone.color
+            target.createSprite(
+                this,
+                `game2-${thing.image}`,
+                TARGET_SIZE
+            );
+
+            this.stage.add(target.sprite);
+
+            return target;
+        });
+    }
+
+    createThings() {
+        this.things = THINGS.map((data) => {
+            return new Thing(
+                data,
+                `game2-${data.image}`
             );
         });
     }
 
-    createButtonMenu() {
-        const buttonWidth = 72 * this.gameScale;
-        const buttonHeight = 66 * this.gameScale;
-        const buttonX = this.panelX + (this.scale.width - this.panelX) - 0.06 * this.scale.width;
+    createPauseButton() {
+        this.pauseButton = this.add.image(
+            0,
+            0,
+            'game2-pause'
+        );
 
-        this.add.rectangle(
-            buttonX,
-            10 * this.gameScale + buttonHeight / 2,
-            buttonWidth,
-            buttonHeight,
-            0x555555
-        ).setOrigin(0)
-    }
+        this.pauseButton.setDisplaySize(
+            PAUSE_BUTTON.width,
+            PAUSE_BUTTON.height
+        );
 
-    createElements() {
-        const elementSize = 115 * this.gameScale;
-
-        this.elements = [
-            {
-                id: 'element1',
-                correctZone: 'red',
-                color: 0xd12626
-            },
-            {
-                id: 'element2',
-                correctZone: 'blue',
-                color: 0x17249b
-            },
-            {
-                id: 'element3',
-                correctZone: 'purple',
-                color: 0x8d187f
-            },
-            {
-                id: 'element4',
-                correctZone: 'emerald',
-                color: 0x17937b
-            },
-            {
-                id: 'element5',
-                correctZone: 'green',
-                color: 0x8eb41b
-            }
-        ];
-
-        const panelCenterX = this.panelX + (this.scale.width - this.panelX) / 2;
-        const gap = 40 * this.gameScale;
-        const countElements = this.elements.length
-        const totalHeight = elementSize * countElements + gap * (countElements - 1);
-        const startY = (this.scale.height - totalHeight) / 2 + 0.08 * this.scale.height;
-        
-        this.elements.forEach((element, index) => {
-
-            const square = this.add.rectangle(
-                panelCenterX,
-                startY + elementSize / 2 + index * (elementSize + gap),
-                elementSize,
-                elementSize,
-                element.color
-            );
-
-            square.setInteractive({
-                draggable: true
-            });
-
-            element.sprite = square;
-            element.startX = square.x;
-            element.startY = square.y;
+        this.pauseButton.setInteractive({
+            useHandCursor: true
         });
 
-        this.setupDrag();
+        this.pauseButton.on(
+            'pointerdown',
+            () => this.openPauseMenu()
+        );
+    }
+
+    createPanelLayout() {
+        this.panelLayout = new Game2PanelLayout(
+            this,
+            this.things,
+            this.pauseButton
+        );
+
+        this.panel = this.panelLayout.createPanel();
+
+        this.things.forEach((thing) => {
+            if (!thing.sprite) {
+                thing.createSprite(
+                    this,
+                    this.pauseButton.x,
+                    this.pauseButton.y,
+                    ITEM_SIZE
+                );
+            }
+        });
+
+        // Layout.onLayout() сразу расставляет предметы.
+        this.panelLayout.update(
+            this.layout
+                ? this.layout.getUiRect(this)
+                : {
+                    x: 0,
+                    y: 0,
+                    width: BASE_WIDTH,
+                    height: BASE_HEIGHT,
+                    right: BASE_WIDTH,
+                    bottom: BASE_HEIGHT,
+                    top: 0,
+                    left: 0
+                }
+        );
     }
 
     setupDrag() {
+        this.onDragStart = (pointer, gameObject) => {
+                const thing =
+                    gameObject.getData('thing');
 
-        this.input.on('dragstart', (pointer, gameObject) => {
+                if (!thing || thing.isLocked()) {
+                    return;
+                }
 
-            const element = this.elements.find(item => item.sprite == gameObject);
+                this.audio.unlock();
 
-            if (element.locked) {return;}
-        });
+                gameObject.setDepth(100);
+        };
 
-        this.input.on('drag', (pointer, gameObject, dragX, dragY) => {
+        this.onDrag = (pointer, gameObject, dragX, dragY) => {
+                const thing =
+                    gameObject.getData('thing');
 
-            const element = this.elements.find(item => item.sprite == gameObject);
+                if (!thing || thing.isLocked()) {
+                    return;
+                }
 
-            if (element.locked) {return;}
+                gameObject.setPosition(
+                    dragX,
+                    dragY
+                );
+        };
 
-            gameObject.x = dragX;
-            gameObject.y = dragY;
-        });
+        this.onDragEnd = (pointer, gameObject) => {
+                const thing =
+                    gameObject.getData('thing');
 
-        this.input.on('dragend', (pointer, gameObject) => {
+                if (!thing || thing.isLocked()) {
+                    return;
+                }
 
-            const element = this.elements.find(item => item.sprite == gameObject);
+                this.handleDrop(
+                    thing,
+                    {
+                        x: pointer.worldX,
+                        y: pointer.worldY
+                    }
+                );
+        };
 
-            const zone = this.findZone(gameObject);
-
-            if (zone && zone.id == element.correctZone) {
-                this.placeElement(element, zone);
-            } else {
-                this.returnElement(element);
-            }
-        });
+        this.input.on('dragstart', this.onDragStart);
+        this.input.on('drag', this.onDrag);
+        this.input.on('dragend', this.onDragEnd);
     }
 
-    findZone(gameObject) {
-
-        return this.zones.find(zone => {
-
-            const distance = Phaser.Math.Distance.Between(
-                gameObject.x,
-                gameObject.y,
-                zone.x,
-                zone.y
-            );
-
-            return distance < 40;
-        });
-    }
-
-    placeElement(element, zone) {
-
-        element.sprite.x = zone.x;
-        element.sprite.y = zone.y;
-        
-        element.sprite.disableInteractive();
-
-        element.locked = true;
-
-        element.sprite.setFillStyle(0xffffff);
-
-        this.checkCompletion();
-    }
-
-    checkCompletion() {
-
-        const completed = this.elements.every(
-            element => element.locked
+    handleDrop(thing, point) {
+        const target = this.findMatchingTarget(
+            thing,
+            point
         );
 
-        if (completed) {
-            this.showWinMessage();
+        if (!target) {
+            this.returnThing(thing);
+            return;
         }
+
+        this.placeThing(
+            thing,
+            target
+        );
     }
 
-    showWinMessage() {
-
-        this.add.text(
-            this.scale.width / 2,
-            this.scale.height / 2,
-            'Далее',
-            {
-                fontSize: '48px',
-                color: '#ffffff',
-                backgroundColor: '#000000',
-                padding: {
-                    x: 20,
-                    y: 10
-                }
-            }
-        ).setOrigin(0.5);
+    findMatchingTarget(thing, point) {
+        return this.matcher.findMatchingTarget(
+            thing,
+            point,
+            this.targets
+        );
     }
 
-    returnElement(element) {
+    placeThing(thing, target) {
+        thing.lock();
+        thing.sprite.disableInteractive();
 
         this.tweens.add({
-            targets: element.sprite,
-            x: element.startX,
-            y: element.startY,
+            targets: thing.sprite,
+            alpha: 0,
+            duration: 180,
+            onComplete: () => {
+                thing.sprite.destroy();
+                thing.sprite = null;
+
+                target.reveal();
+                window.VN?.systems.AudioManager?.play(this, thing.sound);
+
+                this.checkCompletion();
+            }
+        });
+    }
+
+    returnThing(thing) {
+        window.VN?.systems.AudioManager?.play(this, 'voice_and_sound/gameplay2_neverniy_vybor.wav');
+
+        this.tweens.add({
+            targets: thing.sprite,
+            x: thing.startX,
+            y: thing.startY,
             duration: 500,
             ease: 'Power2'
         });
+
+        thing.sprite.setDepth(1);
+    }
+
+    checkCompletion() {
+        if (this.completed) {
+            return;
+        }
+
+        const done = this.things.every(
+            (thing) => thing.isLocked()
+        );
+
+        if (!done) {
+            return;
+        }
+
+        this.completed = true;
+
+        window.VN?.systems.finishMinigameAndAdvance?.(
+            this,
+            this.storySceneIndex,
+            this.minigameId
+        );
+    }
+
+    openPauseMenu() {
+        if (this.completed) {
+            return;
+        }
+
+        this.scene.pause();
+
+        this.scene.launch(
+            'PauseScene',
+            {
+                returnSceneKey: 'GameScene2'
+            }
+        );
+
+        this.scene.bringToTop(
+            'PauseScene'
+        );
+    }
+
+    shutdown() {
+        this.input.off('dragstart', this.onDragStart);
+        this.input.off('drag', this.onDrag);
+        this.input.off('dragend', this.onDragEnd);
     }
 }

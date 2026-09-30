@@ -1,7 +1,9 @@
-import Phaser from 'phaser';
+// import Phaser from 'phaser';
 
 const BASE_WIDTH = 1920;
 const BASE_HEIGHT = 1080;
+// const BASE_WIDTH = window.innerWidth;
+// const BASE_HEIGHT = window.innerHeight;
 
 const ITEM_SIZE = 246;
 const ITEM_STEP = 261;
@@ -38,6 +40,8 @@ const ITEMS = [
 ];
 
 const GROUPS_TOTAL = 3;
+// Время показа подсказок; можно переопределить через hintDurationSeconds в данных сцены.
+const DEFAULT_HINT_DURATION_SECONDS = 2;
 
 export class GameScene3 extends Phaser.Scene {
 
@@ -45,16 +49,33 @@ export class GameScene3 extends Phaser.Scene {
         super('GameScene3');
     }
 
+    init(data = {}) {
+        this.storySceneIndex = data.storySceneIndex;
+        this.minigameId = data.minigameId;
+        this.hintDurationSeconds = Number.isFinite(data.hintDurationSeconds) && data.hintDurationSeconds >= 0
+            ? data.hintDurationSeconds
+            : DEFAULT_HINT_DURATION_SECONDS;
+    }
+
+    preload() {
+        if (window.VN?.systems.SceneAssets) {
+            window.VN.systems.SceneAssets.preload(this);
+            return;
+        }
+        window.VN?.systems.SceneAudio?.preload(this);
+    }
+
     create() {
+        window.VN?.systems.SceneAudio?.enter(this);
         this.started = false;
         this.paused = false;
         this.finished = false;
         this.completed = false;
         this.placedCount = 0;
         this.arrivedCount = 0;
+        this.activeHint = null;
 
-        this.calculateScale();
-        this.createRoot();
+        this.layout = window.VN.systems.Layout;
         this.createBackground();
         this.createItems();
         this.createPauseOverlay();
@@ -62,20 +83,7 @@ export class GameScene3 extends Phaser.Scene {
         this.createWinOverlay();
         this.createIntroOverlay();
         this.setupInput();
-    }
-
-    calculateScale() {
-        const width = this.scale.width || BASE_WIDTH;
-        const height = this.scale.height || BASE_HEIGHT;
-
-        this.gameScale = Math.min(width / BASE_WIDTH, height / BASE_HEIGHT);
-        this.offsetX = (width - BASE_WIDTH * this.gameScale) / 2;
-        this.offsetY = (height - BASE_HEIGHT * this.gameScale) / 2;
-    }
-
-    createRoot() {
-        this.root = this.add.container(this.offsetX, this.offsetY);
-        this.root.setScale(this.gameScale);
+        window.VN?.systems.SceneAssets?.prefetchNext(this);
     }
 
     createBackground() {
@@ -97,7 +105,10 @@ export class GameScene3 extends Phaser.Scene {
             COLOR_TABLE
         ).setOrigin(0);
 
-        this.root.add([background, table]);
+        // Фон — на весь экран, стол — от TABLE_Y до нижнего края экрана
+        // и на всю ширину (включая поля по бокам).
+        this.layout.fill(this, background);
+        this.layout.fill(this, table, { top: TABLE_Y });
     }
 
     createItems() {
@@ -131,7 +142,6 @@ export class GameScene3 extends Phaser.Scene {
             item.box.setInteractive({ useHandCursor: true });
             item.box.on('pointerdown', () => this.selectItem(item));
 
-            this.root.add(item.container);
 
             return item;
         });
@@ -235,12 +245,12 @@ export class GameScene3 extends Phaser.Scene {
     }
 
     checkCompletion() {
-        if (this.arrivedCount < GROUPS_TOTAL) {
+        if (this.finished || this.arrivedCount < GROUPS_TOTAL) {
             return;
         }
 
         this.finished = true;
-        this.winOverlay.setVisible(true);
+        this.showHint(this.winOverlay, () => this.finishGame());
     }
 
     createButtonMenu() {
@@ -265,9 +275,45 @@ export class GameScene3 extends Phaser.Scene {
         ).setOrigin(0.5);
 
         button.setInteractive({ useHandCursor: true });
-        button.on('pointerdown', () => this.togglePause());
+        button.on('pointerdown', () => this.openPauseMenu());
 
-        this.root.add([button, label]);
+        // Кнопка меню — в правом верхнем углу экрана (с учётом выреза).
+        this.layout.pin(this, button, { right: BASE_WIDTH - MENU_BUTTON.x, top: MENU_BUTTON.y });
+        this.layout.pin(this, label, {
+            right: BASE_WIDTH - MENU_BUTTON.x - MENU_BUTTON.width / 2,
+            top: MENU_BUTTON.y + MENU_BUTTON.height / 2
+        });
+    }
+
+    showHint(overlay, onDismiss) {
+        this.clearHint();
+        overlay.setVisible(true);
+
+        this.activeHint = {
+            overlay,
+            onDismiss,
+            timer: this.time.delayedCall(this.hintDurationSeconds * 1000, () => this.dismissHint())
+        };
+    }
+
+    clearHint() {
+        if (!this.activeHint) {
+            return;
+        }
+
+        this.activeHint.timer.remove();
+        this.activeHint.overlay.setVisible(false);
+        this.activeHint = null;
+    }
+
+    dismissHint() {
+        const hint = this.activeHint;
+        if (!hint) {
+            return;
+        }
+
+        this.clearHint();
+        hint.onDismiss();
     }
 
     createOverlay(text, onClick) {
@@ -295,7 +341,8 @@ export class GameScene3 extends Phaser.Scene {
         const overlay = this.add.container(0, 0, [background, label]);
         overlay.setVisible(false);
 
-        this.root.add(overlay);
+        // Подложка подсказки закрывает весь экран, текст — по центру.
+        this.layout.fill(this, background);
 
         return overlay;
     }
@@ -305,21 +352,31 @@ export class GameScene3 extends Phaser.Scene {
     }
 
     createWinOverlay() {
-        this.winOverlay = this.createOverlay('Ура пабеда', () => this.finishGame());
+        this.winOverlay = this.createOverlay('Ура пабеда', () => this.dismissHint());
     }
 
     createIntroOverlay() {
         this.introOverlay = this.createOverlay(
             'Соберите завтрак для Толстого',
-            () => this.startGame()
+            () => this.dismissHint()
         );
 
-        this.introOverlay.setVisible(true);
+        this.showHint(this.introOverlay, () => this.startGame());
     }
 
     startGame() {
         this.started = true;
         this.introOverlay.setVisible(false);
+    }
+
+    openPauseMenu() {
+        this.scene.launch('PauseScene', {
+            returnSceneKey: 'GameScene3'
+        });
+
+        this.scene.pause();
+
+        this.scene.bringToTop('PauseScene');
     }
 
     togglePause() {
@@ -337,29 +394,35 @@ export class GameScene3 extends Phaser.Scene {
         }
     }
 
+    // finishGame() {
+    //     if (this.completed) {
+    //         return;
+    //     }
+
+    //     this.completed = true;
+    //     this.events.emit('game3:complete');
+    // }
+
     finishGame() {
         if (this.completed) {
             return;
         }
 
         this.completed = true;
-        this.events.emit('game3:complete');
+
+        window.VN.systems.finishMinigameAndAdvance(
+            this,
+            this.storySceneIndex,
+            this.minigameId
+        );
     }
 
     setupInput() {
-        this.input.keyboard.on('keydown-ESC', () => this.togglePause());
+        this.input.keyboard.on('keydown-ESC', () => this.openPauseMenu());
 
-        this.scale.on('resize', this.handleResize, this);
-
+        // Подстройку под размер экрана делает Layout (подписка и отписка — внутри).
         this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-            this.scale.off('resize', this.handleResize, this);
+            this.clearHint();
         });
-    }
-
-    handleResize() {
-        this.calculateScale();
-
-        this.root.setPosition(this.offsetX, this.offsetY);
-        this.root.setScale(this.gameScale);
     }
 }

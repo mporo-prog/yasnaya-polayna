@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+// Phaser подключается глобально (resource/lib/phaser.min.js), как во всей игре.
 
 const BASE_WIDTH = 1920;
 const BASE_HEIGHT = 1080;
@@ -49,27 +49,11 @@ export class FinishScene extends Phaser.Scene {
     }
 
     create() {
-        this.calculateScale();
-        this.createRoot();
+        this.layout = window.VN.systems.Layout;
         this.createBackground();
         this.createPanel();
         this.createBonuses();
         this.createButtons();
-        this.setupInput();
-    }
-
-    calculateScale() {
-        const width = this.scale.width || BASE_WIDTH;
-        const height = this.scale.height || BASE_HEIGHT;
-
-        this.gameScale = Math.min(width / BASE_WIDTH, height / BASE_HEIGHT);
-        this.offsetX = (width - BASE_WIDTH * this.gameScale) / 2;
-        this.offsetY = (height - BASE_HEIGHT * this.gameScale) / 2;
-    }
-
-    createRoot() {
-        this.root = this.add.container(this.offsetX, this.offsetY);
-        this.root.setScale(this.gameScale);
     }
 
     createBackground() {
@@ -83,7 +67,8 @@ export class FinishScene extends Phaser.Scene {
             COLOR_BACKGROUND
         ).setOrigin(0);
 
-        this.root.add(background);
+        // Фон — на весь экран, включая поля по краям.
+        this.layout.fill(this, background);
     }
 
     createPanel() {
@@ -109,7 +94,6 @@ export class FinishScene extends Phaser.Scene {
             align: 'center'
         }).setOrigin(0.5);
 
-        this.root.add([panel, thanks, bonus]);
     }
 
     createBonuses() {
@@ -121,8 +105,6 @@ export class FinishScene extends Phaser.Scene {
                 BONUS_SIZE.height,
                 COLOR_BONUS
             ).setOrigin(0);
-
-            this.root.add(square);
         });
     }
 
@@ -155,23 +137,6 @@ export class FinishScene extends Phaser.Scene {
                 box.setInteractive({ useHandCursor: true });
                 box.on('pointerdown', () => this.scene.start('AuthorsScene'));
             }
-
-            this.root.add([box, label]);
         });
-    }
-
-    setupInput() {
-        this.scale.on('resize', this.handleResize, this);
-
-        this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-            this.scale.off('resize', this.handleResize, this);
-        });
-    }
-
-    handleResize() {
-        this.calculateScale();
-
-        this.root.setPosition(this.offsetX, this.offsetY);
-        this.root.setScale(this.gameScale);
     }
 }

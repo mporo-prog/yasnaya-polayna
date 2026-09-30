@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<title>Проверка экрана запуска</title>
+<h1>Холодный запуск при медленной сети</h1>
+<p>Запускать через <code>node tests/serve-slow-startup.mjs</code> после <code>npm run build</code>.</p>
+<pre id="results">Проверка…</pre>
+<iframe id="site" title="Тестируемая игра" width="960" height="540"></iframe>
+<script type="module">
+  const frame = document.querySelector('#site');
+  const output = document.querySelector('#results');
+  const saved = localStorage.getItem('vn_save_v1');
+  const lines = [];
+  const assert = (condition, message) => { if (!condition) throw new Error(message); };
+  const waitFor = async (condition) => {
+    const deadline = performance.now() + 15000;
+    while (!condition()) {
+      if (performance.now() > deadline) throw new Error('Превышено время ожидания');
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+  };
+  const check = async (name, action) => {
+    await action();
+    lines.push('PASS ' + name);
+    output.textContent = lines.join('\n');
+  };
+  try {
+    localStorage.removeItem('vn_save_v1');
+    frame.src = '../';
+    await check('Экран виден до загрузки Phaser и CSS шрифтов', async () => {
+      await waitFor(() => frame.contentDocument.getElementById('startup-loading'));
+      const win = frame.contentWindow;
+      const screen = win.document.getElementById('startup-loading');
+      assert(!win.Phaser, 'Движок ещё загружается');
+      assert(win.getComputedStyle(screen).display === 'flex', 'HTML-индикатор виден');
+      assert(screen.getBoundingClientRect().height > 0, 'HTML-индикатор занимает экран');
+      assert(!win.document.getElementById('startup-progress').hasAttribute('value'), 'До старта очереди нет выдуманного процента');
+    });
+    for (const percent of [33, 67]) {
+      await check('Реальный прогресс ' + percent + '% до готовности меню', async () => {
+        await waitFor(() => frame.contentDocument.getElementById('startup-progress')?.value === percent);
+        const win = frame.contentWindow;
+        win.game.sound.mute = true;
+        assert(!win.game.scene.isActive('MainMenuScene'), 'Меню ждёт оставшиеся картинки');
+        assert(win.document.getElementById('startup-label').textContent.includes(percent + '%'), 'Процент виден в тексте');
+        assert(win.game.cache.audio.entries.size === 0, 'До меню не загружается аудио всей игры');
+        const textures = Object.keys(win.game.textures.list).filter((key) => !key.startsWith('__'));
+        assert(textures.every((key) => ['mainButtonBg', 'saveButtonBg'].includes(key)), 'На старте загружаются только картинки меню');
+      });
+    }
+    await check('Экран исчезает после отрисовки меню, не ожидая шрифтов', async () => {
+      await waitFor(() => !frame.contentDocument.getElementById('startup-loading'));
+      const win = frame.contentWindow;
+      assert(win.game.scene.isActive('MainMenuScene'), 'Меню готово');
+      assert(win.game.textures.exists('menuBackground'), 'Фон меню декодирован');
+      assert(win.document.querySelector('link[href$="test-delayed-fonts.css"]').media === 'print', 'Шрифты ещё загружаются');
+    });
+    output.textContent += '\nDONE: ' + lines.length + ' проверок пройдено';
+  } catch (error) {
+    output.textContent += '\nFAIL ' + error.stack;
+  } finally {
+    frame.remove();
+    if (saved === null) localStorage.removeItem('vn_save_v1');
+    else localStorage.setItem('vn_save_v1', saved);
+  }
+</script>
+</html>

@@ -1,0 +1,369 @@
+(function () {
+  const WIDTH = 1920;
+  const HEIGHT = 1080;
+
+  const IMG = {
+    background: 'quoteBackground',
+    hero: 'quoteHero',
+    plazka: 'quotePlazka',
+    dialog: 'dialogTextBg', // тот же ключ и файл, что в StoryScene
+    next: 'images/icon_UI/next_button.png',
+    pause: 'images/icon_UI/pause_button.png',
+  };
+
+  /**
+   * QuoteMinigameScene — мини-игра «Продолжите цитату». Три раунда.
+   * Контент — data/minigames/quote/quoteData.js,
+   * внешний вид — data/minigames/quote/quoteStyle.js.
+   *
+   * Раунд: цитата с пустой рамкой и три плашки-варианта. Неправильный
+   * вариант закрывается красной накладкой. После правильного цитата
+   * собирается целиком, варианты исчезают, снизу появляется диалоговая
+   * плашка героя (как в сюжетной сцене) со своей репликой; стрелка на
+   * плашке ведёт к следующему раунду, после последнего — дальше по сюжету.
+   */
+  class QuoteMinigameScene extends Phaser.Scene {
+    constructor() {
+      super('QuoteMinigameScene');
+    }
+
+    // Картинки грузятся общей очередью SceneAssets (с экраном загрузки и
+    // предзагрузкой во время предыдущей сюжетной сцены).
+    getAssetManifest() {
+      return {
+        images: [
+          { key: IMG.background, url: 'images/backgrounds/plug.png' },
+          { key: IMG.hero, url: 'public/images/hero/Толстой_1.png' },
+          { key: IMG.plazka, url: 'images/icon_UI/rectangle_game5.png' },
+          { key: IMG.dialog, url: 'images/icon_UI/dialog_text_bg.png' },
+          { key: IMG.next, url: IMG.next },
+          { key: IMG.pause, url: IMG.pause },
+        ],
+      };
+    }
+
+    init(data) {
+      this.storySceneIndex = data.storySceneIndex;
+      this.minigameId = data.minigameId;
+
+      this.quoteData = window.VN.data.quoteData;
+      this.style = window.VN.data.quoteStyle;
+      this.rounds = this.quoteData.rounds;
+
+      this.currentRoundIndex = 0;
+      this.roundSolved = false;
+      this.gameFinished = false;
+      this.quoteParts = [];
+      this.answerButtons = null;
+    }
+
+    preload() {
+      window.VN.systems.SceneAssets.preload(this);
+    }
+
+    create() {
+      window.VN.systems.SceneAudio.enter(this);
+      this.layout = window.VN.systems.Layout;
+
+      // Под фоном — сплошная подложка на весь экран, включая поля (холст
+      // игры чёрный, а фон полупрозрачный). Сам фон растягивается на весь
+      // экран через Layout; прозрачность ставится на весь «сценический»
+      // контейнер, вместе с зеркальными копиями для широких экранов.
+      this.layout.fill(this, this.add.rectangle(0, 0, WIDTH, HEIGHT, this.style.backgroundColor));
+      this.layout.addBackground(this, IMG.background).stage.setAlpha(this.style.backgroundAlpha);
+
+      // Герой и диалоговая плашка — в одной группе, прижатой к нижнему краю
+      // экрана (как в StoryScene): на планшете 4:3 они не «висят» в середине.
+      this.bottomGroup = this.add.container(0, 0).setDepth(5);
+      this.buildHero();
+      this.buildReplyPanel();
+      this.layout.onLayout(this, (visible, ui) => {
+        this.bottomGroup.y = ui.bottom - HEIGHT;
+      });
+
+      this.buildPauseButton();
+      this.startRound(this.currentRoundIndex);
+      window.VN.systems.SceneAssets.prefetchNext(this);
+    }
+
+    // ---- статичные части экрана ------------------------------------------
+
+    buildHero() {
+      const hero = this.style.hero;
+      const image = this.add.image(hero.x, hero.bottom, IMG.hero).setOrigin(0.5, 1).setScale(hero.scale);
+      this.bottomGroup.add(image);
+    }
+
+    buildPauseButton() {
+      const button = this.makeIconButton(105, 100, IMG.pause, () => this.openPauseMenu(), 150);
+      button.setDepth(20);
+      // Левый верхний угол экрана с учётом выреза телефона — как в StoryScene.
+      this.layout.pin(this, button, { left: 105, top: 100 });
+    }
+
+    /**
+     * Диалоговая плашка после правильного ответа — та же картинка и тот же
+     * макет, что в сюжетной сцене: имя слева, вертикальная черта (часть
+     * картинки), реплика справа, стрелка «далее» на правом краю.
+     * Строится один раз, между раундами меняется только текст.
+     */
+    buildReplyPanel() {
+      const style = this.style;
+      const tex = this.textures.get(IMG.dialog).getSourceImage();
+      const panelWidth = tex.width;
+      const panelHeight = tex.height;
+      const panelLeft = WIDTH / 2 - panelWidth / 2;
+      const panelY = HEIGHT - panelHeight - style.panelBottomMargin;
+      const panelCenterY = panelY + panelHeight / 2;
+      // Вертикальная черта нарисована в картинке на x≈437 из 1589.
+      const dividerX = panelLeft + panelWidth * (437 / 1589);
+
+      const panelBg = this.add.image(WIDTH / 2, panelY, IMG.dialog).setOrigin(0.5, 0);
+
+      this.replyNameText = this.add
+        .text(panelLeft + 95, panelCenterY, '', {
+          fontFamily: 'Philosopher',
+          fontStyle: 'bold',
+          fontSize: style.nameFontSize + 'px',
+          color: style.textColor,
+          lineSpacing: 4,
+          wordWrap: { width: dividerX - panelLeft - 130 },
+        })
+        .setOrigin(0, 0.5);
+
+      const textX = dividerX + 68;
+      this.replyBodyText = this.add
+        .text(textX, panelCenterY, '', {
+          fontFamily: 'Ysabeau',
+          fontSize: style.replyFontSize + 'px',
+          color: '#1B1A19',
+          lineSpacing: 12,
+          wordWrap: { width: panelLeft + panelWidth - textX - 150 },
+        })
+        .setOrigin(0, 0.5);
+
+      const nextBtn = this.makeIconButton(panelLeft + panelWidth - 28, panelCenterY, IMG.next, () => this.onContinueClicked());
+
+      this.replyPanelParts = [panelBg, this.replyNameText, this.replyBodyText, nextBtn];
+      this.bottomGroup.add(this.replyPanelParts);
+      this.hideReplyPanel();
+    }
+
+    showReplyPanel(round) {
+      this.replyNameText.setText(this.quoteData.characterName || '');
+      this.replyBodyText.setText(round.replyText || '');
+      this.replyPanelParts.forEach((part) => part.setVisible(true));
+    }
+
+    hideReplyPanel() {
+      this.replyPanelParts.forEach((part) => part.setVisible(false));
+    }
+
+    // ---- раунд -------------------------------------------------------------
+
+    startRound(index) {
+      this.roundSolved = false;
+      this.currentRound = this.rounds[index];
+      this.buildQuote();
+      this.buildAnswerButtons();
+    }
+
+    clearRound() {
+      this.quoteParts.forEach((part) => part.destroy());
+      this.quoteParts = [];
+      if (this.answerButtons) {
+        this.answerButtons.forEach((b) => { b.bg.destroy(); b.overlay.destroy(); b.text.destroy(); });
+        this.answerButtons = null;
+      }
+      this.hideReplyPanel();
+    }
+
+    quoteTextStyle() {
+      const style = this.style;
+      return {
+        fontFamily: style.quoteFontFamily,
+        fontStyle: 'bold',
+        fontSize: style.quoteFontSize + 'px',
+        color: style.textColor,
+        wordWrap: { width: style.quoteWrapWidth },
+      };
+    }
+
+    /** Кавычка, «висящая» слева от первой строки цитаты. */
+    addOpeningMark(y) {
+      const mark = this.add.text(this.style.quoteX - 12, y, '“', this.quoteTextStyle()).setOrigin(1, 0);
+      this.quoteParts.push(mark);
+    }
+
+    /**
+     * Цитата с пустой рамкой: для 'suffix' — текст, под ним рамка;
+     * для 'prefix' — рамка, под ней текст. Закрывающая кавычка — после
+     * последней части.
+     */
+    buildQuote() {
+      const style = this.style;
+      const x = style.quoteX;
+      let y = style.quoteY;
+      this.addOpeningMark(y);
+
+      const addPrompt = () => {
+        const text = this.add.text(x, y, this.currentRound.prompt, this.quoteTextStyle());
+        this.quoteParts.push(text);
+        y += text.height + 20;
+        return text;
+      };
+      const addBlank = () => {
+        const blank = this.add
+          .rectangle(x, y, style.blankWidth, style.blankHeight)
+          .setOrigin(0, 0)
+          .setStrokeStyle(style.blankStrokeWidth, style.blankStrokeColor);
+        this.quoteParts.push(blank);
+        y += style.blankHeight + 20;
+        return blank;
+      };
+
+      let last;
+      if (this.currentRound.mode === 'prefix') {
+        addBlank();
+        last = addPrompt();
+      } else {
+        addPrompt();
+        last = addBlank();
+      }
+      const closeX = last.x + (last.displayWidth || last.width) + 18;
+      this.quoteParts.push(this.add.text(closeX, last.y, '”', this.quoteTextStyle()));
+    }
+
+    /** После правильного ответа: цитата целиком, в две строки, ниже. */
+    buildSolvedQuote() {
+      const style = this.style;
+      this.quoteParts.forEach((part) => part.destroy());
+      this.quoteParts = [];
+
+      const round = this.currentRound;
+      const lines = round.mode === 'prefix' ? [round.answer, round.prompt] : [round.prompt, round.answer];
+      let y = style.solvedQuoteY;
+      this.addOpeningMark(y);
+      const first = this.add.text(style.quoteX, y, lines[0], this.quoteTextStyle());
+      y += first.height + 4;
+      const second = this.add.text(style.quoteX + style.solvedSecondLineIndent, y, lines[1] + ' ”', {
+        ...this.quoteTextStyle(),
+        wordWrap: { width: style.quoteWrapWidth - style.solvedSecondLineIndent },
+      });
+      this.quoteParts.push(first, second);
+    }
+
+    // ---- варианты ответа ---------------------------------------------------
+
+    buildAnswerButtons() {
+      const options = this.shuffle(
+        [{ text: this.currentRound.answer, correct: true }].concat(
+          this.currentRound.distractors.map((text) => ({ text: text, correct: false }))
+        )
+      );
+      this.answerButtons = options.map((option, i) => this.buildOneAnswerButton(option, this.style.slots[i]));
+    }
+
+    buildOneAnswerButton(option, slot) {
+      const style = this.style;
+      const text = this.add
+        .text(slot.x, slot.y, option.text, {
+          fontFamily: style.quoteFontFamily,
+          fontStyle: 'bold',
+          fontSize: style.answerFontSize + 'px',
+          color: style.textColor,
+          align: 'center',
+        })
+        .setOrigin(0.5);
+      // Высота плашки — родная высота картинки; ширина — не меньше родной
+      // и растягивается под длинный текст.
+      const tex = this.textures.get(IMG.plazka).getSourceImage();
+      const height = tex.height;
+      const width = Math.max(tex.width, text.width + style.answerPaddingX * 2);
+
+      const bg = this.add
+        .image(slot.x, slot.y, IMG.plazka)
+        .setDisplaySize(width, height)
+        .setInteractive({ useHandCursor: true });
+      // Накладка — та же картинка, залитая красным: повторяет форму плашки.
+      const overlay = this.add
+        .image(slot.x, slot.y, IMG.plazka)
+        .setDisplaySize(width, height)
+        .setTintFill(style.colorWrong)
+        .setAlpha(style.overlayAlpha)
+        .setVisible(false);
+      text.setDepth(1); // текст поверх плашки и накладки
+
+      const button = { bg: bg, overlay: overlay, text: text, correct: option.correct };
+      bg.on('pointerup', () => this.onAnswerClicked(button));
+      return button;
+    }
+
+    onAnswerClicked(button) {
+      if (this.roundSolved || this.gameFinished) return;
+
+      if (!button.correct) {
+        // Ничего не сбрасывается: можно пробовать остальные варианты.
+        button.overlay.setVisible(true);
+        button.bg.disableInteractive();
+        return;
+      }
+
+      this.roundSolved = true;
+      if (this.isLastRound()) this.gameFinished = true;
+      this.answerButtons.forEach((b) => { b.bg.destroy(); b.overlay.destroy(); b.text.destroy(); });
+      this.answerButtons = null;
+      this.buildSolvedQuote();
+      this.showReplyPanel(this.currentRound);
+    }
+
+    isLastRound() {
+      return this.currentRoundIndex === this.rounds.length - 1;
+    }
+
+    // ---- переходы ----------------------------------------------------------
+
+    onContinueClicked() {
+      if (!this.roundSolved) return;
+      if (this.gameFinished) {
+        this.finishMinigame();
+        return;
+      }
+      this.clearRound();
+      this.currentRoundIndex++;
+      this.startRound(this.currentRoundIndex);
+    }
+
+    finishMinigame() {
+      window.VN.systems.finishMinigameAndAdvance(this, this.storySceneIndex, this.minigameId);
+    }
+
+    openPauseMenu() {
+      this.scene.pause();
+      this.scene.launch('PauseScene', { returnSceneKey: 'QuoteMinigameScene' });
+    }
+
+    // ---- утилиты -----------------------------------------------------------
+
+    /** Кнопка-картинка, как в StoryScene. */
+    makeIconButton(x, y, texture, onClick, displaySize) {
+      const img = this.add.image(x, y, texture).setInteractive({ useHandCursor: true });
+      if (displaySize) img.setDisplaySize(displaySize, displaySize);
+      img.on('pointerup', onClick);
+      return img;
+    }
+
+    shuffle(array) {
+      const copy = array.slice();
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const tmp = copy[i];
+        copy[i] = copy[j];
+        copy[j] = tmp;
+      }
+      return copy;
+    }
+  }
+
+  window.VN.scenes.QuoteMinigameScene = QuoteMinigameScene;
+})();

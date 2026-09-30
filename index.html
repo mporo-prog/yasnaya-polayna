@@ -1,12 +1,121 @@
 <!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>yasnaya-polyana</title>
-  </head>
-  <body>
-    <script type="module" src="/src/main.js"></script>
-  </body>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <!-- viewport-fit=cover — холст заходит под вырез/чёлку, а Layout.js
+       отодвигает кнопки от выреза через env(safe-area-inset-*).
+       Масштабирование страницы жестами отключено: игра сама подстраивается. -->
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+  />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#000000" />
+  <title>Один день Льва Николаевича</title>
+
+  <!-- Этот экран доступен ещё до скачивания и запуска Phaser. -->
+  <style>
+    #startup-loading {
+      position: fixed;
+      inset: 0;
+      z-index: 900;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      background: #e8dcc0;
+      color: #3f2f22;
+      font: 24px/1.4 system-ui, sans-serif;
+      text-align: center;
+    }
+    #startup-loading p { margin: 0; }
+    #startup-progress { width: min(320px, 80vw); accent-color: #3f2f22; }
+  </style>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    id="game-fonts"
+    href="https://fonts.googleapis.com/css2?family=Philosopher&family=Ysabeau:wght@400;500;600&display=swap"
+    rel="stylesheet"
+    media="print"
+    onload="this.media='all'"
+  >
+
+  <!-- Экран игры: холст на всю область, safe-area, заглушка «поверните устройство» -->
+  <link rel="stylesheet" href="resource/core/screen.css">
+</head>
+<body>
+  <div id="startup-loading" role="status" aria-live="polite">
+    <p id="startup-label">Запускаем игру…</p>
+    <progress id="startup-progress" max="100" aria-labelledby="startup-label"></progress>
+  </div>
+  <div id="app"></div>
+
+  <!-- Показывается только на телефоне/планшете в вертикальной ориентации -->
+  <div id="rotate-device" role="alert">
+    <div class="rotate-device__phone"></div>
+    <p>Поверните устройство горизонтально</p>
+  </div>
+
+
+  <!-- 1. Движок -->
+  <script src="resource/lib/phaser.min.js"></script>
+
+  <!-- 2. Общий namespace (должен подключаться первым из наших файлов) -->
+  <script src="resource/core/namespace.js"></script>
+
+  <!-- 3. Системы: сохранение прогресса -->
+  <script src="resource/systems/SaveManager.js"></script>
+  <script src="resource/systems/GameState.js"></script>
+  <script src="resource/systems/ProgressLifecycle.js"></script>
+  <script src="resource/systems/AudioManager.js"></script>
+  <script src="resource/systems/MusicController.js"></script>
+  <script src="resource/systems/SceneAudio.js"></script>
+  <!-- Адаптивная раскладка под любой экран (Scale.EXPAND) -->
+  <script src="resource/systems/Layout.js"></script>
+  <script src="resource/systems/MobileScreen.js"></script>
+  <script src="resource/systems/AssetQueue.js"></script>
+  <script src="resource/systems/StartupScreen.js"></script>
+  <script src="resource/systems/SceneAssets.js"></script>
+  <script src="resource/data/sceneAudio.js"></script>
+
+  <!-- 4. Данные: начальный экран -->
+  <script src="resource/data/start/startMenuData.js"></script>
+  <script src="resource/data/start/startStyle.js"></script>
+
+  <!-- 5. Данные: сюжетная часть -->
+  <script src="resource/data/story/storyLines.js"></script>
+  <script src="resource/data/story/storyHistoryTexts.js"></script>
+  <script src="resource/data/story/storyBackgrounds.js"></script>
+  <script src="resource/data/story/storyCharacterPortraits.js"></script>
+  <script src="resource/data/story/storyAudio.js"></script>
+  <script src="resource/data/story/storyMinigameLinks.js"></script>
+
+  <!-- 6. Данные: пауза -->
+  <script src="resource/data/pause/pauseMenuData.js"></script>
+
+  <!-- 7. Данные: мини-игра "Продолжите цитату" -->
+  <script src="resource/data/minigames/quote/quoteData.js"></script>
+  <script src="resource/data/minigames/quote/quoteStyle.js"></script>
+
+  <!-- 8. minigameFlow.js использует storyLines, поэтому подключается
+          после данных сюжета -->
+  <script src="resource/systems/minigameFlow.js"></script>
+
+  <!-- 9. Сцены -->
+  <script src="resource/scenes/BootScene.js"></script>
+  <script src="resource/scenes/AssetLoaderScene.js"></script>
+  <script src="resource/scenes/start/StartScene.js"></script>
+  <script src="resource/scenes/settings/SettingsScene.js"></script>
+  <script src="resource/scenes/story/StoryScene.js"></script>
+  <script src="resource/scenes/pause/PauseScene.js"></script>
+  <script src="resource/scenes/minigames/PlaceholderMinigameScene.js"></script>
+  <script src="resource/scenes/minigames/quote/QuoteMinigameScene.js"></script>
+  <!-- 10. Сборка игры -->
+  <script type="module" src="./main.js"></script>
+</body>
 </html>

@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+// Phaser подключается глобально (resource/lib/phaser.min.js), как во всей игре.
 
 const BASE_WIDTH = 1920;
 const BASE_HEIGHT = 1080;
@@ -29,26 +29,10 @@ export class AuthorsScene extends Phaser.Scene {
     }
 
     create() {
-        this.calculateScale();
-        this.createRoot();
+        this.layout = window.VN.systems.Layout;
         this.createBackground();
         this.createTitle();
         this.createBackButton();
-        this.setupInput();
-    }
-
-    calculateScale() {
-        const width = this.scale.width || BASE_WIDTH;
-        const height = this.scale.height || BASE_HEIGHT;
-
-        this.gameScale = Math.min(width / BASE_WIDTH, height / BASE_HEIGHT);
-        this.offsetX = (width - BASE_WIDTH * this.gameScale) / 2;
-        this.offsetY = (height - BASE_HEIGHT * this.gameScale) / 2;
-    }
-
-    createRoot() {
-        this.root = this.add.container(this.offsetX, this.offsetY);
-        this.root.setScale(this.gameScale);
     }
 
     createBackground() {
@@ -62,7 +46,8 @@ export class AuthorsScene extends Phaser.Scene {
             COLOR_BACKGROUND
         ).setOrigin(0);
 
-        this.root.add(background);
+        // Фон — на весь экран, включая поля по краям.
+        this.layout.fill(this, background);
     }
 
     createTitle() {
@@ -73,7 +58,6 @@ export class AuthorsScene extends Phaser.Scene {
             align: 'center'
         }).setOrigin(0.5);
 
-        this.root.add(title);
     }
 
     createBackButton() {
@@ -100,21 +84,11 @@ export class AuthorsScene extends Phaser.Scene {
         box.setInteractive({ useHandCursor: true });
         box.on('pointerdown', () => this.scene.start('FinishScene'));
 
-        this.root.add([box, label]);
-    }
-
-    setupInput() {
-        this.scale.on('resize', this.handleResize, this);
-
-        this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-            this.scale.off('resize', this.handleResize, this);
+        // Кнопка «назад» — в правом верхнем углу экрана (с учётом выреза).
+        this.layout.pin(this, box, { right: BASE_WIDTH - BACK_BUTTON.x, top: BACK_BUTTON.y });
+        this.layout.pin(this, label, {
+            right: BASE_WIDTH - BACK_BUTTON.x - BACK_BUTTON.width / 2,
+            top: BACK_BUTTON.y + BACK_BUTTON.height / 2
         });
-    }
-
-    handleResize() {
-        this.calculateScale();
-
-        this.root.setPosition(this.offsetX, this.offsetY);
-        this.root.setScale(this.gameScale);
     }
 }

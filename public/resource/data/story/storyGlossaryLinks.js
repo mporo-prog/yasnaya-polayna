@@ -29,7 +29,7 @@ window.VN.data.storyGlossaryLinks = [
     {
     scene: 4,
     screen: 2,
-    word: ' незаметный.',
+    word: 'незаметный',
     text:
       '«Источник: Из «Круга чтения» Л. Н. Толстого, 25 сентября 1904/1905 г.',
   },

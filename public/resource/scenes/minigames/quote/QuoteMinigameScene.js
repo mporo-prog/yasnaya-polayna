@@ -83,7 +83,7 @@
           // на диске сохранено в NFD-форме (и + ̆ отдельно, так сохраняет
           // git/файловая система), и просто набранная "й" (NFC, слитная)
           // с этим именем побайтово не совпадает — картинка не находится.
-          { key: IMG.hero, url: 'images/hero/Толсто' + 'й_1.png' },
+          { key: IMG.hero, url: 'images/hero/Толсто_1'},
           { key: IMG.plazka, url: 'images/icon_UI/rectangle_game5.png' },
           { key: IMG.dialog, url: 'images/icon_UI/dialog_text_bg.png' },
           { key: IMG.next, url: IMG.next },
@@ -593,8 +593,15 @@
       // не звучала поверх меню паузы. После Resume правила покажутся и
       // озвучатся заново (см. handleResume).
       if (this.phase === 'rules') this.stopRulesVoice();
-      this.scene.pause();
+      // ВАЖНО: PauseScene зарегистрирована в main.js РАНЬШЕ QuoteMinigameScene,
+      // а Phaser рисует сцены в порядке их регистрации, а не в порядке
+      // scene.launch() — если не поднять PauseScene наверх явно, она
+      // окажется отрисована ПОД текущей сценой и будет невидима, хотя
+      // формально активна и кликабельна. Поэтому launch делаем ДО pause
+      // (чтобы сцена уже существовала) и сразу после — bringToTop.
       this.scene.launch('PauseScene', { returnSceneKey: 'QuoteMinigameScene' });
+      this.scene.pause();
+      this.scene.bringToTop('PauseScene');
     }
 
     // ---- утилиты -----------------------------------------------------------

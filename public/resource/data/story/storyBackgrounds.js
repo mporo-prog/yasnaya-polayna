@@ -40,20 +40,20 @@ window.VN.data.storyBackgrounds = [
   ],
   // Сюжетная сцена 4
   [
-    'assets/backgrounds/plug.png',
-    'assets/backgrounds/plug.png',
+    'images/backgrounds/plug.png',
+    'images/backgrounds/plug.png',
   ],
   // Сюжетная сцена 5
   [
-    'assets/backgrounds/plug.png',
-    'assets/backgrounds/plug.png',
-    'assets/backgrounds/plug.png',
-    'assets/backgrounds/plug.png',
-    'assets/backgrounds/plug.png',
-    'assets/backgrounds/plug.png',
+    'images/backgrounds/plug.png',
+    'images/backgrounds/plug.png',
+    'images/backgrounds/plug.png',
+    'images/backgrounds/plug.png',
+    'images/backgrounds/plug.png',
+    'images/backgrounds/plug.png',
   ],
   // Сюжетная сцена 6
   [
-    'assets/backgrounds/plug.png',
+    'images/backgrounds/plug.png',
   ],
 ];

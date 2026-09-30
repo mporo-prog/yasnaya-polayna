@@ -1,8 +1,9 @@
 /**
  * Каждая реплика — { speaker, text }.
  * character задаёт спрайт независимо от имени говорящего;
- * autoAdvanceDelay и backgroundChange.delay задаются в миллисекундах.
- * Если есть backgroundChange, autoAdvanceDelay отсчитывается после смены фона.
+ * autoAdvanceDelay, backgroundChange.delay и backgroundChange.fadeDuration — в миллисекундах.
+ * backgroundChange.afterVoice запускает смену фона после окончания озвучки.
+ * При backgroundChange autoAdvanceDelay отсчитывается после полного появления нового фона.
  
  */
 window.VN.data.storyLines = [
@@ -36,11 +37,11 @@ window.VN.data.storyLines = [
     { speaker: 'ПОСЕТИТЕЛЬ', text: 'Где ж искать твои следы, милый граф?'},
     { speaker: 'ПОСЕТИТЕЛЬ', text: 'О! Это же шляпа графа! Надо немедленно её поймать!'},
     {
-      speaker: '', text: '',
+      speaker: '', text: '', character: 'РЕПИН_3',
       backgroundChange: { path: 'images/backgrounds/house.png', delay: 2000 },
       autoAdvanceDelay: 2000,
     },
-    { speaker: 'ПОСЕТИТЕЛЬ ', text: 'А вот и следы! И ведут они к скамейке.'},
+    { speaker: 'ПОСЕТИТЕЛЬ', character: '', text: 'А вот и следы! И ведут они к скамейке.'},
     { speaker: 'ПОСЕТИТЕЛЬ', text: 'Дневник Толстого! Не мог же он его потерять? Возможно, что-то случилось? Нужно срочно отнести его в усадьбу!'},
 
   ],
@@ -63,7 +64,13 @@ window.VN.data.storyLines = [
   // Сюжетная сцена 5 — заглушка (после неё идёт мини-игра "Продолжите цитату")
   [
     { speaker: 'ПАЦАН', text: 'Барин! Я нашёл графа! Он в Воронке купается и Вас кличет к себе!' },
-    { speaker: 'ПОСЕТИТЕЛЬ', text: 'Ну наконец-то увижу Льва Николаевича. Веди!' },
+    {
+      speaker: 'ПОСЕТИТЕЛЬ', text: 'Ну наконец-то увижу Льва Николаевича. Веди!',
+      backgroundChange: {
+        path: 'images/backgrounds/prud.png', afterVoice: true, fadeDuration: 750, hideDialogue: true,
+      },
+      autoAdvanceDelay: 2000,
+    },
     { speaker: 'ТОЛСТОЙ', text: 'С каким делом Вы ко мне пожаловали, Илья Ефимович?' },
     { speaker: 'ПОСЕТИТЕЛЬ', text: 'Хочу Ваш портрет написать, но не знаю, с чего начать.' },
     { speaker: 'ТОЛСТОЙ', text: 'Ежели что-нибудь делаешь, делай хорошо, а не хочешь или не можешь, так совсем не делай.' },

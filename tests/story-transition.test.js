@@ -80,6 +80,7 @@ function fixture() {
     add: { container: () => ({}), image: displayObject },
     panelBg: displayObject(), speakerNameText: displayObject(),
     dialogueText: displayObject(), dialogueRevealedText: displayObject(),
+    glossaryWordOverlays: [],
     backBtn: { bg: displayObject() },
   });
   // Only the visual construction is stubbed; lifecycle, rendering, audio and navigation are real.
@@ -99,9 +100,10 @@ function fixture() {
     const delta = time - now;
     now = time;
     story.time.now = time;
+    const activeTimers = [...timers];
     story.cameras.main.fadeEffect.update(time, delta);
-    for (const timer of [...timers]) {
-      if (timer.paused) continue;
+    for (const timer of activeTimers) {
+      if (timer.paused || !timers.has(timer)) continue;
       timer.remaining -= delta;
       if (timer.remaining <= 0) {
         timers.delete(timer);
@@ -214,6 +216,140 @@ test('an early background change starts a fresh two-second countdown to the next
   assert.equal(f.story.screenIndex, 11);
   f.tick(3500);
   assert.equal(f.story.screenIndex, 12);
+});
+
+test('story 5 waits for the voice to end, fades to the pond, then advances after two visible seconds', () => {
+  const f = fixture();
+  f.start(4, 1);
+  const fade = f.story.cameras.main.fadeEffect;
+  f.tick(10999);
+  assert.equal(fade.isRunning, false);
+  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/cafetary.png');
+  f.advance(10);
+  f.tick(11000);
+  assert.equal(fade.isRunning, true);
+  assert.equal(f.story.input.enabled, false);
+  f.tick(11187.5);
+  assert.equal(fade.alpha, 0.5);
+  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/cafetary.png');
+  assert.equal(f.story.characterName, 'ПОСЕТИТЕЛЬ');
+  assert.equal(f.story.panelBg.alpha, 1);
+  assert.equal(f.story.dialogueText.text, f.story.currentLines[1].text);
+  f.tick(11375);
+  assert.equal(fade.alpha, 1);
+  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/prud.png');
+  assert.equal(f.story.screenIndex, 1);
+  assert.equal(f.story.screenTimer, null);
+  assert.equal(f.story.characterName, '');
+  assert.equal(f.story.panelBg.alpha, 0);
+  assert.equal(f.story.speakerNameText.text, '');
+  assert.equal(f.story.dialogueText.text, '');
+  assert.equal(f.story.dialogueRevealedText.text, '');
+  f.tick(11750);
+  assert.equal(fade.alpha, 0);
+  assert.equal(f.story.input.enabled, true);
+  f.tick(13749);
+  assert.equal(f.story.screenIndex, 1);
+  assert.equal(f.story.panelBg.alpha, 0);
+  assert.equal(f.story.characterName, '');
+  f.tick(13750);
+  assert.equal(f.story.screenIndex, 2);
+  assert.deepEqual(f.savedScreens.at(-1), [4, 2]);
+  assert.equal(f.story.panelBg.alpha, 1);
+  assert.equal(f.story.dialogueText.text, f.story.currentLines[2].text);
+  f.tick(20000);
+  assert.equal(f.story.screenIndex, 2, 'The auto-advance fires only once');
+});
+
+test('skipping story 5 must finish the background fade before another click can advance', () => {
+  const f = fixture();
+  f.start(4, 1);
+  const voice = f.story.voiceTrack;
+  f.story.goNext();
+  assert.equal(voice.ended, true);
+  assert.equal(f.story.dialogueRevealedText.text, f.story.currentLines[1].text);
+  f.story.goNext();
+  f.story.goBack();
+  assert.equal(f.story.screenIndex, 1);
+  f.tick(1375);
+  f.story.goNext();
+  assert.equal(f.story.screenIndex, 1);
+  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/prud.png');
+  f.tick(1750);
+  assert.equal(f.story.characterName, '');
+  assert.equal(f.story.panelBg.alpha, 0);
+  assert.equal(f.story.dialogueRevealedText.text, '');
+  f.story.goNext();
+  assert.equal(f.story.screenIndex, 2);
+  assert.equal(f.story.panelBg.alpha, 1);
+  f.tick(8000);
+  assert.equal(f.story.screenIndex, 2, 'Manual advance cancels the pond timer');
+});
+
+test('history waits for the restarted voice and pauses the two-second pond timer', () => {
+  const f = fixture();
+  f.start(4, 1);
+  Object.assign(f.story, {
+    historyContainer: displayObject(), historyBtn: { bg: displayObject() },
+    historyText: displayObject(), setHistoryScroll() {},
+  });
+  f.window.VN.systems.GameState.getFullHistory = () => [];
+  f.tick(2000);
+  f.story.toggleHistory();
+  f.tick(20000);
+  assert.equal(f.backgrounds.length, 1);
+  assert.equal(f.story.cameras.main.fadeEffect.isRunning, false);
+  f.story.toggleHistory();
+  f.tick(20016);
+  assert.equal(f.story.voiceActive, true);
+  assert.equal(f.story.cameras.main.fadeEffect.isRunning, false);
+  f.story.goNext();
+  f.tick(20391);
+  f.tick(20766);
+  f.tick(21766);
+  f.story.toggleHistory();
+  f.tick(31766);
+  assert.equal(f.story.screenIndex, 1);
+  f.story.toggleHistory();
+  f.tick(32765);
+  assert.equal(f.story.screenIndex, 1);
+  f.tick(32766);
+  assert.equal(f.story.screenIndex, 2);
+});
+
+test('leaving story 5 cancels fade callbacks and restores input in either fade phase', () => {
+  for (const fadeIn of [false, true]) {
+    const f = fixture();
+    f.start(4, 1);
+    f.story.goNext();
+    if (fadeIn) f.tick(1375);
+    const backgrounds = f.backgrounds.length;
+    f.story.events.emit('shutdown');
+    f.tick(10000);
+    assert.equal(f.story.screenIndex, 1);
+    assert.equal(f.backgrounds.length, backgrounds);
+    assert.equal(f.story.input.enabled, true);
+    assert.equal(f.story.input.keyboard.enabled, true);
+    assert.equal(f.story.cameras.main.listenerCount('camerafadeoutcomplete'), 0);
+    assert.equal(f.story.cameras.main.listenerCount('camerafadeincomplete'), 0);
+  }
+});
+
+test('going back from the pond cancels its timer; unavailable voice still allows the transition', () => {
+  const f = fixture();
+  f.buffers.delete(f.audio.getUrl('voice_and_sound/screen1_scene5_posetitel.wav'));
+  f.start(4, 1);
+  f.tick(1016);
+  f.tick(1391);
+  f.tick(1766);
+  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/prud.png');
+  f.story.goBack();
+  f.tick(10000);
+  assert.equal(f.story.screenIndex, 0);
+  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/cafetary.png');
+  assert.equal(f.story.characterName, 'ПАЦАН');
+  assert.equal(f.story.panelBg.alpha, 1);
+  assert.equal(f.story.dialogueText.text, f.story.currentLines[0].text);
 });
 
 test('back and shutdown cancel the auto-advance after the background has changed', () => {

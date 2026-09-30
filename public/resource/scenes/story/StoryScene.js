@@ -82,6 +82,8 @@
         // Уходим со сцены (например, в мини-игру) — озвучка не должна звучать вслед.
         this.stopVoice();
         this.clearScreenTimer();
+        this.cancelBackgroundTransition?.();
+        this.pendingBackgroundPath = null;
       });
     }
 
@@ -114,6 +116,10 @@
         this.startVoiceReveal(this._voiceConfigForCurrentScreen, this._textForCurrentScreen, time);
       }
       this.updateVoiceReveal(time);
+      if (this.pendingBackgroundPath && this.currentLines[this.screenIndex].backgroundChange?.afterVoice
+        && !this.historyVisible && (!this.voiceTrack || this.voiceTrack.ended)) {
+        this.changeScreenBackground();
+      }
     }
 
     // ---- откуда сейчас брать контент ---------------------------------------
@@ -578,6 +584,7 @@
     renderCurrentScreen(options = {}) {
       const skipVoice = options.skipVoice === true;
       this.clearScreenTimer();
+      this.cancelBackgroundTransition?.();
 
       // Реплика предыдущего экрана могла ещё озвучиваться — обрываем её.
       this.stopVoice();
@@ -651,6 +658,8 @@
 
     scheduleScreenAction(entry) {
       this.pendingBackgroundPath = entry.backgroundChange?.path ?? null;
+      // Окончание звука проверяется в update: пауза/история могут перезапустить реплику.
+      if (this.pendingBackgroundPath && entry.backgroundChange.afterVoice) return;
       const delay = this.pendingBackgroundPath ? entry.backgroundChange.delay : entry.autoAdvanceDelay;
       this.scheduleScreenTimer(delay, () => {
         if (this.pendingBackgroundPath) this.changeScreenBackground();
@@ -671,11 +680,56 @@
     }
 
     changeScreenBackground() {
+      if (this.cancelBackgroundTransition) return true;
       if (!this.pendingBackgroundPath) return false;
       this.clearScreenTimer();
-      this.setBackground(this.pendingBackgroundPath);
+      const path = this.pendingBackgroundPath;
+      const entry = this.currentLines[this.screenIndex];
       this.pendingBackgroundPath = null;
-      this.scheduleScreenTimer(this.currentLines[this.screenIndex].autoAdvanceDelay, () => this.advanceScreen());
+      const scheduleAdvance = () => this.scheduleScreenTimer(entry.autoAdvanceDelay, () => this.advanceScreen());
+      const fadeDuration = entry.backgroundChange.fadeDuration || 0;
+      if (fadeDuration <= 0) {
+        this.setBackground(path);
+        scheduleAdvance();
+        return true;
+      }
+
+      this.skipVoice();
+      this._pendingVoiceResume = false;
+      this.voiceInterruptedByOverlay = false;
+      const camera = this.cameras.main;
+      const inputEnabled = this.input.enabled;
+      const keyboardEnabled = this.input.keyboard?.enabled;
+      this.input.enabled = false;
+      if (this.input.keyboard) this.input.keyboard.enabled = false;
+
+      const finish = () => {
+        this.cancelBackgroundTransition();
+        scheduleAdvance();
+      };
+      const showBackground = () => {
+        this.setBackground(path);
+        if (entry.backgroundChange.hideDialogue) {
+          this.setCharacter('');
+          this.panelBg.setAlpha(0);
+          this.speakerNameText.setText('');
+          this.dialogueText.setText('');
+          this.dialogueRevealedText.setText('');
+          this.destroyGlossaryWordOverlays();
+        }
+        camera.once('camerafadeincomplete', finish);
+        camera.fadeIn(fadeDuration / 2, 0, 0, 0);
+      };
+      this.cancelBackgroundTransition = () => {
+        camera.off('camerafadeoutcomplete', showBackground);
+        camera.off('camerafadeincomplete', finish);
+        camera.fadeEffect.reset();
+        this.input.enabled = inputEnabled;
+        if (this.input.keyboard) this.input.keyboard.enabled = keyboardEnabled;
+        this.cancelBackgroundTransition = null;
+      };
+      camera.once('camerafadeoutcomplete', showBackground);
+      camera.fadeOut(fadeDuration / 2, 0, 0, 0);
       return true;
     }
 
@@ -695,6 +749,7 @@
     }
 
     advanceScreen() {
+      if (this.cancelBackgroundTransition) return;
       if (this.screenIndex < this.totalScreensInThisScene - 1) {
         this.screenIndex += 1;
         this.renderCurrentScreen();
@@ -704,6 +759,7 @@
     }
 
     goBack() {
+      if (this.cancelBackgroundTransition) return;
       if (this.screenIndex > 0) {
         this.screenIndex -= 1;
         // "Назад" не переслушивает реплику: текст сразу целиком тёмным.

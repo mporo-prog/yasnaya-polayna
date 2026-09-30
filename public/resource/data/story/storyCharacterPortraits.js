@@ -8,5 +8,6 @@
 window.VN.data.storyCharacterPortraits = {
   САДОВНИК: 'images/hero/sadovnik.png',
   ПОСЕТИТЕЛЬ: 'images/hero/repin.png',
+  РЕПИН_3: 'images/hero/Репин_3.png',
   ПАЦАН: 'images/hero/patsan.png',
 };

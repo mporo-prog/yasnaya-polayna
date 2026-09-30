@@ -1,25 +1,35 @@
 export class Letter {
 
-    constructor(envelope, color) {
+    constructor(envelope, image) {
         this.envelope = envelope;
-        this.color = color;
+        this.image = image;
         this.sprite = null;
         this.startX = 0;
         this.startY = 0;
         this.locked = false;
     }
 
+    static textureKey(image) {
+        return `game4-letter-${image}`;
+    }
+
     createSprite(scene, x, y, width, height) {
         this.startX = x;
         this.startY = y;
 
-        this.sprite = scene.add.rectangle(
+        this.sprite = scene.add.image(
             x,
             y,
-            width,
-            height,
-            this.color
+            Letter.textureKey(this.image)
         );
+
+        // Вписываем картинку в рамку письма, сохраняя пропорции.
+        const scale = Math.min(
+            width / this.sprite.width,
+            height / this.sprite.height
+        );
+
+        this.sprite.setScale(scale);
 
         return this.sprite;
     }

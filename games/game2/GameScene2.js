@@ -192,26 +192,7 @@ export class GameScene2 extends Phaser.Scene {
             .setDisplaySize(panelWidth, panelHeight);
         const title = this.add.text(0, panelTop + panelHeight * config.titleYFrac, heading, style)
             .setOrigin(0.5);
-
-        // Текст правил.
-        const text = this.add
-            .text(
-                panelX,
-                panelY + 15,
-                [
-                    'Распредели предметы на карте усадьбы.'
-                ].join('\n'),
-                {
-                    fontFamily: 'Ysabeau',
-                    fontSize: '36px',
-                    color: '#1B1A19',
-                    align: 'center',
-                    lineSpacing: 12,
-                    wordWrap: {
-                        width: 1100
-                    }
-                }
-            )
+        const text = this.add.text(0, panelTop + panelHeight * config.textYFrac, message, style)
             .setOrigin(0.5);
         const nextButton = this.add.image(
             BASE_WIDTH * (NEXT_BUTTON.xFrac - 0.5),
@@ -243,7 +224,7 @@ export class GameScene2 extends Phaser.Scene {
         const { overlay, panel, text, nextButton } = this.createMessageOverlay(
             MESSAGE_PANELS.rules,
             'Правила игры',
-            'Перемещайте предметы\nв соответствующие места на карте.'
+            'Распредели предметы на карте усадьбы.'
         );
         this.rulesOverlay = overlay;
         this.rulesPanel = panel;

@@ -11,17 +11,26 @@ const sceneLabels = {
   QuoteMinigameScene: 'Продолжи цитату',
 };
 
-// Каталог следует за игровым маршрутом; новым сценам достаточно добавить
+// Каталог следует за игровым маршрутом; новым мини-играм достаточно добавить
 // подпись выше. Без подписи кнопка показывает ключ сцены.
 export function installDeveloperMode(game, vn) {
-  const entries = vn.data.storyMinigameLinks.flatMap((key, storySceneIndex) => key ? [{
-    key,
-    label: sceneLabels[key] || key,
-    data: {
-      storySceneIndex,
-      minigameId: `story_${storySceneIndex + 1}_minigame`,
-    },
-  }] : []);
+  const entries = vn.data.storyLines.flatMap((_, storySceneIndex) => {
+    const storyEntry = {
+      key: 'StoryScene',
+      label: `Сюжетная сцена ${storySceneIndex + 1}`,
+      description: 'Начать с первой реплики',
+      data: { storySceneIndex, screenIndex: 0 },
+    };
+    const key = vn.data.storyMinigameLinks[storySceneIndex];
+    return key ? [storyEntry, {
+      key,
+      label: sceneLabels[key] || key,
+      data: {
+        storySceneIndex,
+        minigameId: `story_${storySceneIndex + 1}_minigame`,
+      },
+    }] : [storyEntry];
+  });
   entries.push({
     key: 'FinishScene',
     label: 'Финальный экран',
@@ -44,7 +53,7 @@ export function installDeveloperMode(game, vn) {
     }
     if (entry.key === 'SoundTestScene') return;
     vn.systems.GameState.goToScreen(entry.data.storySceneIndex, 0);
-    vn.systems.GameState.markMinigameStarted();
+    if (entry.key !== 'StoryScene') vn.systems.GameState.markMinigameStarted();
   });
   game.scene.add('SoundTestScene', new SoundTestScene(() => mode.open()), false);
 

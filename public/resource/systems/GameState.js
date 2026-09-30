@@ -54,7 +54,10 @@
       this.save();
     },
     getFullHistory: function () {
-      return this.state.history.slice();
+      // В старых сохранениях могли остаться пустые записи от экранов без реплик.
+      return this.state.history.filter(function (entry) {
+        return typeof entry.text === 'string' && entry.text.trim().length > 0;
+      });
     },
     
     /** Пометить, что игрок сейчас в мини-игре (на случай ухода со вкладки). */
@@ -76,6 +79,8 @@
      * история будет бесконечно дублироваться.
      */
     addHistoryEntry: function (storySceneIndex, screenIndex, text, speakerName) {
+      if (typeof text !== 'string' || text.trim().length === 0) return;
+
       const key = storySceneIndex + '_' + screenIndex;
       if (this.state.visitedScreens.indexOf(key) !== -1) return;
 
@@ -91,7 +96,7 @@
 
     /** История реплик конкретной сюжетной сцены — для окна "История". */
     getHistoryForScene: function (storySceneIndex) {
-      return this.state.history.filter(function (e) {
+      return this.getFullHistory().filter(function (e) {
         return e.storySceneIndex === storySceneIndex;
       });
     },

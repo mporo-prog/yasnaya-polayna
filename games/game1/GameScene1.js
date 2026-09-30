@@ -399,7 +399,7 @@ export class GameScene1 extends Phaser.Scene {
         // Неудачные попытки не учитываем: все птицы должны войти в два пройденных раунда.
         this.sequence.forEach(index => this.playedBirds.add(index));
         if (this.round_number === 3) {
-            this.showHint(this.winOverlay, () => this.finishGame(), null);
+            this.showHint(this.winOverlay, () => this.finishGame(), 7);
             return;
         }
         this.nextRound();

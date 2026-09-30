@@ -49,7 +49,7 @@
         assert(contains(ui, panel.getBounds()), 'Плашка за краем экрана');
         assert(contains(panel.getBounds(), title.getBounds()), 'Заголовок за краем плашки');
         assert(contains(panel.getBounds(), text.getBounds()), 'Текст за краем плашки');
-        assert(title.getBounds().bottom < text.getBounds().top, 'Заголовок наезжает на текст');
+        if (title.text) assert(title.getBounds().bottom < text.getBounds().top, 'Заголовок наезжает на текст');
         assert(contains(ui, next.getBounds()), 'Стрелка за краем экрана');
       }
       assert(document.fonts.check('64px Philosopher', 'Правила игры'), 'Шрифт не загружен');

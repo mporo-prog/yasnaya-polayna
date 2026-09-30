@@ -334,8 +334,7 @@ export class GameScene3 extends Phaser.Scene {
         }
 
         this.finished = true;
-        // Факт читают сколько нужно: экран закрывается только нажатием.
-        this.showHint(this.winOverlay, () => this.finishGame(), null);
+        this.showHint(this.winOverlay, () => this.finishGame(), 7);
     }
 
     createPauseButton() {

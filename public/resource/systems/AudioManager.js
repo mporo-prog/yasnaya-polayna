@@ -6,6 +6,7 @@
   const STORAGE_KEY = 'vn_audio_settings_v1';
   const DEFAULTS = Object.freeze({ music: 50, ui: 50, voice: 50 });
   const FOLDERS = Object.freeze({ music: 'music', ui: 'ui', voice_and_sound: 'voice' });
+  const CATEGORY_GAIN = Object.freeze({ music: 0.8, ui: 1, voice: 1 });
   const soundRoot = new URL('../sound/', document.currentScript.src);
   const sounds = new Map();
   const gains = new Map();
@@ -42,8 +43,12 @@
 
   let settings = loadSettings();
 
+  function volumeFor(entry) {
+    return entry.baseVolume * CATEGORY_GAIN[entry.category] * settings[entry.category] / 100;
+  }
+
   function applyVolume(sound, entry) {
-    sound.setVolume(entry.baseVolume * settings[entry.category] / 100);
+    sound.setVolume(volumeFor(entry));
   }
 
   const AudioManager = {
@@ -56,7 +61,7 @@
       settings = normalize(values);
       sounds.forEach((entry, sound) => applyVolume(sound, entry));
       gains.forEach((entry, node) => {
-        node.gain.setValueAtTime(entry.baseVolume * settings[entry.category] / 100, node.context.currentTime);
+        node.gain.setValueAtTime(volumeFor(entry), node.context.currentTime);
       });
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
@@ -80,7 +85,7 @@
     registerGain(path, node, volume = 1) {
       const entry = { category: resolve(path).category, baseVolume: normalizeBaseVolume(volume) };
       const apply = () => node.gain.setValueAtTime(
-        entry.baseVolume * settings[entry.category] / 100, node.context.currentTime,
+        volumeFor(entry), node.context.currentTime,
       );
       gains.set(node, entry);
       apply();
@@ -107,7 +112,7 @@
       const entry = { category, baseVolume: normalizeBaseVolume(config.volume) };
       const sound = scene.sound.add(key, {
         ...config,
-        volume: entry.baseVolume * settings[category] / 100,
+        volume: volumeFor(entry),
       });
       sounds.set(sound, entry);
       sound.once('destroy', () => sounds.delete(sound));
@@ -122,7 +127,7 @@
       return sound;
     },
 
-    // Индивидуальная громкость 0–1 умножается на сохранённый процент категории.
+    // Индивидуальная громкость 0–1 умножается на коэффициент и процент категории.
     setVolume(sound, volume) {
       const entry = sounds.get(sound);
       if (!entry) throw new Error('Звук не зарегистрирован в AudioManager.');

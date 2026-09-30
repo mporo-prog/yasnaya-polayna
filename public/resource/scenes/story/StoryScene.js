@@ -39,6 +39,9 @@
       this.storySceneIndex = data.storySceneIndex != null ? data.storySceneIndex : GameState.state.storySceneIndex;
       this.screenIndex = data.screenIndex != null ? data.screenIndex : GameState.state.screenIndex;
       this.historyVisible = false;
+      this.minigameFadeInMs = data.minigameFadeInMs || 0;
+      // Даже при повторной загрузке отсутствующего ресурса сохраняем чёрный экран.
+      if (this.minigameFadeInMs > 0) this.cameras.main.setAlpha(0);
     }
 
     preload() {
@@ -63,6 +66,7 @@
       this.layout.onLayout(this, (visible, ui) => this.applyLayout(visible, ui));
 
       this.renderCurrentScreen();
+      this.fadeInAfterMinigame();
       window.VN.systems.SceneAssets.prefetchNext(this);
 
       // Дополнительная страховка: если вкладку скрыли — сохраняемся
@@ -75,7 +79,29 @@
         document.removeEventListener('visibilitychange', this.onVisibilityChange);
         // Уходим со сцены (например, в мини-игру) — озвучка не должна звучать вслед.
         this.stopVoice();
+        this.clearScreenTimer();
+        this.cancelBackgroundTransition?.();
+        this.pendingBackgroundPath = null;
       });
+    }
+
+    fadeInAfterMinigame() {
+      if (this.minigameFadeInMs <= 0) return;
+      const camera = this.cameras.main;
+      const inputEnabled = this.input.enabled;
+      const keyboardEnabled = this.input.keyboard?.enabled;
+      this.input.enabled = false;
+      if (this.input.keyboard) this.input.keyboard.enabled = false;
+      const restoreInput = () => {
+        this.input.enabled = inputEnabled;
+        if (this.input.keyboard) this.input.keyboard.enabled = keyboardEnabled;
+        camera.off('camerafadeincomplete', restoreInput);
+        this.events.off('shutdown', restoreInput);
+      };
+      this.events.once('shutdown', restoreInput);
+      camera.once('camerafadeincomplete', restoreInput);
+      camera.setAlpha(1);
+      camera.fadeIn(this.minigameFadeInMs, 0, 0, 0);
     }
 
     update(time) {
@@ -88,6 +114,10 @@
         this.startVoiceReveal(this._voiceConfigForCurrentScreen, this._textForCurrentScreen, time);
       }
       this.updateVoiceReveal(time);
+      if (this.pendingBackgroundPath && this.currentLines[this.screenIndex].backgroundChange?.afterVoice
+        && !this.historyVisible && (!this.voiceTrack || this.voiceTrack.ended)) {
+        this.changeScreenBackground();
+      }
     }
 
     // ---- откуда сейчас брать контент ---------------------------------------
@@ -214,6 +244,10 @@
       .text(0, 0, '', { fontFamily: dialogueTextStyle.fontFamily, fontStyle: dialogueTextStyle.fontStyle, fontSize: dialogueTextStyle.fontSize })
       .setVisible(false);
     this.glossaryWordOverlays = [];
+    // Порог проявления для каждого слова-ссылки: слово становится жирным
+    // и подчёркнутым только когда "проговорённый" тёмный текст дойдёт до
+    // конца этого слова (см. buildGlossaryWordOverlays/applyGlossaryReveal).
+    this.glossaryWordReveals = [];
 
     this.bottomGroup.add([panelBg, this.speakerNameText, this.dialogueText, this.dialogueRevealedText]);
     
@@ -372,7 +406,16 @@
       // x/y — центр кнопки (origin Phaser.Image по умолчанию 0.5, 0.5).
       const img = this.add.image(x, y, texture).setInteractive({ useHandCursor: true });
       if (displaySize) img.setDisplaySize(displaySize, displaySize);
-      img.on('pointerup', onClick);
+      // Нажатие должно начаться на этой кнопке: отпускание после выхода
+      // из мини-игры не должно пропускать озвучку или первую реплику.
+      let pressedPointer = null;
+      img.on('pointerdown', (pointer) => { pressedPointer = pointer; });
+      img.on('pointerout', () => { pressedPointer = null; });
+      img.on('pointerup', (pointer) => {
+        if (pressedPointer !== pointer) return;
+        pressedPointer = null;
+        onClick();
+      });
       return { bg: img, text: null };
     }
 
@@ -543,6 +586,17 @@
       const lines = this.dialogueText.getWrappedText(text);
       const lineHeight = this.dialogueText.height / lines.length;
 
+      // Смещение начала каждой строки в тексте, склеенном через \n — так
+      // же, как склеен "проговорённый" тёмный слой (voiceRevealText в
+      // startVoiceReveal). По этому смещению считаем позицию слова в
+      // общем тексте, чтобы сравнивать её с revealCount в applyGlossaryReveal.
+      const lineOffsets = [];
+      let offset = 0;
+      for (const line of lines) {
+        lineOffsets.push(offset);
+        offset += line.length + 1; // +1 — символ \n между строками
+      }
+
       entries.forEach((entry) => {
         for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
           const line = lines[lineIndex];
@@ -553,21 +607,32 @@
           const wordX = this.dialogueText.x + this.glossaryMeasureText.width;
           const wordY = this.dialogueText.y + lineIndex * lineHeight;
 
+          // Тот же шрифт и тот же размер, что у самого текста реплики
+          // (dialogueTextStyle: Ysabeau 32px) — слово остаётся частью той
+          // же строки, а не отдельной подписью другого размера поверх неё.
+          // "Жирность" — не другим начертанием шрифта (это сдвинуло бы
+          // ширину глифов и увело подчёркивание/клик-зону мимо слова), а
+          // обводкой (stroke): она утолщает контур букв, не меняя их
+          // ширину и расположение.
           const wordText = this.add
             .text(wordX, wordY, entry.word, {
-              fontFamily: 'Ysabeau',
-              fontStyle: '700',
-              // Выделенное слово чуть крупнее реплики (36 при тексте 32).
-              fontSize: Math.round(this.dialogueFontSize * 36 / 32) + 'px',
+              // Берём шрифт/размер у glossaryMeasureText — он создан с теми
+              // же значениями, что и сам текст реплики (см. buildBottomBar).
+              fontFamily: this.glossaryMeasureText.style.fontFamily,
+              fontSize: this.glossaryMeasureText.style.fontSize,
               color: '#1B1A19',
+              stroke: '#1B1A19',
+              strokeThickness: 1.5,
             })
             .setOrigin(0, 0)
-            .setInteractive({ useHandCursor: true });
+            .setInteractive({ useHandCursor: true })
+            .setVisible(false);
 
           const underline = this.add
             .rectangle(wordX, wordY + wordText.height - 4, wordText.width, 3, 0x1b1a19)
             .setOrigin(0, 0)
-            .setInteractive({ useHandCursor: true });
+            .setInteractive({ useHandCursor: true })
+            .setVisible(false);
 
           const openPopup = () => this.openGlossaryPopup(entry.text);
           wordText.on('pointerup', openPopup);
@@ -575,7 +640,29 @@
 
           this.bottomGroup.add([wordText, underline]);
           this.glossaryWordOverlays.push(wordText, underline);
+          // Слово целиком должно "проговориться" (стать тёмным), прежде
+          // чем поверх него появятся жирное начертание и подчёркивание.
+          this.glossaryWordReveals.push({
+            endIndex: lineOffsets[lineIndex] + charIndex + entry.word.length,
+            objects: [wordText, underline],
+          });
           break;
+        }
+      });
+    }
+
+    /**
+     * Показывает жирное начертание + подчёркивание для тех слов-ссылок,
+     * которые уже полностью "проговорены" (revealCount дошёл до их конца).
+     * Вызывается из updateVoiceReveal на каждый кадр анимации, а также
+     * сразу целиком (revealCount = Infinity), когда текст показывается
+     * без озвучки/анимации (skipVoice, "Назад", ошибка загрузки звука).
+     */
+    applyGlossaryReveal(revealCount) {
+      this.glossaryWordReveals.forEach((entry) => {
+        const shouldShow = revealCount >= entry.endIndex;
+        if (entry.objects[0].visible !== shouldShow) {
+          entry.objects.forEach((obj) => obj.setVisible(shouldShow));
         }
       });
     }
@@ -583,6 +670,7 @@
       destroyGlossaryWordOverlays() {
         this.glossaryWordOverlays.forEach((obj) => obj.destroy());
         this.glossaryWordOverlays = [];
+        this.glossaryWordReveals = [];
       }
 
       buildGlossaryOverlay() {
@@ -661,6 +749,8 @@
      */
     renderCurrentScreen(options = {}) {
       const skipVoice = options.skipVoice === true;
+      this.clearScreenTimer();
+      this.cancelBackgroundTransition?.();
 
       // Реплика предыдущего экрана могла ещё озвучиваться — обрываем её.
       this.stopVoice();
@@ -677,7 +767,7 @@
       const voiceConfig = storyAudio?.screens?.[this.screenIndex]?.voice || null;
 
       this.setBackground(backgroundPath);
-      this.setCharacter(speakerName);
+      this.setCharacter(entry.character ?? speakerName);
       this.speakerNameText.setText(speakerName || '');
       this.dialogueText.setText(text);
       this.fitDialogueText();
@@ -713,8 +803,10 @@
         // Есть озвучка — реплика "проговаривается" побуквенно синхронно с ней.
         this.startVoiceReveal(voiceConfig, text);
       } else {
-        // Озвучки нет, либо это возврат "Назад" — реплика сразу целиком.
+        // Озвучки нет, либо это возврат "Назад" — реплика сразу целиком,
+        // все слова-ссылки в ней сразу жирные и подчёркнутые.
         this.dialogueRevealedText.setText(text);
+        this.applyGlossaryReveal(Infinity);
       }
 
       GameState.goToScreen(this.storySceneIndex, this.screenIndex);
@@ -724,16 +816,109 @@
       this.backBtn.bg.setAlpha(isFirstScreen ? 0.4 : 1);
       if (isFirstScreen) this.backBtn.bg.disableInteractive();
       else this.backBtn.bg.setInteractive({ useHandCursor: true });
+
+      this.scheduleScreenAction(entry);
+    }
+
+    clearScreenTimer() {
+      this.screenTimer?.remove(false);
+      this.screenTimer = null;
+    }
+
+    scheduleScreenAction(entry) {
+      this.pendingBackgroundPath = entry.backgroundChange?.path ?? null;
+      // Окончание звука проверяется в update: пауза/история могут перезапустить реплику.
+      if (this.pendingBackgroundPath && entry.backgroundChange.afterVoice) return;
+      const delay = this.pendingBackgroundPath ? entry.backgroundChange.delay : entry.autoAdvanceDelay;
+      this.scheduleScreenTimer(delay, () => {
+        if (this.pendingBackgroundPath) this.changeScreenBackground();
+        else this.advanceScreen();
+      });
+    }
+
+    scheduleScreenTimer(delay, callback) {
+      this.clearScreenTimer();
+      if (delay == null) return;
+
+      // Часы Phaser останавливаются вместе со сценой в меню паузы.
+      this.screenTimer = this.time.delayedCall(delay, () => {
+        this.screenTimer = null;
+        callback();
+      });
+      this.screenTimer.paused = this.historyVisible;
+    }
+
+    changeScreenBackground() {
+      if (this.cancelBackgroundTransition) return true;
+      if (!this.pendingBackgroundPath) return false;
+      this.clearScreenTimer();
+      const path = this.pendingBackgroundPath;
+      const entry = this.currentLines[this.screenIndex];
+      this.pendingBackgroundPath = null;
+      const scheduleAdvance = () => this.scheduleScreenTimer(entry.autoAdvanceDelay, () => this.advanceScreen());
+      const fadeDuration = entry.backgroundChange.fadeDuration || 0;
+      if (fadeDuration <= 0) {
+        this.setBackground(path);
+        scheduleAdvance();
+        return true;
+      }
+
+      this.skipVoice();
+      this._pendingVoiceResume = false;
+      this.voiceInterruptedByOverlay = false;
+      const camera = this.cameras.main;
+      const inputEnabled = this.input.enabled;
+      const keyboardEnabled = this.input.keyboard?.enabled;
+      this.input.enabled = false;
+      if (this.input.keyboard) this.input.keyboard.enabled = false;
+
+      const finish = () => {
+        this.cancelBackgroundTransition();
+        scheduleAdvance();
+      };
+      const showBackground = () => {
+        this.setBackground(path);
+        if (entry.backgroundChange.hideDialogue) {
+          this.setCharacter('');
+          this.panelBg.setAlpha(0);
+          this.speakerNameText.setText('');
+          this.dialogueText.setText('');
+          this.dialogueRevealedText.setText('');
+          this.destroyGlossaryWordOverlays();
+        }
+        camera.once('camerafadeincomplete', finish);
+        camera.fadeIn(fadeDuration / 2, 0, 0, 0);
+      };
+      this.cancelBackgroundTransition = () => {
+        camera.off('camerafadeoutcomplete', showBackground);
+        camera.off('camerafadeincomplete', finish);
+        camera.fadeEffect.reset();
+        this.input.enabled = inputEnabled;
+        if (this.input.keyboard) this.input.keyboard.enabled = keyboardEnabled;
+        this.cancelBackgroundTransition = null;
+      };
+      camera.once('camerafadeoutcomplete', showBackground);
+      camera.fadeOut(fadeDuration / 2, 0, 0, 0);
+      return true;
     }
 
     goNext() {
+      // Смена фона — отдельный шаг внутри экрана. После него следующий
+      // клик переходит дальше, даже если озвучка ещё не закончилась.
+      if (this.changeScreenBackground()) return;
+
       // Пока играет озвучка — первый клик "Далее" только обрывает её и
       // сразу дозаполняет текст реплики целиком, экран пока не меняется.
-      if (this.voiceActive) {
+      if (this.voiceActive && !this.currentLines[this.screenIndex].backgroundChange) {
         this.skipVoice();
         return;
       }
 
+      this.advanceScreen();
+    }
+
+    advanceScreen() {
+      if (this.cancelBackgroundTransition) return;
       if (this.screenIndex < this.totalScreensInThisScene - 1) {
         this.screenIndex += 1;
         this.renderCurrentScreen();
@@ -743,6 +928,7 @@
     }
 
     goBack() {
+      if (this.cancelBackgroundTransition) return;
       if (this.screenIndex > 0) {
         this.screenIndex -= 1;
         // "Назад" не переслушивает реплику: текст сразу целиком тёмным.
@@ -767,10 +953,10 @@
      * (в preload сцены и заранее через prefetchNext предыдущей сцены).
      */
     startVoiceReveal(voiceConfig, text, nowMs) {
-      // nowMs передаётся явно только при отложенном перезапуске после
-      // паузы/истории (см. update()): this.time.now сразу после
-      // scene.resume() ещё "застывший" и дал бы проскок анимации.
-      const now = nowMs != null ? nowMs : this.time.now;
+      // При повторном входе в сцену this.time.now хранит время до мини-игры
+      // вплоть до первого update(). Берём время текущего кадра игры —
+      // в той же шкале, что time в updateVoiceReveal(), даже в create().
+      const now = nowMs != null ? nowMs : this.game.getTime();
       const config = typeof voiceConfig === 'string' ? { path: voiceConfig } : voiceConfig;
       const delay = config.delay || 0;
       const margin = config.margin || 0;
@@ -786,6 +972,7 @@
         // просто показываем реплику как обычно, без анимации.
         console.warn('[StoryScene]', error.message);
         this.dialogueRevealedText.setText(text);
+        this.applyGlossaryReveal(Infinity);
         return;
       }
 
@@ -801,6 +988,12 @@
       this.voiceStartTime = now + delay * 1000;
       this.voiceActive = duration > 0;
       this.dialogueRevealedText.setText(this.voiceActive ? '' : text);
+      // Если длительности нет (edge-case) — текст показан сразу целиком,
+      // слова-ссылки тоже сразу жирные; иначе они ещё скрыты (см. build) —
+      // это важно и при повторном запуске после паузы/"Истории"
+      // (resumeVoiceIfNeeded): реплика проигрывается заново с начала,
+      // поэтому уже показанные слова-ссылки тоже скрываются обратно.
+      this.applyGlossaryReveal(this.voiceActive ? 0 : Infinity);
     }
 
     /** Вызывается из update(): подсвечивает "проговорённую" часть текста. */
@@ -817,8 +1010,10 @@
       if (elapsedSeconds >= this.voiceRevealDuration) {
         this.dialogueRevealedText.setText(this.voiceFullText);
         // Текст дописан, но звук мог ещё не закончиться (margin) — не
-        // обрываем его, просто завершаем анимацию.
+        // обрываем его, просто завершаем анимацию. Все слова-ссылки к
+        // этому моменту уже "проговорены" — показываем их жирными.
         this.voiceActive = false;
+        this.applyGlossaryReveal(Infinity);
         return;
       }
 
@@ -830,6 +1025,9 @@
       // setText перерисовывает canvas текста — вызываем только при реальном
       // изменении, а не каждый кадр (важно для слабых телефонов).
       if (revealed !== this.dialogueRevealedText.text) this.dialogueRevealedText.setText(revealed);
+      // Слово-ссылка становится жирным и подчёркнутым, как только тёмный
+      // текст дойдёт до его конца — не раньше.
+      this.applyGlossaryReveal(revealCount);
     }
 
     /**
@@ -838,6 +1036,7 @@
      */
     skipVoice() {
       if (this.voiceFullText != null) this.dialogueRevealedText.setText(this.voiceFullText);
+      this.applyGlossaryReveal(Infinity);
       this.stopVoice();
     }
 
@@ -867,6 +1066,7 @@
     }
 
     startMinigame() {
+      this.clearScreenTimer();
       const GameState = window.VN.systems.GameState;
       GameState.markMinigameStarted();
 
@@ -888,6 +1088,7 @@
       }
 
       this.historyVisible = !this.historyVisible;
+      if (this.screenTimer) this.screenTimer.paused = this.historyVisible;
       this.historyContainer.setVisible(this.historyVisible);
       // Иконка "История" пропадает, пока открыто окно, и появляется снова
       // при закрытии — один toggle, без повторного переключения.

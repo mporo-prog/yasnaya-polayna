@@ -10,7 +10,7 @@ test('fade in/out use audio-clock seconds, delay and current envelope; release a
   assert.equal(track.source.startAt, 1);
   near(track.fade.gain.at(0.5), 0);
   near(track.fade.gain.at(3), 0.5);
-  near(track.level.gain.at(3), 0.4);
+  near(track.level.gain.at(3), 0.32);
   f.advance(3);
   f.controller.fadeOut({ duration: 2, delay: 1 });
   near(track.fade.gain.at(3), 0.5);
@@ -45,6 +45,7 @@ test('saving category volumes during a crossfade never resets the fade or unmute
   const effect = f.controller.playTransition({ path: 'ui/transition.mp3', volume: 0.6 });
   const voice = f.controller.playSound('voice_and_sound/line.mp3');
   const b = f.controller.crossfade('music/b.mp3', { fadeInDuration: 4, fadeOutDuration: 4 });
+  near(b.level.gain.at(0), 0.4);
   f.advance(2);
   f.audio.saveSettings({ music: 0, ui: 25, voice: 100 });
   assert.equal(a.level.gain.at(2), 0);
@@ -55,7 +56,11 @@ test('saving category volumes during a crossfade never resets the fade or unmute
   near(voice.level.gain.at(2), 1);
   f.audio.saveSettings({ music: 50, ui: 25, voice: 100 });
   f.audio.saveSettings({ music: 50, ui: 25, voice: 100 });
-  near(a.level.gain.at(2), 0.4);
+  near(a.level.gain.at(2), 0.32);
+  near(b.level.gain.at(2), 0.4);
+  f.audio.saveSettings({ music: 100, ui: 25, voice: 100 });
+  near(a.level.gain.at(2), 0.64);
+  near(b.level.gain.at(2), 0.8);
   near(b.fade.gain.at(3), 0.75);
   assert.equal(a.source.stopAt, 4);
 });
@@ -92,7 +97,7 @@ test('reusing the current track preserves playback; restart explicitly creates a
   f.advance(0.5);
   const again = f.controller.crossfade({ path: 'music/a.mp3', volume: 0.4 });
   assert.equal(again, a);
-  near(a.level.gain.at(0.5), 0.2);
+  near(a.level.gain.at(0.5), 0.16);
   near(a.fade.gain.at(1), 1);
   const restarted = f.controller.crossfade('music/a.mp3', { restart: true });
   assert.notEqual(restarted, a);

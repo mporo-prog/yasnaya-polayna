@@ -19,6 +19,44 @@
   const WIN_FACT = 'Река Воронка, ранее именовавшаяся Вороньей, была любимым местом купания Толстого. Ведущая к ней дорога так и называлась — «Купальной».';
   const INSTRUCTION_PANEL = { x: 310, y: 251, width: 1300, height: 577.04 };
   const INTRO_NEXT_ARROW = { x: 1600, y: 825, size: 150 };
+    // Плашка экрана правил и финального экрана — тот же файл и тот же
+    // размер, что в GameScene1-3 (public/images/icon_UI/instruction_panel.png).
+    instructionPanel: 'images/icon_UI/instruction_panel.png',
+  };
+
+  // Короткие звуки-реакции на ответ (папка ui/ — как остальные интерфейсные
+  // звуки, громкость общая с настройками «Громкость звуков»). Файлов пока
+  // нет — фоновая музыка сцены задана в data/sceneAudio.js, а эти два нужно
+  // положить в public/resource/sound/ui/ под именами ниже (или поменять
+  // пути тут), когда они появятся — код уже готов их проиграть.
+  const SND = {
+    correct: 'ui/quote_answer_correct.mp3',
+    wrong: 'ui/quote_answer_wrong.mp3',
+    // Озвучка экрана правил — как gameplay_scene_2_rasskazchik_all.wav
+    // в GameScene2: пока рассказчик озвучивает правила, экран не даёт
+    // играть и закрывается сам (см. showRulesScreen). Файла тоже пока нет.
+    rules: 'voice_and_sound/quote_game_rules.mp3',
+  };
+
+  // Панель правил/финала — тот же размер, что в GameScene1-3.
+  const RESULT_PANEL_WIDTH = 1200;
+  const RESULT_PANEL_HEIGHT = 577;
+
+  /**
+   * Пока звуковых файлов нет (см. SND выше), Phaser не просто промолчит —
+   * AudioManager.add/play бросают исключение ("Audio key ... missing from
+   * cache"), которое прерывает всю сцену. SceneAudio.js на такой случай
+   * оборачивает каждый вызов в try/catch и пишет предупреждение в консоль
+   * (см. её функцию run()) — делаем то же самое здесь.
+   */
+  function safeSound(action) {
+    try {
+      return action();
+    } catch (error) {
+      console.warn('[QuoteMinigameScene]', error.message);
+      return null;
+    }
+  }
 
   /**
    * QuoteMinigameScene — мини-игра «Продолжите цитату». Раунды —
@@ -48,7 +86,14 @@
       return {
         images: [
           { key: IMG.background, url: 'images/backgrounds/game5.png' },
-          { key: IMG.hero, url: 'images/hero/Толсто_1.png' },
+          // ВАЖНО: путь без "public/" (как и у остальных ассетов — Vite
+          // сам отдаёт содержимое public/ с корня сайта, "public/" в самом
+          // пути даёт 404). А "й" здесь — специально через ̆
+          // (Unicode-комбинирующий значок), а не обычная буква: имя файла
+          // на диске сохранено в NFD-форме (и + ̆ отдельно, так сохраняет
+          // git/файловая система), и просто набранная "й" (NFC, слитная)
+          // с этим именем побайтово не совпадает — картинка не находится.
+          { key: IMG.hero, url: 'images/hero/Толсто_1.png'},
           { key: IMG.plazka, url: 'images/icon_UI/rectangle_game5.png' },
           { key: IMG.dialog, url: 'images/icon_UI/dialog_text_bg.png' },
           { key: IMG.next, url: IMG.next },
@@ -72,10 +117,24 @@
       this.winShown = false;
       this.quoteParts = [];
       this.answerButtons = null;
+
+      // Три состояния, как в GameScene2: rules → game → win.
+      this.phase = 'rules';
+      this.rulesVoice = null;
+      this.rulesTimer = null;
+      this.rulesOverlay = null;
+      this.winOverlay = null;
     }
 
     preload() {
       window.VN.systems.SceneAssets.preload(this);
+      // Фоновую музыку из data/sceneAudio.js уже загружает SceneAssets, а
+      // звуки правильного/неправильного ответа и озвучка правил —
+      // событийные, не «фоновые» (не привязаны к входу в сцену/экран),
+      // поэтому грузим их отдельно.
+      window.VN.systems.AudioManager.load(this, SND.correct);
+      window.VN.systems.AudioManager.load(this, SND.wrong);
+      window.VN.systems.AudioManager.load(this, SND.rules);
     }
 
     create() {
@@ -102,7 +161,157 @@
       this.startRound(this.currentRoundIndex);
       // Правила игры поверх первого раунда.
       this.showPanelOverlay(null, INTRO_TEXT);
+
+      // Сначала создаём оба overlay (правила/финал) — как в GameScene2 —
+      // и только потом показываем правила; сам первый раунд соберётся
+//       // в startGameAfterRules(), когда игрок дослушает/дождётся правила.
+//       this.createRulesOverlay();
+//       this.createWinOverlay();
+
+//       this.events.on(Phaser.Scenes.Events.RESUME, this.handleResume, this);
+//       this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.stopRulesVoice());
+
       window.VN.systems.SceneAssets.prefetchNext(this);
+      this.showRulesScreen();
+    }
+
+    // ---- экран правил и финальный экран -----------------------------------
+
+    /** Общая заготовка плашки: картинка + заголовок + текст, по центру экрана. */
+    buildResultPanel(title, body) {
+      const panelX = WIDTH / 2;
+      const panelY = HEIGHT / 2;
+
+      const panel = this.add
+        .image(panelX, panelY, IMG.instructionPanel)
+        .setOrigin(0.5)
+        .setDisplaySize(RESULT_PANEL_WIDTH, RESULT_PANEL_HEIGHT);
+
+      const titleText = this.add
+        .text(panelX, panelY - 135, title, {
+          fontFamily: 'Philosopher',
+          fontSize: '48px',
+          color: '#3F2F22',
+          align: 'center',
+        })
+        .setOrigin(0.5);
+
+      const bodyText = this.add
+        .text(panelX, panelY + 15, body, {
+          fontFamily: 'Ysabeau',
+          fontSize: '36px',
+          color: '#1B1A19',
+          align: 'center',
+          lineSpacing: 12,
+          wordWrap: { width: 1100 },
+        })
+        .setOrigin(0.5);
+
+      // Общая тёмная подложка на весь экран — гасит игру под плашкой.
+      const dim = this.add.rectangle(0, 0, WIDTH, HEIGHT, 0x000000, 0.45).setOrigin(0);
+      this.layout.fill(this, dim);
+
+      return { dim: dim, panel: panel, title: titleText, body: bodyText };
+    }
+
+    /**
+     * Экран правил: показывается один раз при входе в игру и закрывается
+     * сам — либо когда рассказчик дочитает озвучку правил, либо по
+     * таймеру (на случай, если браузер не даёт звук или файла ещё нет).
+     * Кнопка «Далее» на этом экране декоративная — нажать её нельзя.
+     */
+    createRulesOverlay() {
+      const parts = this.buildResultPanel(
+        'Правила игры',
+        'Прочитайте цитату и выберите слово, которое в ней пропущено.\n' +
+          'Неправильный вариант закроется красным — пробуйте другой.'
+      );
+
+      const nextIcon = this.add.image(
+        WIDTH / 2 + RESULT_PANEL_WIDTH / 2 - 110,
+        HEIGHT / 2 + RESULT_PANEL_HEIGHT / 2 - 110,
+        IMG.next
+      ).setDisplaySize(150, 150);
+
+      this.rulesOverlay = this.add
+        .container(0, 0, [parts.dim, parts.panel, parts.title, parts.body, nextIcon])
+        .setDepth(50)
+        .setVisible(false);
+    }
+
+    /**
+     * Финальный экран: показывается после того, как игрок закрыл реплику
+     * героя в последнем раунде. Кнопка «Далее» здесь настоящая — по клику
+     * мини-игра завершается и сюжет продолжается (finishMinigame).
+     */
+    createWinOverlay() {
+      const parts = this.buildResultPanel('Ура, победа!', 'Вы успешно продолжили все цитаты.');
+
+      const nextBtn = this.makeIconButton(
+        WIDTH / 2 + RESULT_PANEL_WIDTH / 2 - 110,
+        HEIGHT / 2 + RESULT_PANEL_HEIGHT / 2 - 110,
+        IMG.next,
+        () => this.finishMinigame(),
+        150
+      );
+
+      this.winOverlay = this.add
+        .container(0, 0, [parts.dim, parts.panel, parts.title, parts.body, nextBtn])
+        .setDepth(50)
+        .setVisible(false);
+    }
+
+    showRulesScreen() {
+      this.phase = 'rules';
+      this.rulesOverlay.setVisible(true);
+      this.stopRulesVoice();
+
+      // Если аудио недоступно ИЛИ файла ещё нет (см. SND.rules выше) —
+      // не блокируем игрока навсегда: сразу переходим к игре по таймеру.
+      this.rulesVoice = window.VN.systems.AudioManager
+        ? safeSound(() => window.VN.systems.AudioManager.add(this, SND.rules))
+        : null;
+
+      const finishRules = () => this.startGameAfterRules();
+
+      if (this.rulesVoice) {
+        this.rulesVoice.once('complete', finishRules);
+        safeSound(() => this.rulesVoice.play());
+      }
+
+      // Запасной таймер — на случай, если браузер не пришлёт 'complete'
+      // (или звукового файла ещё нет, как сейчас).
+      const duration = Math.max(4000, (this.rulesVoice?.totalDuration || 0) * 1000 + 500);
+      this.rulesTimer = this.time.delayedCall(duration, finishRules);
+    }
+
+    stopRulesVoice() {
+      if (this.rulesTimer) {
+        this.rulesTimer.remove();
+        this.rulesTimer = null;
+      }
+      if (this.rulesVoice) {
+        safeSound(() => this.rulesVoice.stop());
+        safeSound(() => this.rulesVoice.destroy());
+        this.rulesVoice = null;
+      }
+    }
+
+    startGameAfterRules() {
+      this.stopRulesVoice();
+      this.rulesOverlay.setVisible(false);
+      this.phase = 'game';
+      this.startRound(this.currentRoundIndex);
+    }
+
+    /** Пауза во время правил останавливает озвучку; после Resume — правила начинаются заново. */
+    handleResume() {
+      if (this.phase === 'rules') this.showRulesScreen();
+    }
+
+    showFinishScreen() {
+      this.phase = 'win';
+      this.winOverlay.setVisible(true);
     }
 
     /**
@@ -411,11 +620,13 @@
 
       if (!button.correct) {
         // Ничего не сбрасывается: можно пробовать остальные варианты.
+        safeSound(() => window.VN.systems.AudioManager.play(this, SND.wrong));
         button.overlay.setVisible(true);
         button.bg.disableInteractive();
         return;
       }
 
+      safeSound(() => window.VN.systems.AudioManager.play(this, SND.correct));
       this.roundSolved = true;
       if (this.isLastRound()) this.gameFinished = true;
       this.answerButtons.forEach((b) => { b.bg.destroy(); b.overlay.destroy(); b.text.destroy(); });
@@ -449,8 +660,19 @@
     }
 
     openPauseMenu() {
-      this.scene.pause();
+      // Пока идут правила — полностью останавливаем их озвучку, чтобы она
+      // не звучала поверх меню паузы. После Resume правила покажутся и
+      // озвучатся заново (см. handleResume).
+      if (this.phase === 'rules') this.stopRulesVoice();
+      // ВАЖНО: PauseScene зарегистрирована в main.js РАНЬШЕ QuoteMinigameScene,
+      // а Phaser рисует сцены в порядке их регистрации, а не в порядке
+      // scene.launch() — если не поднять PauseScene наверх явно, она
+      // окажется отрисована ПОД текущей сценой и будет невидима, хотя
+      // формально активна и кликабельна. Поэтому launch делаем ДО pause
+      // (чтобы сцена уже существовала) и сразу после — bringToTop.
       this.scene.launch('PauseScene', { returnSceneKey: 'QuoteMinigameScene' });
+      this.scene.pause();
+      this.scene.bringToTop('PauseScene');
     }
 
     // ---- утилиты -----------------------------------------------------------

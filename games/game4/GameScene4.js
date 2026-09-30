@@ -126,7 +126,7 @@ const INSTRUCTION_TEXT_STYLE = {
     wordWrap: { width: INSTRUCTION_PANEL.width - 160 }
 };
 
-// Шаблонные тексты — заменить на финальные.
+// Тексты экранов правил и результатов.
 const TEXTS = {
     intro: 'Распредели корреспонденцию',
     winTitle: 'Игра пройдена!',
@@ -175,7 +175,7 @@ const WIN_FACT_TEXT_STYLE = {
     wordWrap: { width: INSTRUCTION_PANEL.width - 200 }
 };
 
-// Экраны победы и поражения закрываются сами, как в игре 1.
+// Экран поражения закрывается через 2 секунды, факт на победе — через 7.
 const RESULT_HINT_SECONDS = 2;
 
 // Слои: письма 0–200, экраны поверх писем, кнопка паузы поверх экранов.
@@ -264,7 +264,7 @@ export class GameScene4 extends Phaser.Scene {
         this.trayLetters = [];
         this.timerSound = null;
 
-        window.VN?.systems.SceneAudio?.enter(this);
+        this.sceneAudio = null;
         this.layout = window.VN.systems.Layout;
         this.createBackground();
         this.createEnvelopes();
@@ -278,11 +278,17 @@ export class GameScene4 extends Phaser.Scene {
         window.VN?.systems.SceneAssets?.prefetchNext(this);
 
         // Перезагрузка возможна и во время анимации последнего отсортированного письма.
+        const sceneAudio = window.VN?.systems.SceneAudio;
         if (this.checkGameFinished()) {
+            // Восстановленная победа пропускает правила и их озвучку.
+            this.sceneAudio = sceneAudio?.enter(this, { ...sceneAudio.getConfig(this), sounds: [] });
             this.winGame();
         } else {
             // Таймер и письма оживают только после экрана с правилами.
             this.showHint(this.introOverlay, () => this.startGame(), null);
+            this.sceneAudio = sceneAudio?.enter(this);
+            this.activeHint.waitForAudio = Boolean(this.sceneAudio?.hasActiveSounds);
+            this.unlockAudio();
         }
 
         window.addEventListener(
@@ -309,6 +315,7 @@ export class GameScene4 extends Phaser.Scene {
             // Сохранение переживает только перезагрузку страницы (pagehide).
             this.stopTimerSound();
             this.stopBackgroundSound();
+            this.clearHint();
             this.timer?.destroy();
             this.completed = true;
             this.clearGame4Save();
@@ -537,6 +544,13 @@ export class GameScene4 extends Phaser.Scene {
         this.timer.start(this.timeLeft);
     }
 
+    unlockAudio() {
+        const context = this.sound?.context;
+        if (context?.state === 'suspended') {
+            context.resume();
+        }
+    }
+
     playSound(path) {
         return window.VN?.systems.AudioManager?.play(this, path) ?? null;
     }
@@ -584,7 +598,7 @@ export class GameScene4 extends Phaser.Scene {
     update() {
         this.updateClock();
 
-        if (this.activeHint?.autoDismiss) {
+        if (this.activeHint?.autoDismiss || this.activeHint?.waitForAudio) {
             this.dismissHint();
         }
     }
@@ -923,7 +937,7 @@ export class GameScene4 extends Phaser.Scene {
                 this.storySceneIndex,
                 this.minigameId
             ),
-            null
+            7
         );
     }
 
@@ -961,7 +975,7 @@ export class GameScene4 extends Phaser.Scene {
     }
 
     // Затемнение на весь экран, панель с текстом и стрелка «далее».
-    // Клик в любом месте закрывает экран.
+    // Клик закрывает экран после окончания озвучки, если она есть.
     createOverlay(text, { panel: panelConfig, textStyle }) {
 
         const background = this.add.rectangle(
@@ -974,7 +988,10 @@ export class GameScene4 extends Phaser.Scene {
         ).setOrigin(0);
 
         background.setInteractive({ useHandCursor: true });
-        background.on('pointerdown', () => this.dismissHint());
+        background.on('pointerdown', () => {
+            this.unlockAudio();
+            this.dismissHint();
+        });
 
         const panel = this.add.image(panelConfig.x, panelConfig.y, panelConfig.texture)
             .setOrigin(0)
@@ -1086,7 +1103,7 @@ export class GameScene4 extends Phaser.Scene {
 
         const hint = this.activeHint;
 
-        if (!hint) {
+        if (!hint || (hint.waitForAudio && this.sceneAudio?.hasActiveSounds)) {
             return;
         }
 

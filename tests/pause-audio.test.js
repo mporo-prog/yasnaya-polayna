@@ -4,6 +4,8 @@ import vm from 'node:vm';
 import test from 'node:test';
 import { fixture } from './helpers/audio-fixture.js';
 
+const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-9, `${actual} != ${expected}`);
+
 function pauseFixture() {
   const f = fixture();
   f.window.VN.scenes = {};
@@ -50,12 +52,12 @@ test('pause and settings play their own music; resume restores the game track an
   f.pause.openSettings();
   assert.equal(f.controller.current, pauseMusic);
   f.audio.saveSettings({ music: 25, ui: 50, voice: 50 });
-  assert.equal(pauseMusic.level.gain.at(2), 0.25);
+  near(pauseMusic.level.gain.at(2), 0.2);
   f.pause.events.emit('wake');
   assert.equal(f.controller.current, pauseMusic);
   f.pause.resumeGame();
   assert.equal(f.controller.current.path, 'music/a.mp3');
-  assert.equal(f.controller.current.level.gain.at(2), 0.15);
+  near(f.controller.current.level.gain.at(2), 0.12);
   assert.equal(f.controller.current.stopAt, Infinity);
   assert.equal(f.controller.effects.size, 1, 'Restoring music does not replay game effects');
   assert.equal(gameSound.ended, false);
@@ -103,7 +105,7 @@ test('rapid pause reopen restores the latest track and leaves no stale shutdown 
   f.pause.resumeGame();
   assert.equal(f.controller.current.path, 'music/c.mp3');
   assert.equal(f.controller.current.source.loop, false);
-  assert.equal(f.controller.current.level.gain.at(0), 0.2);
+  near(f.controller.current.level.gain.at(0), 0.16);
   f.advance(1);
   assert.equal(f.controller.tracks.size, 1);
   assert.equal(f.pause.events.listenerCount('shutdown'), 0);

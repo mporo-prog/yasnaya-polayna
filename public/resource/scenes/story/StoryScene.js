@@ -18,13 +18,17 @@
     constructor() {
       super('StoryScene');
     }
-
+    /**
+     * 
+     * для цитат
+     */
     getAssetManifest() {
       return {
         images: [
           { key: 'dialogTextBg', url: 'images/icon_UI/dialog_text_bg.png' },
           { key: 'historyModalBg', url: 'images/icon_UI/history_modal_bg.png' },
           { key: 'closeButton', url: 'images/icon_UI/close_button.png' },
+          { key: 'glossaryPopupBg', url: 'images/icon_UI/text_bg.png' },
         ],
       };
     }
@@ -54,6 +58,7 @@
       this.buildNavButtons();
       this.buildTopButtons();
       this.buildHistoryOverlay();
+      this.buildGlossaryOverlay();
 
       this.layout.onLayout(this, (visible, ui) => {
         this.bottomGroup.y = ui.bottom - HEIGHT;
@@ -125,10 +130,16 @@
       if (this.textures.exists(path)) {
         this.background.setTexture(path);
         this.bgLabel.setVisible(false);
-      } else {
-        this.background.setTexture(null);
-        this.bgLabel.setVisible(true).setText('Фон не найден:\n' + path);
+        return;
       }
+      // Картинка не нашлась (её ещё нет на диске/сервере). Раньше фон в
+      // этом случае гасился полностью (setTexture(null)) — пока плашка
+      // диалога была всегда непрозрачной, это было незаметно. Теперь, когда
+      // плашка сама может становиться прозрачной (см. renderCurrentScreen
+      // ниже), погашенный фон превращается в чёрный экран. Поэтому просто
+      // оставляем предыдущий фон как есть и только показываем подпись с
+      // путём — чтобы было видно, чего не хватает.
+      this.bgLabel.setVisible(true).setText('Фон не найден:\n' + path);
     }
 
     // ---- персонаж на экране (по имени говорящего) ---------------------------
@@ -175,6 +186,7 @@
 
       // Плашка реплики — бежевая, однотонная (без градиента/текстуры).
       const panelBg = this.add.image(panelLeft, panelY, 'dialogTextBg').setOrigin(0, 0).setDisplaySize(panelWidth, panelHeight);
+      this.panelBg = panelBg;
 
       // Имя героя — родитель "Диалоговое окно", позиция задана в % от его
       // размеров (от левого верхнего угла панели): 5.643% / 18.231%.
@@ -222,13 +234,24 @@
       this.dialogueText = this.add
         .text(textX, this.dialogueTextY, '', { ...dialogueTextStyle, color: '#E3D8CA' })
         .setOrigin(0, 0);
+    /**
+     * для цитат начало
+     */  
+     this.dialogueRevealedText = this.add
+      .text(textX, this.dialogueTextY, '', { ...dialogueTextStyle, color: '#1B1A19' })
+      .setOrigin(0, 0);
 
-      this.dialogueRevealedText = this.add
-        .text(textX, this.dialogueTextY, '', { ...dialogueTextStyle, color: '#1B1A19' })
-        .setOrigin(0, 0);
+    this.glossaryMeasureText = this.add
+      .text(0, 0, '', { fontFamily: dialogueTextStyle.fontFamily, fontStyle: dialogueTextStyle.fontStyle, fontSize: dialogueTextStyle.fontSize })
+      .setVisible(false);
+    this.glossaryWordOverlays = [];
 
-      this.bottomGroup.add([panelBg, this.speakerNameText, this.dialogueText, this.dialogueRevealedText]);
-    }
+    this.bottomGroup.add([panelBg, this.speakerNameText, this.dialogueText, this.dialogueRevealedText]);
+    
+  }
+  /**
+     * для цитат конец
+     */  
 
     buildNavButtons() {
       // "Далее" — абсолютная позиция на макете (не привязана к плашке):
@@ -275,13 +298,13 @@
       const menuBtn = this.makeIconButton(menuBtnLeft, menuBtnTop, 'images/icon_UI/pause_button.png', () => this.openPauseMenu(), menuBtnSize);
       menuBtn.bg.setDepth(20);
 
-      this.historyBtn = this.makeIconButton(100, 205, 'images/icon_UI/history_button.png', () => this.toggleHistory(), 70);
+      this.historyBtn = this.makeIconButton(100, 220, 'images/icon_UI/history_button.png', () => this.toggleHistory(), 70);
       this.historyBtn.bg.setDepth(20);
 
       // Прижимаем к левому верхнему углу экрана (с учётом выреза телефона),
       // а не к углу макета — на широком экране они уходят на поле.
       this.layout.pin(this, menuBtn.bg, { left: menuBtnLeft, top: menuBtnTop });
-      this.layout.pin(this, this.historyBtn.bg, { left: 100, top: 205 });
+      this.layout.pin(this, this.historyBtn.bg, { left: 100, top: 240 });
     }
 
     /** Кнопка-иконка (картинка вместо прямоугольника с текстом). */
@@ -415,7 +438,103 @@
       const scrollRatio = this.historyMaxScroll > 0 ? this.historyScrollY / this.historyMaxScroll : 0;
       this.historyScrollThumb.y = viewport.y + maxThumbTravel * scrollRatio;
     }
+    /**
+     * для цитат начало
+     */
+    buildGlossaryWordOverlays(text, entries) {
+      this.destroyGlossaryWordOverlays();
+      if (!entries || !entries.length) return;
 
+      const lines = this.dialogueText.getWrappedText(text);
+      const lineHeight = this.dialogueText.height / lines.length;
+
+      entries.forEach((entry) => {
+        for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+          const line = lines[lineIndex];
+          const charIndex = line.indexOf(entry.word);
+          if (charIndex === -1) continue;
+
+          this.glossaryMeasureText.setText(line.slice(0, charIndex));
+          const wordX = this.dialogueText.x + this.glossaryMeasureText.width;
+          const wordY = this.dialogueText.y + lineIndex * lineHeight;
+
+          const wordText = this.add
+            .text(wordX, wordY, entry.word, {
+              fontFamily: 'Ysabeau',
+              fontStyle: '700',
+              fontSize: '36px',
+              color: '#1B1A19',
+            })
+            .setOrigin(0, 0)
+            .setInteractive({ useHandCursor: true });
+
+          const underline = this.add
+            .rectangle(wordX, wordY + wordText.height - 4, wordText.width, 3, 0x1b1a19)
+            .setOrigin(0, 0)
+            .setInteractive({ useHandCursor: true });
+
+          const openPopup = () => this.openGlossaryPopup(entry.text);
+          wordText.on('pointerup', openPopup);
+          underline.on('pointerup', openPopup);
+
+          this.bottomGroup.add([wordText, underline]);
+          this.glossaryWordOverlays.push(wordText, underline);
+          break;
+        }
+      });
+    }
+
+      destroyGlossaryWordOverlays() {
+        this.glossaryWordOverlays.forEach((obj) => obj.destroy());
+        this.glossaryWordOverlays = [];
+      }
+
+      buildGlossaryOverlay() {
+        const panelW = WIDTH * 0.4;
+        const panelH = HEIGHT * 0.35;
+        const panelX = (WIDTH - panelW) / 2;
+        const panelY = (HEIGHT - panelH) / 2;
+        const textPadding = 70;
+
+        this.glossaryContainer = this.add.container(0, 0).setDepth(11).setVisible(false);
+
+        const dimBg = this.add.rectangle(0, 0, WIDTH, HEIGHT, 0x000000, 0.4).setOrigin(0, 0).setInteractive();
+        this.layout.fill(this, dimBg);
+
+        const panelBg = this.add
+          .image(panelX, panelY, 'glossaryPopupBg')
+          .setOrigin(0, 0)
+          .setDisplaySize(panelW, panelH)
+          .setInteractive();
+
+        this.glossaryText = this.add.text(panelX + textPadding, panelY + textPadding, '', {
+          fontFamily: 'Ysabeau',
+          fontSize: '28px',
+          color: '#3f2f22',
+          wordWrap: { width: panelW - textPadding * 2 },
+          lineSpacing: 10,
+        });
+
+        const closeBtn = this.add
+          .image(panelX + panelW - 50, panelY + 50, 'closeButton')
+          .setDisplaySize(60, 60)
+          .setInteractive({ useHandCursor: true });
+        closeBtn.on('pointerup', () => this.closeGlossaryPopup());
+
+        this.glossaryContainer.add([dimBg, panelBg, this.glossaryText, closeBtn]);
+      }
+
+      openGlossaryPopup(text) {
+        this.glossaryText.setText(text);
+        this.glossaryContainer.setVisible(true);
+      }
+
+      closeGlossaryPopup() {
+        this.glossaryContainer.setVisible(false);
+      }
+        /**
+     * для цитат конец
+     */
     // ---- логика переключения экранов -----------------------------------------
 
     /**
@@ -444,6 +563,21 @@
       this.setCharacter(speakerName);
       this.speakerNameText.setText(speakerName || '');
       this.dialogueText.setText(text);
+
+      // Если у реплики нет ни персонажа, ни текста — плашка диалога не
+      // нужна, делаем её полностью прозрачной. Всё остальное (кнопки
+      // "Далее"/"Назад", фон, персонаж) не трогаем — это отдельные объекты.
+      const hasSpeakerOrText = Boolean(speakerName) || Boolean(text);
+      this.panelBg.setAlpha(hasSpeakerOrText ? 1 : 0);
+
+      /**
+       * для цитат начало
+       */
+        const glossaryEntries = window.VN.data.getGlossaryLinksFor(this.storySceneIndex, this.screenIndex);
+        this.buildGlossaryWordOverlays(text, glossaryEntries); 
+/**
+       * для цитат конец
+       */
 
       // Общая верхняя точка для обоих слоёв текста реплики — фиксированная,
       // по дизайну (this.dialogueTextY, см. buildBottomBar), а не по центру

@@ -551,7 +551,7 @@ export class GameScene1 extends Phaser.Scene {
 
     createWinOverlay() {
         this.winOverlay = this.createOverlay(
-            'Ура пабеда едем дальше',
+            'Игра пройдена!',
             () => this.dismissHint(),
             { panel: INSTRUCTION_PANEL, textStyle: RESULT_MESSAGE_TEXT_STYLE }
         );
@@ -565,7 +565,7 @@ export class GameScene1 extends Phaser.Scene {
 
     createIntroOverlay() {
         this.introOverlay = this.createOverlay(
-            'Прослушайте песню птиц и попробуйте повторить ее.',
+            'Запомни голоса птиц и верно распредели их.',
             () => {
                 // Если браузер запретил автозапуск, первый клик запускает голос,
                 // но не закрывает инструкцию до окончания записи.

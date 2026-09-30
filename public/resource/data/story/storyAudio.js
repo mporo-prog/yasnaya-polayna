@@ -77,9 +77,57 @@ window.VN.data.storyAudio = [
     ],
   },
   // Сюжетная сцена 4
-  { music: null, sounds: [], screens: [{ sounds: [] }, { sounds: [] }, { sounds: [] }] },
+  {
+    music: null, // { path: 'music/theme.mp3', volume: 0.8, loop: true }
+    transition: {
+    type: 'crossfade',
+    fadeOutDuration: 1,
+    fadeInDuration: 1,
+    fadeOutDelay: 0,
+    fadeInDelay: 0.5,
+  },
+    transitionSound: null, // { path: 'ui/transition.mp3', volume: 0.6, delay: 0 }
+    sounds: [], // Звуки при входе в сцену, например { path: 'voice_and_sound/intro.mp3' }
+    screens: [
+      { voice: { path: 'voice_and_sound/screen1_scene4_secretary.wav'}, sounds: [] },
+      { voice: { path: 'voice_and_sound/screen1_scene4_posetitel.wav'}, sounds: [] },
+    ],
+  },
   // Сюжетная сцена 5
-  { music: null, sounds: [], screens: [{ sounds: [] }, { sounds: [] }, { sounds: [] }] },
+  {
+    music: null, // { path: 'music/theme.mp3', volume: 0.8, loop: true }
+    transition: {
+    type: 'crossfade',
+    fadeOutDuration: 1,
+    fadeInDuration: 1,
+    fadeOutDelay: 0,
+    fadeInDelay: 0.5,
+  },
+    transitionSound: null, // { path: 'ui/transition.mp3', volume: 0.6, delay: 0 }
+    sounds: [], // Звуки при входе в сцену, например { path: 'voice_and_sound/intro.mp3' }
+    screens: [
+      { voice: { path: 'voice_and_sound/screen1_scene5_boy.wav'}, sounds: [] },
+      { voice: { path: 'voice_and_sound/screen1_scene5_posetitel.wav'}, sounds: [] },
+      { voice: { path: 'voice_and_sound/screen2_scene5_tolstoy.wav'}, sounds: [] },
+      { voice: { path: 'voice_and_sound/screen2_scene5_posetitel.wav',}, sounds: [] },
+      { voice: { path: 'voice_and_sound/screen2_scene5_tolstoy2.wav'}, sounds: [] },
+      { voice: { path: 'voice_and_sound/screen2_scene5_posetitel2.wav'}, sounds: [] },
+    ],
+  },
   // Сюжетная сцена 6
-  { music: null, sounds: [], screens: [{ sounds: [] }, { sounds: [] }, { sounds: [] }] },
+  {
+    music: null, // { path: 'music/theme.mp3', volume: 0.8, loop: true }
+    transition: {
+    type: 'crossfade',
+    fadeOutDuration: 1,
+    fadeInDuration: 1,
+    fadeOutDelay: 0,
+    fadeInDelay: 0.5,
+  },
+    transitionSound: null, // { path: 'ui/transition.mp3', volume: 0.6, delay: 0 }
+    sounds: [], // Звуки при входе в сцену, например { path: 'voice_and_sound/intro.mp3' }
+    screens: [
+      { voice: { path: 'voice_and_sound/screen1_scene6_tolstoy.wav'}, sounds: [] },
+    ],
+  },
 ];

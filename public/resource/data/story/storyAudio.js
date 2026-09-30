@@ -147,7 +147,7 @@ window.VN.data.storyAudio = [
     },
     sounds: [], // Звуки при входе в сцену, например { path: 'voice_and_sound/intro.mp3' }
     screens: [
-      { voice: { path: 'voice_and_sound/screen1_scene6_tolstoy.wav'}, sounds: [] },
+      { voice: { path: 'voice_and_sound/screen1_scene6_tolstoy.wav', delay: 0, margin: 2}, sounds: [] },
     ],
   },
 ];

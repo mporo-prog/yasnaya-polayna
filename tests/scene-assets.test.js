@@ -177,6 +177,14 @@ test('menu needs only its visuals; a story includes only its own speakers, image
   assert.ok(overridden.every((asset) => asset.type === 'image'));
 });
 
+test('story preloads a silent character and the background revealed later on the same screen', () => {
+  const f = fixture();
+  f.data.storyLines[0] = [{ speaker: '', character: 'B', backgroundChange: { path: 'house.png', delay: 2000 } }];
+  const keys = f.assets.assetsFor(f.game, 'StoryScene', { storySceneIndex: 0 }).map((asset) => asset.key);
+  assert.ok(keys.includes('b.png'));
+  assert.ok(keys.includes('house.png'));
+});
+
 test('actual menu and story manifests include UI texture aliases backed by existing PNG files', () => {
   const f = fixture();
   const expected = {

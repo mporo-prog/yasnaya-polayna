@@ -8,9 +8,11 @@ import { fixture as audioFixture } from './helpers/audio-fixture.js';
 function displayObject() {
   const object = new EventEmitter();
   object.text = '';
-  for (const method of ['setInteractive', 'disableInteractive', 'setDisplaySize', 'setAlpha', 'setY']) {
+  for (const method of ['setInteractive', 'disableInteractive', 'setDisplaySize', 'setY']) {
     object[method] = () => object;
   }
+  object.setAlpha = (alpha) => { object.alpha = alpha; return object; };
+  object.setVisible = (visible) => { object.visible = visible; return object; };
   object.setText = (text) => { object.text = text; return object; };
   object.getWrappedText = (text) => [text];
   return object;
@@ -49,10 +51,15 @@ function fixture() {
   }
 
   let now = 1000;
+  const timers = new Set();
   f.game.getTime = () => now;
   const story = new f.window.VN.scenes.StoryScene();
   Object.assign(story, f.scene(), {
-    time: { now },
+    time: { now, delayedCall(delay, callback) {
+      const timer = { remaining: delay, paused: false, callback, remove() { timers.delete(timer); } };
+      timers.add(timer);
+      return timer;
+    } },
     add: { container: () => ({}), image: displayObject },
     panelBg: displayObject(), speakerNameText: displayObject(),
     dialogueText: displayObject(), dialogueRevealedText: displayObject(),
@@ -64,13 +71,25 @@ function fixture() {
     'setBackground', 'setCharacter', 'buildGlossaryWordOverlays']) {
     story[method] = () => {};
   }
-  function start(index) {
-    story.init({ storySceneIndex: index, screenIndex: 0 });
+  const backgrounds = [];
+  story.setBackground = (path) => { backgrounds.push(path); };
+  story.setCharacter = (name) => { story.characterName = name; };
+  function start(index, screenIndex = 0) {
+    story.init({ storySceneIndex: index, screenIndex });
     story.create();
   }
   function tick(time) {
+    const delta = time - now;
     now = time;
     story.time.now = time;
+    for (const timer of [...timers]) {
+      if (timer.paused) continue;
+      timer.remaining -= delta;
+      if (timer.remaining <= 0) {
+        timers.delete(timer);
+        timer.callback();
+      }
+    }
     story.update(time);
   }
   function finishMinigame(index) {
@@ -82,8 +101,116 @@ function fixture() {
       } },
     }, index, `story_${index + 1}_minigame`);
   }
-  return { ...f, story, start, tick, finishMinigame, savedScreens, setNow: (time) => { now = time; } };
+  return { ...f, story, start, tick, finishMinigame, savedScreens, backgrounds, setNow: (time) => { now = time; } };
 }
+
+test('story 2 opens with the visitor and advances after two seconds despite active audio', () => {
+  const f = fixture();
+  f.start(1);
+  assert.equal(f.story.characterName, 'ПОСЕТИТЕЛЬ');
+  assert.equal(f.story.panelBg.alpha, 0);
+  assert.equal(f.story.speakerNameText.text, '');
+  const introVoice = f.story.voiceTrack;
+  f.tick(2999);
+  assert.equal(f.story.screenIndex, 0);
+  assert.equal(f.story.voiceActive, true);
+  f.tick(3000);
+  assert.equal(f.story.screenIndex, 1);
+  assert.deepEqual(f.savedScreens.at(-1), [1, 1]);
+  assert.notEqual(f.story.voiceTrack, introVoice);
+  f.tick(6000);
+  assert.equal(f.story.screenIndex, 1, 'The intro timer must only advance once');
+});
+
+test('story 2 screen 12 changes road2 to house after two seconds without restarting the screen', () => {
+  const f = fixture();
+  f.start(1, 11);
+  const voice = f.story.voiceTrack;
+  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/road2.png');
+  f.tick(2999);
+  assert.equal(f.backgrounds.length, 1);
+  f.tick(3000);
+  assert.deepEqual(f.backgrounds, ['images/backgrounds/road2.png', 'images/backgrounds/house.png']);
+  assert.equal(f.story.screenIndex, 11);
+  assert.equal(f.savedScreens.length, 1);
+  assert.equal(f.story.voiceTrack, voice, 'Changing the background preserves the current audio');
+  f.story.goNext();
+  assert.equal(f.story.screenIndex, 12, 'After the timed change, one click advances');
+});
+
+test('an early click on screen 12 changes the background; the second advances and cancels the timer', () => {
+  const f = fixture();
+  f.start(1, 11);
+  f.tick(1500);
+  f.story.goNext();
+  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/house.png');
+  assert.equal(f.story.screenIndex, 11);
+  f.story.goNext();
+  assert.equal(f.story.screenIndex, 12);
+  f.tick(4000);
+  assert.equal(f.story.screenIndex, 12);
+  assert.deepEqual(f.backgrounds, [
+    'images/backgrounds/road2.png', 'images/backgrounds/house.png', 'images/backgrounds/hat.png',
+  ]);
+});
+
+test('an early background change stays on screen 12 past the original deadline', () => {
+  const f = fixture();
+  f.start(1, 11);
+  f.story.goNext();
+  f.tick(6000);
+  assert.equal(f.story.screenIndex, 11);
+  assert.equal(f.backgrounds.length, 2);
+  f.story.goNext();
+  assert.equal(f.story.screenIndex, 12);
+});
+
+test('back cancels the background timer and returning to screen 12 starts again from road2', () => {
+  const f = fixture();
+  f.start(1, 11);
+  f.tick(1500);
+  f.story.goBack();
+  f.tick(4000);
+  assert.equal(f.story.screenIndex, 10);
+  assert.ok(!f.backgrounds.includes('images/backgrounds/house.png'));
+  f.story.goNext();
+  assert.equal(f.story.screenIndex, 11);
+  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/road2.png');
+  f.tick(5999);
+  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/road2.png');
+  f.tick(6000);
+  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/house.png');
+});
+
+test('leaving the scene cancels both kinds of screen timer', () => {
+  for (const screenIndex of [0, 11]) {
+    const f = fixture();
+    f.start(1, screenIndex);
+    f.story.events.emit('shutdown');
+    f.tick(5000);
+    assert.equal(f.story.screenIndex, screenIndex);
+    assert.equal(f.backgrounds.length, 1);
+  }
+});
+
+test('history suspends a screen timer and closing it continues the remaining delay', () => {
+  const f = fixture();
+  f.start(1, 0);
+  Object.assign(f.story, {
+    historyContainer: displayObject(), historyBtn: { bg: displayObject() },
+    historyText: displayObject(), setHistoryScroll() {},
+  });
+  f.window.VN.systems.GameState.getFullHistory = () => [];
+  f.tick(2000);
+  f.story.toggleHistory();
+  f.tick(10000);
+  assert.equal(f.story.screenIndex, 0);
+  f.story.toggleHistory();
+  f.tick(10999);
+  assert.equal(f.story.screenIndex, 0);
+  f.tick(11000);
+  assert.equal(f.story.screenIndex, 1);
+});
 
 for (const game of [2, 3, 4, 5]) {
   test(`game${game} -> story ${game + 1}: reused scene animates its first line after a long minigame`, () => {

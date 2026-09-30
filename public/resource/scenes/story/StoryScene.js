@@ -77,6 +77,7 @@
         document.removeEventListener('visibilitychange', this.onVisibilityChange);
         // Уходим со сцены (например, в мини-игру) — озвучка не должна звучать вслед.
         this.stopVoice();
+        this.clearScreenTimer();
       });
     }
 
@@ -553,6 +554,7 @@
      */
     renderCurrentScreen(options = {}) {
       const skipVoice = options.skipVoice === true;
+      this.clearScreenTimer();
 
       // Реплика предыдущего экрана могла ещё озвучиваться — обрываем её.
       this.stopVoice();
@@ -569,7 +571,7 @@
       const voiceConfig = storyAudio?.screens?.[this.screenIndex]?.voice || null;
 
       this.setBackground(backgroundPath);
-      this.setCharacter(speakerName);
+      this.setCharacter(entry.character ?? speakerName);
       this.speakerNameText.setText(speakerName || '');
       this.dialogueText.setText(text);
 
@@ -615,16 +617,53 @@
       this.backBtn.bg.setAlpha(isFirstScreen ? 0.4 : 1);
       if (isFirstScreen) this.backBtn.bg.disableInteractive();
       else this.backBtn.bg.setInteractive({ useHandCursor: true });
+
+      this.scheduleScreenAction(entry);
+    }
+
+    clearScreenTimer() {
+      this.screenTimer?.remove(false);
+      this.screenTimer = null;
+    }
+
+    scheduleScreenAction(entry) {
+      this.pendingBackgroundPath = entry.backgroundChange?.path ?? null;
+      const delay = this.pendingBackgroundPath ? entry.backgroundChange.delay : entry.autoAdvanceDelay;
+      if (delay == null) return;
+
+      // Часы Phaser останавливаются вместе со сценой в меню паузы.
+      this.screenTimer = this.time.delayedCall(delay, () => {
+        this.screenTimer = null;
+        if (this.pendingBackgroundPath) this.changeScreenBackground();
+        else this.advanceScreen();
+      });
+      this.screenTimer.paused = this.historyVisible;
+    }
+
+    changeScreenBackground() {
+      if (!this.pendingBackgroundPath) return false;
+      this.clearScreenTimer();
+      this.setBackground(this.pendingBackgroundPath);
+      this.pendingBackgroundPath = null;
+      return true;
     }
 
     goNext() {
+      // Смена фона — отдельный шаг внутри экрана. После него следующий
+      // клик переходит дальше, даже если озвучка ещё не закончилась.
+      if (this.changeScreenBackground()) return;
+
       // Пока играет озвучка — первый клик "Далее" только обрывает её и
       // сразу дозаполняет текст реплики целиком, экран пока не меняется.
-      if (this.voiceActive) {
+      if (this.voiceActive && !this.currentLines[this.screenIndex].backgroundChange) {
         this.skipVoice();
         return;
       }
 
+      this.advanceScreen();
+    }
+
+    advanceScreen() {
       if (this.screenIndex < this.totalScreensInThisScene - 1) {
         this.screenIndex += 1;
         this.renderCurrentScreen();
@@ -758,6 +797,7 @@
     }
 
     startMinigame() {
+      this.clearScreenTimer();
       const GameState = window.VN.systems.GameState;
       GameState.markMinigameStarted();
 
@@ -779,6 +819,7 @@
       }
 
       this.historyVisible = !this.historyVisible;
+      if (this.screenTimer) this.screenTimer.paused = this.historyVisible;
       this.historyContainer.setVisible(this.historyVisible);
       // Иконка "История" пропадает, пока открыто окно, и появляется снова
       // при закрытии — один toggle, без повторного переключения.

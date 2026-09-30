@@ -130,10 +130,16 @@
       if (this.textures.exists(path)) {
         this.background.setTexture(path);
         this.bgLabel.setVisible(false);
-      } else {
-        this.background.setTexture(null);
-        this.bgLabel.setVisible(true).setText('Фон не найден:\n' + path);
+        return;
       }
+      // Картинка не нашлась (её ещё нет на диске/сервере). Раньше фон в
+      // этом случае гасился полностью (setTexture(null)) — пока плашка
+      // диалога была всегда непрозрачной, это было незаметно. Теперь, когда
+      // плашка сама может становиться прозрачной (см. renderCurrentScreen
+      // ниже), погашенный фон превращается в чёрный экран. Поэтому просто
+      // оставляем предыдущий фон как есть и только показываем подпись с
+      // путём — чтобы было видно, чего не хватает.
+      this.bgLabel.setVisible(true).setText('Фон не найден:\n' + path);
     }
 
     // ---- персонаж на экране (по имени говорящего) ---------------------------
@@ -180,6 +186,7 @@
 
       // Плашка реплики — бежевая, однотонная (без градиента/текстуры).
       const panelBg = this.add.image(panelLeft, panelY, 'dialogTextBg').setOrigin(0, 0).setDisplaySize(panelWidth, panelHeight);
+      this.panelBg = panelBg;
 
       // Имя героя — родитель "Диалоговое окно", позиция задана в % от его
       // размеров (от левого верхнего угла панели): 5.643% / 18.231%.
@@ -556,6 +563,12 @@
       this.setCharacter(speakerName);
       this.speakerNameText.setText(speakerName || '');
       this.dialogueText.setText(text);
+
+      // Если у реплики нет ни персонажа, ни текста — плашка диалога не
+      // нужна, делаем её полностью прозрачной. Всё остальное (кнопки
+      // "Далее"/"Назад", фон, персонаж) не трогаем — это отдельные объекты.
+      const hasSpeakerOrText = Boolean(speakerName) || Boolean(text);
+      this.panelBg.setAlpha(hasSpeakerOrText ? 1 : 0);
 
       /**
        * для цитат начало

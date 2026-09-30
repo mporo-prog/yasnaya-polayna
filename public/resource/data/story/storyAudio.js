@@ -14,7 +14,7 @@ window.VN.data.storyAudio = [
     fadeOutDuration: 1,
     fadeInDuration: 1,
     fadeOutDelay: 0,
-    fadeInDelay: 0.5,
+    fadeInDelay: 1,
   },
     transitionSound: null, // { path: 'ui/transition.mp3', volume: 0.6, delay: 0 }
     sounds: [], // Звуки при входе в сцену, например { path: 'voice_and_sound/intro.mp3' }
@@ -35,7 +35,7 @@ window.VN.data.storyAudio = [
     fadeOutDuration: 1,
     fadeInDuration: 1,
     fadeOutDelay: 0,
-    fadeInDelay: 0.5,
+    fadeInDelay: 1,
   },
     transitionSound: {
       path: 'ui/swipe.wav', // Отдельный эффект перехода
@@ -68,7 +68,7 @@ window.VN.data.storyAudio = [
     fadeOutDuration: 1,
     fadeInDuration: 1,
     fadeOutDelay: 0,
-    fadeInDelay: 0.5,
+    fadeInDelay: 1,
   },
     transitionSound: {
       path: 'ui/swipe.wav', // Отдельный эффект перехода
@@ -92,7 +92,7 @@ window.VN.data.storyAudio = [
     fadeOutDuration: 1,
     fadeInDuration: 1,
     fadeOutDelay: 0,
-    fadeInDelay: 0.5,
+    fadeInDelay: 1,
   },
     transitionSound: {
       path: 'ui/swipe.wav', // Отдельный эффект перехода
@@ -113,7 +113,7 @@ window.VN.data.storyAudio = [
     fadeOutDuration: 1,
     fadeInDuration: 1,
     fadeOutDelay: 0,
-    fadeInDelay: 0.5,
+    fadeInDelay: 1,
   },
     transitionSound: {
       path: 'ui/swipe.wav', // Отдельный эффект перехода
@@ -138,7 +138,7 @@ window.VN.data.storyAudio = [
     fadeOutDuration: 1,
     fadeInDuration: 1,
     fadeOutDelay: 0,
-    fadeInDelay: 0.5,
+    fadeInDelay: 1,
   },
     transitionSound: {
       path: 'ui/swipe.wav', // Отдельный эффект перехода

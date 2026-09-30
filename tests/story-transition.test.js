@@ -24,13 +24,14 @@ function camera() {
 function displayObject() {
   const object = new EventEmitter();
   object.text = '';
-  for (const method of ['setInteractive', 'disableInteractive', 'setDisplaySize', 'setY']) {
+  for (const method of ['setInteractive', 'disableInteractive', 'setDisplaySize', 'setY', 'setOrigin', 'add']) {
     object[method] = () => object;
   }
   object.setAlpha = (alpha) => { object.alpha = alpha; return object; };
   object.setVisible = (visible) => { object.visible = visible; return object; };
   object.setText = (text) => { object.text = text; return object; };
   object.getWrappedText = (text) => [text];
+  object.destroy = () => { object.destroyed = true; };
   return object;
 }
 
@@ -38,6 +39,8 @@ function fixture() {
   const f = audioFixture();
   f.window.VN.scenes = {};
   const savedScreens = [];
+  const navigations = [];
+  f.window.location = { assign: (url) => navigations.push(url) };
   Object.assign(f.window.VN.systems, {
     GameState: {
       state: {}, save() {}, addHistoryEntry() {}, markMinigameCompleted() {},
@@ -77,12 +80,23 @@ function fixture() {
       timers.add(timer);
       return timer;
     } },
-    add: { container: () => ({}), image: displayObject },
+    add: { container: displayObject, image: displayObject, text: displayObject,
+      video: () => {
+        const video = displayObject();
+        video.loadURL = (url, noAudio) => { Object.assign(video, { url, noAudio }); return video; };
+        video.play = (loop) => { Object.assign(video, { loop, playing: true }); return video; };
+        video.setPaused = (paused) => { video.paused = paused; return video; };
+        return video;
+      },
+    },
+    background: { stage: displayObject() },
     panelBg: displayObject(), speakerNameText: displayObject(),
     dialogueText: displayObject(), dialogueRevealedText: displayObject(),
     glossaryWordOverlays: [],
     backBtn: { bg: displayObject() },
+    pauseBtn: { bg: displayObject() }, historyBtn: { bg: displayObject() },
   });
+  story.scene = { stop: () => story.events.emit('shutdown') };
   // Only the visual construction is stubbed; lifecycle, rendering, audio and navigation are real.
   for (const method of ['buildBackgroundLayer', 'buildCharacterLayer', 'buildBottomBar',
     'buildNavButtons', 'buildTopButtons', 'buildHistoryOverlay', 'buildGlossaryOverlay',
@@ -135,7 +149,7 @@ function fixture() {
     fade.update(0, fade.duration);
   }
   return { ...f, story, mini, starts, start, tick, beginMinigameExit, finishMinigame,
-    savedScreens, backgrounds, setNow: (time) => { now = time; } };
+    savedScreens, backgrounds, navigations, setNow: (time) => { now = time; } };
 }
 
 test('story 2 opens with the visitor and advances after two seconds despite active audio', () => {
@@ -347,7 +361,7 @@ test('going back from the pond cancels its timer; unavailable voice still allows
   f.tick(10000);
   assert.equal(f.story.screenIndex, 0);
   assert.equal(f.backgrounds.at(-1), 'images/backgrounds/cafetary.png');
-  assert.equal(f.story.characterName, 'ПАЦАН');
+  assert.equal(f.story.characterName, 'ПАЦАН ');
   assert.equal(f.story.panelBg.alpha, 1);
   assert.equal(f.story.dialogueText.text, f.story.currentLines[0].text);
 });
@@ -427,13 +441,18 @@ for (const game of [2, 3, 4, 5]) {
     await f.finishMinigame(game - 1);
     const { story } = f;
     assert.equal(story.screenIndex, 0);
-    assert.equal(story.dialogueRevealedText.text, '');
+    if (game !== 5) assert.equal(story.dialogueRevealedText.text, '');
+    if (game === 5) {
+      assert.equal(story.portraitPhase, 'animation');
+      assert.equal(story.voiceActive, false);
+      story.portraitVideo.emit('complete');
+    }
     f.tick(120016);
     assert.equal(story.voiceActive, true);
     assert.notEqual(story.dialogueRevealedText.text, story.voiceFullText);
-    f.tick(125000);
+    f.tick(game === 5 ? 125016 : 125000);
     assert.equal(story.dialogueRevealedText.text, story.voiceRevealText.slice(0, Math.floor(story.voiceRevealText.length / 2)));
-    f.tick(130000);
+    f.tick(game === 5 ? 130016 : 130000);
     assert.equal(story.dialogueRevealedText.text, story.voiceFullText);
     assert.equal(story.voiceActive, false);
     assert.deepEqual(f.savedScreens.at(-1), [game, 0]);
@@ -441,8 +460,134 @@ for (const game of [2, 3, 4, 5]) {
   });
 }
 
+test('portrait animation is silent, unskippable and plays once before the dialogue', () => {
+  const f = fixture();
+  f.start(5);
+  const video = f.story.portraitVideo;
+  assert.equal(video.loop, false);
+  assert.equal(video.noAudio, true);
+  assert.equal(f.sources.length, 0);
+  assert.equal(f.story.bottomGroup.visible, false);
+  for (const action of ['goNext', 'goBack', 'advanceScreen', 'startMinigame', 'toggleHistory']) f.story[action]();
+  f.tick(20000);
+  assert.equal(f.story.portraitPhase, 'animation', 'No fixed timer can skip a buffering video');
+  assert.equal(f.sources.length, 0);
+  video.emit('complete');
+  f.tick(20016);
+  assert.equal(f.story.portraitPhase, 'dialogue');
+  assert.equal(f.story.bottomGroup.visible, true);
+  assert.equal(f.story.voiceActive, true);
+  assert.equal(f.story.voiceStartTime, 20016);
+  video.emit('complete');
+  f.tick(21016);
+  assert.equal(f.story.voiceStartTime, 20016, 'Completion cannot restart the phrase');
+});
+
+test('natural voice end hides controls and shows the title for exactly four seconds', () => {
+  const f = fixture();
+  f.start(5);
+  f.story.portraitVideo.emit('complete');
+  f.tick(1016);
+  f.tick(12000);
+  assert.equal(f.story.portraitPhase, 'dialogue', 'Wait for audio, not just subtitle reveal');
+  f.advance(10);
+  f.tick(12016);
+  assert.equal(f.story.portraitPhase, 'hold');
+  assert.equal(f.story.bottomGroup.visible, false);
+  assert.equal(f.story.pauseBtn.bg.visible, false);
+  assert.equal(f.story.historyBtn.bg.visible, false);
+  assert.ok(f.story.portraitTitle);
+  for (const action of ['goNext', 'goBack', 'advanceScreen', 'openPauseMenu', 'toggleHistory']) f.story[action]();
+  f.tick(16015);
+  assert.equal(f.navigations.length, 0);
+  f.tick(16016);
+  assert.deepEqual(f.navigations, ['games/finish/index.html']);
+  f.tick(20000);
+  assert.equal(f.navigations.length, 1);
+});
+
+test('portrait dialogue keeps normal skip behavior and the title duration is configurable', () => {
+  const f = fixture();
+  f.window.VN.data.storyLines[5][0].portraitReveal.holdDuration = 1500;
+  f.start(5);
+  f.story.portraitVideo.emit('complete');
+  f.tick(1016);
+  const voice = f.story.voiceTrack;
+  f.story.goNext();
+  f.tick(1032);
+  assert.equal(voice.ended, true);
+  assert.equal(f.story.dialogueRevealedText.text, f.story.currentLines[0].text);
+  assert.equal(f.story.portraitPhase, 'dialogue', 'First click reveals the full phrase');
+  f.story.goNext();
+  assert.equal(f.story.portraitPhase, 'hold');
+  f.tick(2531);
+  assert.equal(f.navigations.length, 0);
+  f.tick(2532);
+  assert.equal(f.navigations.length, 1);
+});
+
+test('portrait video pauses with the scene and shutdown removes media and pending callbacks', () => {
+  const f = fixture();
+  f.start(5);
+  const video = f.story.portraitVideo;
+  f.story.events.emit('pause');
+  assert.equal(video.paused, true);
+  f.story.events.emit('resume');
+  assert.equal(video.paused, false);
+  const mainCamera = f.story.cameras.main;
+  f.story.cameras.main = undefined; // Phaser's CameraManager shuts down first.
+  f.story.events.emit('shutdown');
+  f.story.cameras.main = mainCamera;
+  assert.equal(video.destroyed, true);
+  assert.equal(video.listenerCount('complete'), 0);
+  assert.equal(f.story.events.listenerCount('pause'), 0);
+  assert.equal(f.story.events.listenerCount('resume'), 0);
+  f.tick(30000);
+  assert.equal(f.navigations.length, 0);
+  f.start(0);
+  assert.equal(f.story.portraitPhase, null);
+  assert.equal(f.story.voiceActive, true);
+});
+
+test('leaving during the portrait hold cancels final navigation', () => {
+  const f = fixture();
+  f.start(5);
+  f.story.portraitVideo.emit('complete');
+  f.tick(1016);
+  f.story.goNext();
+  f.story.goNext();
+  f.story.events.emit('shutdown');
+  f.tick(20000);
+  assert.equal(f.navigations.length, 0);
+});
+
+test('portrait waits until the minigame fade ends before playing', async () => {
+  const f = fixture();
+  await f.finishMinigame(4);
+  assert.equal(f.story.portraitVideo.playing, undefined);
+  f.tick(1375);
+  assert.equal(f.story.portraitVideo.playing, true);
+  assert.equal(f.story.voiceActive, false);
+});
+
+test('video failure falls back to the existing painting and a missing voice remains readable', () => {
+  const f = fixture();
+  f.buffers.delete(f.audio.getUrl('voice_and_sound/screen1_scene6_tolstoy.wav'));
+  f.start(5);
+  f.story.portraitVideo.emit('error');
+  f.tick(1016);
+  assert.equal(f.story.portraitPhase, 'dialogue');
+  assert.equal(f.story.portraitVideo.visible, false);
+  assert.equal(f.story.dialogueRevealedText.text, f.story.currentLines[0].text);
+  f.tick(20000);
+  assert.equal(f.story.portraitPhase, 'dialogue');
+  f.story.goNext();
+  assert.equal(f.story.portraitPhase, 'hold');
+});
+
 test('cold story entry after loading also uses current game time, preserving voice delay and margin', () => {
   const f = fixture();
+  Object.assign(f.window.VN.data.storyAudio[0].screens[0].voice, { delay: 4, margin: 1 });
   f.setNow(120000);
   f.start(0); // First line: 4 second delay, 1 second margin, 10 second test buffer.
   f.tick(123999);

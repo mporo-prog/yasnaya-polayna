@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<title>Проверка финального портрета</title>
+<style>
+  body { margin: 16px; font: 16px system-ui; background: #efe8dc; color: #302820; }
+  iframe { width: min(960px, 100%); aspect-ratio: 16 / 9; border: 0; }
+  #captures { display: flex; flex-wrap: wrap; gap: 12px; }
+  figure { margin: 0; width: min(600px, 100%); }
+  figure img { width: 100%; }
+</style>
+<h1>Сюжетная сцена 6</h1>
+<label>Формат <select id="aspect"><option value="16 / 9">16:9</option><option value="4 / 3">4:3</option></select></label>
+<button id="run">Проверить автоматический переход</button>
+<pre id="results">Анимация → реплика → портрет с подписью → финальный экран</pre>
+<iframe id="site" title="Игра"></iframe>
+<div id="captures"></div>
+<script type="module">
+  const output = document.querySelector('#results');
+  const frame = document.querySelector('#site');
+  const button = document.querySelector('#run');
+  document.querySelector('#aspect').onchange = event => { frame.style.aspectRatio = event.target.value; };
+  const assert = (condition, message) => { if (!condition) throw new Error(message); };
+  const waitFor = async (condition) => {
+    const deadline = performance.now() + 30000;
+    while (!condition()) {
+      if (performance.now() > deadline) throw new Error('Timeout: ' + condition);
+      await new Promise(resolve => setTimeout(resolve, 25));
+    }
+  };
+  button.onclick = async () => {
+    button.disabled = true;
+    const saves = new Map(['vn_save_v1', 'game4_save_v1', 'vn_audio_settings_v1']
+      .map(key => [key, localStorage.getItem(key)]));
+    output.textContent = 'Проверка…';
+    document.querySelector('#captures').replaceChildren();
+    const pass = text => { output.textContent += '\nPASS ' + text; };
+    let game;
+    const capture = label => new Promise(resolve => game.renderer.snapshot(image => {
+      const figure = document.createElement('figure');
+      const caption = document.createElement('figcaption');
+      caption.textContent = label;
+      figure.append(caption, image);
+      document.querySelector('#captures').append(figure);
+      resolve();
+    }));
+    try {
+      localStorage.removeItem('vn_save_v1');
+      localStorage.removeItem('game4_save_v1');
+      localStorage.setItem('vn_audio_settings_v1', JSON.stringify({ music: 0, ui: 0, voice: 0 }));
+      frame.src = '../';
+      await waitFor(() => frame.contentWindow.game?.scene.isActive('MainMenuScene'));
+      game = frame.contentWindow.game;
+      // The Run button unlocks audio, but keep the browser test quiet.
+      await game.sound.context.resume();
+      game.scene.getScene('MainMenuScene').scene.start('StoryScene', { storySceneIndex: 5, screenIndex: 0 });
+      await waitFor(() => game.scene.isActive('StoryScene'));
+      const story = game.scene.getScene('StoryScene');
+      await waitFor(() => story.portraitVideo?.video?.currentTime > 0.2);
+      assert(story.portraitPhase === 'animation' && !story.voiceActive, 'Video must precede voice');
+      assert(!story.bottomGroup.visible && !story.historyBtn.bg.visible, 'Dialogue controls must be hidden');
+      assert(!story.portraitVideo.video.loop && story.portraitVideo.video.muted, 'Silent, non-looping video');
+      assert(Math.abs(story.portraitVideo.video.duration - 4.87) < 0.1, 'Use the accelerated GIF');
+      story.goNext();
+      story.goBack();
+      assert(story.portraitPhase === 'animation', 'Video cannot be skipped');
+      await capture('Проявление портрета');
+      pass('Новая анимация 4,87 с, без зацикливания и пропуска');
+      game.scene.pause('StoryScene');
+      const pausedAt = story.portraitVideo.video.currentTime;
+      await new Promise(resolve => setTimeout(resolve, 250));
+      assert(Math.abs(story.portraitVideo.video.currentTime - pausedAt) < 0.1, 'Video pauses with scene');
+      game.scene.resume('StoryScene');
+      await waitFor(() => story.portraitPhase === 'dialogue');
+      assert(story.portraitVideo.video.ended && story.voiceActive, 'Real video end starts voice');
+      assert(story.bottomGroup.visible, 'Dialogue is visible');
+      await capture('Озвученная реплика');
+      pass('После паузы анимация продолжается; реплика запускается только в конце');
+      const voice = story.voiceTrack;
+      await waitFor(() => story.portraitPhase === 'hold');
+      const holdAt = performance.now();
+      assert(voice.ended, 'Wait for real audio end');
+      assert(!story.bottomGroup.visible && !story.pauseBtn.bg.visible && !story.historyBtn.bg.visible,
+        'Only the painting and its title remain');
+      const bounds = story.portraitTitle.getBounds();
+      const camera = story.cameras.main;
+      assert(bounds.left >= camera.scrollX && bounds.right <= camera.scrollX + camera.width,
+        'The title must fit within the visible viewport');
+      await capture('Портрет с названием');
+      story.goNext();
+      assert(story.portraitPhase === 'hold', 'Clicks cannot bypass the hold');
+      await waitFor(() => frame.contentWindow.location.pathname.endsWith('/games/finish/index.html'));
+      const elapsed = performance.now() - holdAt;
+      assert(elapsed >= 3800 && elapsed < 6500, 'Configured four-second hold: ' + elapsed);
+      pass('Реплика завершилась → портрет с подписью на 4 с → финальный экран');
+      output.textContent += '\nDONE';
+    } catch (error) {
+      output.textContent += '\nFAIL ' + error.stack;
+    } finally {
+      // Restore the user's progress and audio settings after this test.
+      frame.src = 'about:blank';
+      await new Promise(resolve => setTimeout(resolve, 100));
+      for (const [key, value] of saves) {
+        if (value === null) localStorage.removeItem(key);
+        else localStorage.setItem(key, value);
+      }
+      button.disabled = false;
+    }
+  };
+</script>
+</html>

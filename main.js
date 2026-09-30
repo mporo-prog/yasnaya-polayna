@@ -28,6 +28,7 @@ import { GameScene4 } from './games/game4/GameScene4.js';
       VN.scenes.AssetLoaderScene,
       VN.scenes.StartScene,
       VN.scenes.SettingsScene,
+      VN.scenes.AuthorsScene,
       VN.scenes.StoryScene,
       VN.scenes.PauseScene,
       VN.scenes.PlaceholderMinigameScene,

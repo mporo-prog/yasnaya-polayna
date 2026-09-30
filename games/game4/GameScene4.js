@@ -128,9 +128,51 @@ const INSTRUCTION_TEXT_STYLE = {
 
 // Шаблонные тексты — заменить на финальные.
 const TEXTS = {
-    intro: 'Распредели корреспонденцию по лоткам.\n “Обожатели”,\n “Переводчики”,\n “Долговые, для Софьи Андреевны”,\n “Редакторы”.',
-    win: 'Все письма разложены!',
-    lose: 'Попробуйте снова'
+    intro: 'Распредели корреспонденцию',
+    winTitle: 'Игра пройдена!',
+    win: 'В последние годы жизни Толстому ежедневно приносили 20–30 писем. Это было связано с ростом его известности после «духовного переворота».',
+    lose: 'Попробуй снова'
+};
+
+// Обучение: под текстом правил — какое письмо в какой лоток. Координаты —
+// от левого верхнего угла плашки правил; icon — центр картинки письма,
+// которая вписывается в ICON_BOX; label — левый край подписи.
+const INTRO_TITLE_Y = 150;
+const INTRO_ICON_BOX = { width: 135, height: 140 };
+const INTRO_LEGEND = [
+    { envelope: 'yellow', label: 'Софье Андреевне', icon: { x: 125, y: 291 }, labelX: 215 },
+    { envelope: 'pink', label: 'от Обожателей', icon: { x: 740, y: 291 }, labelX: 830 },
+    { envelope: 'black', label: 'от Редакторов', icon: { x: 125, y: 448 }, labelX: 215 },
+    { envelope: 'blue', label: 'от Переводчиков', icon: { x: 740, y: 448 }, labelX: 830 }
+];
+
+const INTRO_TITLE_TEXT_STYLE = {
+    ...INSTRUCTION_TEXT_STYLE,
+    fontSize: '56px',
+    wordWrap: { width: 1000 }
+};
+
+const INTRO_LABEL_TEXT_STYLE = {
+    fontFamily: 'Philosopher',
+    fontSize: '48px',
+    color: '#6E6056'
+};
+
+// Экран победы: небольшой заголовок и интересный факт.
+const WIN_TITLE_TEXT_STYLE = {
+    fontFamily: 'Philosopher',
+    fontSize: '48px',
+    color: '#6E6056',
+    align: 'center'
+};
+
+const WIN_FACT_TEXT_STYLE = {
+    fontFamily: 'Ysabeau',
+    fontSize: '40px',
+    color: '#1B1A19',
+    align: 'center',
+    lineSpacing: 10,
+    wordWrap: { width: INSTRUCTION_PANEL.width - 200 }
 };
 
 // Экраны победы и поражения закрываются сами, как в игре 1.
@@ -305,7 +347,16 @@ export class GameScene4 extends Phaser.Scene {
 
     createLetters() {
 
-        const saved = this.loadGame4State();
+        let saved = this.loadGame4State();
+
+        // Сохранение с письмами, которых больше нет в игре (например,
+        // удалённые розовые), не восстанавливаем — попытка начинается заново.
+        const known = new Set(letterImages);
+        const isKnown = ({ image }) => !image || known.has(image);
+        if (saved && ![...saved.letters, ...(saved.trayLetters ?? [])].every(isKnown)) {
+            this.clearGame4Save();
+            saved = null;
+        }
 
         let letters;
 
@@ -864,6 +915,7 @@ export class GameScene4 extends Phaser.Scene {
             return;
         }
 
+        // Факт читают сколько нужно: экран закрывается только нажатием.
         this.showHint(
             this.winOverlay,
             () => window.VN.systems.finishMinigameAndAdvance(
@@ -871,7 +923,7 @@ export class GameScene4 extends Phaser.Scene {
                 this.storySceneIndex,
                 this.minigameId
             ),
-            RESULT_HINT_SECONDS
+            null
         );
     }
 
@@ -892,13 +944,15 @@ export class GameScene4 extends Phaser.Scene {
 
         this.introOverlay = this.createOverlay(
             TEXTS.intro,
-            { panel: INSTRUCTION_PANEL, textStyle: INSTRUCTION_TEXT_STYLE }
+            { panel: INSTRUCTION_PANEL, textStyle: INTRO_TITLE_TEXT_STYLE }
         );
+        this.addIntroLegend(this.introOverlay);
 
         this.winOverlay = this.createOverlay(
             TEXTS.win,
-            { panel: RESULT_MESSAGE_PANEL, textStyle: RESULT_MESSAGE_TEXT_STYLE }
+            { panel: INSTRUCTION_PANEL, textStyle: WIN_FACT_TEXT_STYLE }
         );
+        this.addWinTitle(this.winOverlay);
 
         this.loseOverlay = this.createOverlay(
             TEXTS.lose,
@@ -951,6 +1005,54 @@ export class GameScene4 extends Phaser.Scene {
         this.layout.fill(this, background);
 
         return overlay;
+    }
+
+    /**
+     * Обучение на плашке правил: текст сверху, под ним в две колонки —
+     * образец письма и подпись, в какой лоток его класть.
+     */
+    addIntroLegend(overlay) {
+
+        const [, panel] = overlay.list;
+        const title = overlay.list.find(object => object.type === 'Text');
+
+        const rows = INTRO_LEGEND.map(({ envelope, label }) => {
+            const image = letterImagesByEnvelope[envelope][0];
+            const icon = this.add.image(0, 0, Letter.textureKey(image));
+            // Письмо вписывается в рамку, сохраняя пропорции.
+            icon.setScale(Math.min(
+                INTRO_ICON_BOX.width / icon.width,
+                INTRO_ICON_BOX.height / icon.height
+            ));
+            const text = this.add.text(0, 0, label, INTRO_LABEL_TEXT_STYLE).setOrigin(0, 0.5);
+            overlay.add([icon, text]);
+            return { icon, text };
+        });
+
+        // Срабатывает после раскладки плашки в createOverlay().
+        this.layout.onLayout(this, () => {
+            title.setPosition(panel.x + panel.displayWidth / 2, panel.y + INTRO_TITLE_Y);
+            rows.forEach(({ icon, text }, index) => {
+                const item = INTRO_LEGEND[index];
+                icon.setPosition(panel.x + item.icon.x, panel.y + item.icon.y);
+                text.setPosition(panel.x + item.labelX, panel.y + item.icon.y);
+            });
+        });
+    }
+
+    /** Небольшой заголовок «Игра пройдена!» над фактом на той же плашке. */
+    addWinTitle(overlay) {
+
+        const [, panel] = overlay.list;
+        const fact = overlay.list.find(object => object.type === 'Text');
+        const title = this.add.text(0, 0, TEXTS.winTitle, WIN_TITLE_TEXT_STYLE).setOrigin(0.5);
+        overlay.add(title);
+
+        // Срабатывает после раскладки плашки в createOverlay().
+        this.layout.onLayout(this, () => {
+            title.setPosition(panel.x + panel.displayWidth / 2, panel.y + 120);
+            fact.setPosition(panel.x + panel.displayWidth / 2, panel.y + panel.displayHeight / 2 + 45);
+        });
     }
 
     // durationSeconds = null — экран ждёт клика.

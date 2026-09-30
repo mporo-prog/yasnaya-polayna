@@ -1,22 +1,19 @@
-import {
-    PANEL_RATIO,
-    ITEM_SIZE,
-    ITEM_GAP,
-    PAUSE_BUTTON
-} from '../constants/Game2Constants.js';
+import { PAUSE_BUTTON } from '../constants/Game2Constants.js';
 
+/**
+ * Расставляет предметы по их местам справа от карты (slot в макете
+ * 1920×1080 — там же, где фон, поэтому от размера экрана не зависит)
+ * и прижимает кнопку паузы.
+ */
 export class Game2PanelLayout {
 
     constructor(scene, things, pauseButton) {
         this.scene = scene;
         this.things = things;
         this.pauseButton = pauseButton;
-        this.panel = null;
 
         this.layout = scene.layout;
-        this.handler = (visible, ui) => {
-            this.update(ui);
-        };
+        this.handler = () => this.update();
 
         this.layout.onLayout(
             scene,
@@ -24,66 +21,13 @@ export class Game2PanelLayout {
         );
     }
 
-    createPanel() {
-        this.panel = this.scene.add.rectangle(
-            0,
-            0,
-            0,
-            0,
-            0x000000,
-            0
-        ).setOrigin(0);
+    update() {
+        this.things.forEach((thing) => {
+            thing.startX = thing.slot.x;
+            thing.startY = thing.slot.y;
 
-        this.panel.setDepth(-1);
-
-        return this.panel;
-    }
-
-    update(ui) {
-        if (!ui) {
-            return;
-        }
-
-        const panelWidth = ui.width * PANEL_RATIO;
-        const panelX = ui.right - panelWidth;
-        const panelCenterX = panelX + panelWidth / 2;
-
-        if (this.panel) {
-            this.panel.setPosition(
-                panelX,
-                ui.top
-            );
-            this.panel.setSize(
-                panelWidth,
-                ui.height
-            );
-        }
-
-        const count = this.things.length;
-        const totalHeight =
-            ITEM_SIZE * count +
-            ITEM_GAP * (count - 1);
-
-        const firstCenterY =
-            ui.top +
-            (ui.height - totalHeight) / 2 +
-            ITEM_SIZE / 2;
-
-        this.things.forEach((thing, index) => {
-            if (!thing.sprite || !thing.sprite.scene) {
-                return;
-            }
-
-            const x = panelCenterX;
-            const y =
-                firstCenterY +
-                index * (ITEM_SIZE + ITEM_GAP);
-
-            thing.sprite.setPosition(x, y);
-
-            if (!thing.isLocked()) {
-                thing.startX = x;
-                thing.startY = y;
+            if (thing.sprite && thing.sprite.scene && !thing.isLocked()) {
+                thing.sprite.setPosition(thing.startX, thing.startY);
             }
         });
 

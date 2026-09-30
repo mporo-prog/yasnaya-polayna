@@ -3,22 +3,22 @@
 export const TARGETS = [
     {
         id: 'stable',
-        x: 323,
-        y: 551
+        x: 246,
+        y: 368
     },
     {
         id: 'greenhouse',
-        x: 533,
-        y: 748
+        x: 373,
+        y: 597
     },
     {
         id: 'meadow',
-        x: 1216,
-        y: 401
+        x: 870,
+        y: 308
     },
     {
         id: 'bench',
-        x: 1208,
-        y: 779
+        x: 885,
+        y: 541
     }
 ];

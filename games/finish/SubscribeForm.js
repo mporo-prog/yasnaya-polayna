@@ -19,7 +19,7 @@ export function createSubscribeForm({ width, height, placeholder, subscribe = cr
     input.autocapitalize = 'none';
     input.spellcheck = false;
     input.className = 'finish-email-input';
-    input.setAttribute('aria-label', 'Ваш email');
+    input.setAttribute('aria-label', 'Твой email');
     Object.assign(input.style, {
         left: `${width * (10 / 237)}px`, top: `${height * (5 / 41)}px`,
         width: `${width * (168 / 237)}px`, height: `${height * (30 / 41)}px`,
@@ -77,7 +77,7 @@ export function createSubscribeForm({ width, height, placeholder, subscribe = cr
         input.value = input.value.trim();
         input.setCustomValidity('');
         if (!input.checkValidity()) {
-            input.setCustomValidity('Введите корректный email.');
+            input.setCustomValidity('Введи корректный email.');
             input.reportValidity();
             input.focus();
             return;

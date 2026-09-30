@@ -5,6 +5,9 @@ export class Thing {
         this.textureKey = textureKey;
         this.targetId = data.targetId;
         this.sound = data.sound;
+        this.slot = data.slot;
+        this.name = data.name;
+        this.description = data.description;
 
         this.sprite = null;
         this.startX = 0;

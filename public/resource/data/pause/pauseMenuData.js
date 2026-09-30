@@ -3,8 +3,8 @@
  */
 window.VN.data.pauseMenuData = {
   buttons: [
-    { label: 'ПРОДОЛЖИТЬ', action: 'resume' },
-    { label: 'НАСТРОЙКИ', action: 'settings' },
-    { label: 'МЕНЮ', action: 'menu' },
+    { label: 'Продолжить', action: 'resume' },
+    { label: 'Настройки', action: 'settings' },
+    { label: 'В меню', action: 'menu' },
   ],
 };

@@ -98,6 +98,26 @@ const RESULT_MESSAGE_TEXT_STYLE = {
     letterSpacing: 0
 };
 
+// Экран победы: небольшой заголовок и интересный факт.
+const WIN_TITLE = 'Игра пройдена!';
+const WIN_FACT = 'Самые ранние произведения Толстого – миниатюрные описания, которые посвящены птицам. Толстой написал их в возрасте 7 лет в Ясной Поляне.';
+
+const WIN_TITLE_TEXT_STYLE = {
+    fontFamily: 'Philosopher',
+    fontSize: '48px',
+    color: '#6E6056',
+    align: 'center'
+};
+
+const WIN_FACT_TEXT_STYLE = {
+    fontFamily: 'Ysabeau',
+    fontSize: '40px',
+    color: '#1B1A19',
+    align: 'center',
+    lineSpacing: 10,
+    wordWrap: { width: INSTRUCTION_PANEL.width - 200 }
+};
+
 const INSTRUCTION_TEXT_STYLE = {
     fontFamily: 'Philosopher',
     fontStyle: 'normal',
@@ -379,7 +399,7 @@ export class GameScene1 extends Phaser.Scene {
         // Неудачные попытки не учитываем: все птицы должны войти в два пройденных раунда.
         this.sequence.forEach(index => this.playedBirds.add(index));
         if (this.round_number === 3) {
-            this.showHint(this.winOverlay, () => this.finishGame());
+            this.showHint(this.winOverlay, () => this.finishGame(), null);
             return;
         }
         this.nextRound();
@@ -434,10 +454,13 @@ export class GameScene1 extends Phaser.Scene {
             timer: null
         };
         this.activeHint = hint;
-        hint.timer = this.time.delayedCall(durationSeconds * 1000, () => {
-            hint.autoDismiss = true;
-            if (this.activeHint === hint) this.dismissHint();
-        });
+        // durationSeconds = null — экран ждёт нажатия (например, факт после победы).
+        if (durationSeconds != null) {
+            hint.timer = this.time.delayedCall(durationSeconds * 1000, () => {
+                hint.autoDismiss = true;
+                if (this.activeHint === hint) this.dismissHint();
+            });
+        }
     }
 
     clearHint() {
@@ -445,7 +468,7 @@ export class GameScene1 extends Phaser.Scene {
             return;
         }
 
-        this.activeHint.timer.remove();
+        this.activeHint.timer?.remove();
         this.activeHint.overlay.setVisible(false);
         this.activeHint = null;
     }
@@ -535,7 +558,7 @@ export class GameScene1 extends Phaser.Scene {
 
     createRepeatOverlay() {
         this.repeatOverlay = this.createOverlay(
-            'Повторите песню',
+            'Повтори песню',
             () => this.dismissHint(),
             { panel: INSTRUCTION_PANEL, textStyle: INSTRUCTION_TEXT_STYLE, lineHeight: 64 }
         );
@@ -543,7 +566,7 @@ export class GameScene1 extends Phaser.Scene {
 
     createLoseOverlay() {
         this.loseOverlay = this.createOverlay(
-            'Попробуйте снова',
+            'Попробуй снова',
             () => this.dismissHint(),
             { panel: RESULT_MESSAGE_PANEL, textStyle: RESULT_MESSAGE_TEXT_STYLE }
         );
@@ -551,10 +574,24 @@ export class GameScene1 extends Phaser.Scene {
 
     createWinOverlay() {
         this.winOverlay = this.createOverlay(
-            'Игра пройдена!',
+            WIN_FACT,
             () => this.dismissHint(),
-            { panel: INSTRUCTION_PANEL, textStyle: RESULT_MESSAGE_TEXT_STYLE }
+            { panel: INSTRUCTION_PANEL, textStyle: WIN_FACT_TEXT_STYLE }
         );
+        this.addWinTitle(this.winOverlay);
+    }
+
+    /** Небольшой заголовок «Игра пройдена!» над фактом на той же плашке. */
+    addWinTitle(overlay) {
+        const [, panel] = overlay.list;
+        const fact = overlay.list.find(object => object.type === 'Text');
+        const title = this.add.text(0, 0, WIN_TITLE, WIN_TITLE_TEXT_STYLE).setOrigin(0.5);
+        overlay.add(title);
+        // Срабатывает после раскладки плашки в createOverlay().
+        this.layout.onLayout(this, () => {
+            title.setPosition(panel.x + panel.displayWidth / 2, panel.y + 120);
+            fact.setPosition(panel.x + panel.displayWidth / 2, panel.y + panel.displayHeight / 2 + 45);
+        });
     }
 
     nextRound(){

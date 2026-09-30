@@ -83,8 +83,8 @@ window.VN.data.storyLines = [
       speaker: 'ТОЛСТОЙ  ',
       text: 'Завтра будет неделя, как у нас живет Репин и работает над моим портретом, отнимая отведенное мне время, но я рад.',
       portraitReveal: {
-        video: 'video/tolstoy-portrait.mp4',
-        poster: 'images/backgrounds/tolstoy-portrait-start.png',
+        video: 'video/tolstoy-portrait-e1ebd194.mp4',
+        poster: 'images/backgrounds/tolstoy-portrait-start-e1ebd194.png',
         // Внутренняя область рамы на фоне tolstoy.png.
         frame: { x: 807, y: 73, width: 308, height: 924 },
         title: 'И. Е. Репина «Л. Н. Толстой босой» (1901)',

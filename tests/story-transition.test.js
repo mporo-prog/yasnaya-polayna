@@ -92,15 +92,15 @@ function fixture() {
     background: { stage: displayObject() },
     panelBg: displayObject(), speakerNameText: displayObject(),
     dialogueText: displayObject(), dialogueRevealedText: displayObject(),
-    glossaryWordOverlays: [],
+    glossaryWordOverlays: [], glossaryWordReveals: [],
     backBtn: { bg: displayObject() },
-    pauseBtn: { bg: displayObject() }, historyBtn: { bg: displayObject() },
+    menuBtn: { bg: displayObject() }, historyBtn: { bg: displayObject() },
   });
   story.scene = { stop: () => story.events.emit('shutdown') };
   // Only the visual construction is stubbed; lifecycle, rendering, audio and navigation are real.
   for (const method of ['buildBackgroundLayer', 'buildCharacterLayer', 'buildBottomBar',
     'buildNavButtons', 'buildTopButtons', 'buildHistoryOverlay', 'buildGlossaryOverlay',
-    'setBackground', 'setCharacter', 'buildGlossaryWordOverlays']) {
+    'setBackground', 'setCharacter', 'buildGlossaryWordOverlays', 'fitDialogueText']) {
     story[method] = () => {};
   }
   const backgrounds = [];
@@ -443,9 +443,9 @@ for (const game of [2, 3, 4, 5]) {
     assert.equal(story.screenIndex, 0);
     if (game !== 5) assert.equal(story.dialogueRevealedText.text, '');
     if (game === 5) {
-      assert.equal(story.portraitPhase, 'animation');
+      assert.equal(story.portraitPhase, 'loading');
       assert.equal(story.voiceActive, false);
-      story.portraitVideo.emit('complete');
+      story.portraitVideo.emit('created');
     }
     f.tick(120016);
     assert.equal(story.voiceActive, true);
@@ -460,7 +460,7 @@ for (const game of [2, 3, 4, 5]) {
   });
 }
 
-test('portrait animation is silent, unskippable and plays once before the dialogue', () => {
+test('portrait video, voice and dialogue start together when the first frame is ready', () => {
   const f = fixture();
   f.start(5);
   const video = f.story.portraitVideo;
@@ -470,31 +470,37 @@ test('portrait animation is silent, unskippable and plays once before the dialog
   assert.equal(f.story.bottomGroup.visible, false);
   for (const action of ['goNext', 'goBack', 'advanceScreen', 'startMinigame', 'toggleHistory']) f.story[action]();
   f.tick(20000);
-  assert.equal(f.story.portraitPhase, 'animation', 'No fixed timer can skip a buffering video');
+  assert.equal(f.story.portraitPhase, 'loading', 'Wait for a real frame, not a fixed timer');
   assert.equal(f.sources.length, 0);
-  video.emit('complete');
+  video.emit('created');
   f.tick(20016);
   assert.equal(f.story.portraitPhase, 'dialogue');
   assert.equal(f.story.bottomGroup.visible, true);
   assert.equal(f.story.voiceActive, true);
   assert.equal(f.story.voiceStartTime, 20016);
+  assert.equal(f.story.portraitAnimationComplete, false, 'Voice starts before video ends');
   video.emit('complete');
   f.tick(21016);
   assert.equal(f.story.voiceStartTime, 20016, 'Completion cannot restart the phrase');
+  assert.equal(f.story.portraitPhase, 'dialogue', 'Video completion alone cannot hide dialogue');
 });
 
 test('natural voice end hides controls and shows the title for exactly four seconds', () => {
   const f = fixture();
   f.start(5);
-  f.story.portraitVideo.emit('complete');
+  // Exercise the real button construction: the pause control is now menuBtn.
+  Object.getPrototypeOf(f.story).buildTopButtons.call(f.story);
+  assert.equal(f.story.pauseBtn, undefined);
+  f.story.portraitVideo.emit('created');
   f.tick(1016);
+  f.story.portraitVideo.emit('complete');
   f.tick(12000);
   assert.equal(f.story.portraitPhase, 'dialogue', 'Wait for audio, not just subtitle reveal');
   f.advance(10);
   f.tick(12016);
   assert.equal(f.story.portraitPhase, 'hold');
   assert.equal(f.story.bottomGroup.visible, false);
-  assert.equal(f.story.pauseBtn.bg.visible, false);
+  assert.equal(f.story.menuBtn.bg.visible, false);
   assert.equal(f.story.historyBtn.bg.visible, false);
   assert.ok(f.story.portraitTitle);
   for (const action of ['goNext', 'goBack', 'advanceScreen', 'openPauseMenu', 'toggleHistory']) f.story[action]();
@@ -506,24 +512,79 @@ test('natural voice end hides controls and shows the title for exactly four seco
   assert.equal(f.navigations.length, 1);
 });
 
-test('portrait dialogue keeps normal skip behavior and the title duration is configurable', () => {
+test('skipping the portrait voice cannot skip the video; title duration remains configurable', () => {
   const f = fixture();
   f.window.VN.data.storyLines[5][0].portraitReveal.holdDuration = 1500;
   f.start(5);
-  f.story.portraitVideo.emit('complete');
+  f.story.portraitVideo.emit('created');
   f.tick(1016);
   const voice = f.story.voiceTrack;
   f.story.goNext();
-  f.tick(1032);
   assert.equal(voice.ended, true);
   assert.equal(f.story.dialogueRevealedText.text, f.story.currentLines[0].text);
-  assert.equal(f.story.portraitPhase, 'dialogue', 'First click reveals the full phrase');
-  f.story.goNext();
+  for (const action of ['goNext', 'goBack', 'advanceScreen', 'startMinigame']) f.story[action]();
+  assert.equal(f.story.portraitPhase, 'dialogue', 'Even repeated clicks cannot bypass the video');
+  f.story.portraitVideo.emit('complete');
+  f.tick(1032);
   assert.equal(f.story.portraitPhase, 'hold');
   f.tick(2531);
   assert.equal(f.navigations.length, 0);
   f.tick(2532);
   assert.equal(f.navigations.length, 1);
+});
+
+test('a naturally ended voice waits for a slower video before starting the hold', () => {
+  const f = fixture();
+  f.start(5);
+  f.story.portraitVideo.emit('created');
+  f.tick(1016);
+  f.advance(10);
+  f.tick(12016);
+  assert.equal(f.story.portraitVoiceComplete, true);
+  assert.equal(f.story.portraitPhase, 'dialogue');
+  assert.equal(f.story.screenTimer, null);
+  f.story.portraitVideo.emit('complete');
+  f.tick(13016);
+  assert.equal(f.story.portraitPhase, 'hold');
+  f.tick(17015);
+  assert.equal(f.navigations.length, 0);
+  f.tick(17016);
+  assert.equal(f.navigations.length, 1);
+});
+
+test('skipping after the video ends starts the title hold without an extra click', () => {
+  const f = fixture();
+  f.start(5);
+  f.story.portraitVideo.emit('created');
+  f.tick(1016);
+  f.story.portraitVideo.emit('complete');
+  f.story.goNext();
+  assert.equal(f.story.portraitPhase, 'hold');
+});
+
+test('history pauses the portrait and restarting the voice still waits for its actual end', () => {
+  const f = fixture();
+  f.start(5);
+  Object.assign(f.story, {
+    historyContainer: displayObject(), historyText: displayObject(), setHistoryScroll() {},
+  });
+  f.window.VN.systems.GameState.getFullHistory = () => [];
+  f.story.portraitVideo.emit('created');
+  f.tick(1016);
+  f.story.toggleHistory();
+  assert.equal(f.story.portraitVideo.paused, true);
+  f.tick(20000);
+  assert.equal(f.story.portraitPhase, 'dialogue');
+  f.story.toggleHistory();
+  assert.equal(f.story.portraitVideo.paused, false);
+  f.tick(20016);
+  assert.equal(f.story.voiceActive, true);
+  f.story.portraitVideo.emit('complete');
+  f.tick(20032);
+  assert.equal(f.story.portraitPhase, 'dialogue');
+  f.advance(10);
+  f.tick(30016);
+  assert.equal(f.story.portraitPhase, 'hold');
 });
 
 test('portrait video pauses with the scene and shutdown removes media and pending callbacks', () => {
@@ -552,8 +613,9 @@ test('portrait video pauses with the scene and shutdown removes media and pendin
 test('leaving during the portrait hold cancels final navigation', () => {
   const f = fixture();
   f.start(5);
-  f.story.portraitVideo.emit('complete');
+  f.story.portraitVideo.emit('created');
   f.tick(1016);
+  f.story.portraitVideo.emit('complete');
   f.story.goNext();
   f.story.goNext();
   f.story.events.emit('shutdown');
@@ -568,6 +630,10 @@ test('portrait waits until the minigame fade ends before playing', async () => {
   f.tick(1375);
   assert.equal(f.story.portraitVideo.playing, true);
   assert.equal(f.story.voiceActive, false);
+  f.story.portraitVideo.emit('created');
+  f.tick(1391);
+  assert.equal(f.story.voiceActive, true);
+  assert.equal(f.story.bottomGroup.visible, true);
 });
 
 test('video failure falls back to the existing painting and a missing voice remains readable', () => {

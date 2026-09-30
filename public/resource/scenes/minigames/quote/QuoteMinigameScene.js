@@ -12,15 +12,21 @@
   };
 
   /**
-   * QuoteMinigameScene — мини-игра «Продолжите цитату». Три раунда.
-   * Контент — data/minigames/quote/quoteData.js,
-   * внешний вид — data/minigames/quote/quoteStyle.js.
+   * QuoteMinigameScene — мини-игра «Продолжите цитату». Раунды —
+   * data/minigames/quote/quoteData.js, внешний вид —
+   * data/minigames/quote/quoteStyle.js.
    *
    * Раунд: цитата с пустой рамкой и три плашки-варианта. Неправильный
    * вариант закрывается красной накладкой. После правильного цитата
    * собирается целиком, варианты исчезают, снизу появляется диалоговая
    * плашка героя (как в сюжетной сцене) со своей репликой; стрелка на
    * плашке ведёт к следующему раунду, после последнего — дальше по сюжету.
+   *
+   * У раунда есть mode:
+   *   'prefix' — рамка-пропуск сверху, известный текст (prompt) под ней;
+   *   'suffix' — известный текст (prompt) сверху, рамка-пропуск под ним;
+   *   'middle' — рамка-пропуск ПОСЕРЕДИНЕ: текст до неё (prefix) сверху,
+   *              текст после (suffix) снизу — три строки друг под другом.
    */
   class QuoteMinigameScene extends Phaser.Scene {
     constructor() {
@@ -33,7 +39,7 @@
       return {
         images: [
           { key: IMG.background, url: 'images/backgrounds/plug.png' },
-          { key: IMG.hero, url: 'public/images/hero/Толстой_1.png' },
+          { key: IMG.hero, url: 'public/images/hero/Толсто_1.png' },
           { key: IMG.plazka, url: 'images/icon_UI/rectangle_game5.png' },
           { key: IMG.dialog, url: 'images/icon_UI/dialog_text_bg.png' },
           { key: IMG.next, url: IMG.next },
@@ -196,9 +202,11 @@
     }
 
     /**
-     * Цитата с пустой рамкой: для 'suffix' — текст, под ним рамка;
-     * для 'prefix' — рамка, под ней текст. Закрывающая кавычка — после
-     * последней части.
+     * Цитата с пустой рамкой:
+     *   'suffix' — текст (prompt), под ним рамка;
+     *   'prefix' — рамка, под ней текст (prompt);
+     *   'middle' — текст (prefix), под ним рамка, под ней текст (suffix).
+     * Закрывающая кавычка — после последней части.
      */
     buildQuote() {
       const style = this.style;
@@ -206,8 +214,8 @@
       let y = style.quoteY;
       this.addOpeningMark(y);
 
-      const addPrompt = () => {
-        const text = this.add.text(x, y, this.currentRound.prompt, this.quoteTextStyle());
+      const addLine = (str) => {
+        const text = this.add.text(x, y, str, this.quoteTextStyle());
         this.quoteParts.push(text);
         y += text.height + 20;
         return text;
@@ -222,16 +230,27 @@
         return blank;
       };
 
+      const mode = this.currentRound.mode;
       let last;
-      if (this.currentRound.mode === 'prefix') {
+      if (mode === 'prefix') {
         addBlank();
-        last = addPrompt();
+        last = addLine(this.currentRound.prompt);
+      } else if (mode === 'middle') {
+        addLine(this.currentRound.prefix);
+        addBlank();
+        last = addLine(this.currentRound.suffix);
       } else {
-        addPrompt();
+        addLine(this.currentRound.prompt);
         last = addBlank();
       }
       const closeX = last.x + (last.displayWidth || last.width) + 18;
       this.quoteParts.push(this.add.text(closeX, last.y, '”', this.quoteTextStyle()));
+
+      // Запоминаем, где на самом деле закончилась цитата в ЭТОМ раунде —
+      // addLine()/addBlank() уже учли перенос строк (wordWrap) и число строк
+      // (у 'middle' их на одну больше). buildAnswerButtons() использует это,
+      // чтобы не дать плашкам-вариантам наехать на длинную цитату.
+      this.quoteBottomY = y;
     }
 
     /** После правильного ответа: цитата целиком, в две строки, ниже. */
@@ -241,7 +260,17 @@
       this.quoteParts = [];
 
       const round = this.currentRound;
-      const lines = round.mode === 'prefix' ? [round.answer, round.prompt] : [round.prompt, round.answer];
+      let lines;
+      if (round.mode === 'prefix') {
+        lines = [round.answer, round.prompt];
+      } else if (round.mode === 'middle') {
+        // "Надо жить, надо" / "        любить, надо верить." — вторая
+        // строка начинается с ответа и продолжается известным суффиксом.
+        lines = [round.prefix, round.answer + round.suffix];
+      } else {
+        lines = [round.prompt, round.answer];
+      }
+
       let y = style.solvedQuoteY;
       this.addOpeningMark(y);
       const first = this.add.text(style.quoteX, y, lines[0], this.quoteTextStyle());
@@ -261,11 +290,22 @@
           this.currentRound.distractors.map((text) => ({ text: text, correct: false }))
         )
       );
+
+      // style.slots подобраны под "обычную" короткую цитату
+      // (answerAreaDesignedTopY). Если в ЭТОМ раунде цитата длиннее —
+      // из-за переноса строк или режима 'middle' (три строки вместо
+      // двух) — сдвигаем все три плашки вниз на одну и ту же величину,
+      // чтобы они не наезжали на текст, но остались друг относительно
+      // друга в том же треугольном расположении.
+      const overflow = this.quoteBottomY - this.style.answerAreaDesignedTopY;
+      this.answerAreaShiftY = Math.max(0, overflow);
+
       this.answerButtons = options.map((option, i) => this.buildOneAnswerButton(option, this.style.slots[i]));
     }
 
-    buildOneAnswerButton(option, slot) {
+    buildOneAnswerButton(option, slotDef) {
       const style = this.style;
+      const slot = { x: slotDef.x, y: slotDef.y + this.answerAreaShiftY };
       const text = this.add
         .text(slot.x, slot.y, option.text, {
           fontFamily: style.quoteFontFamily,

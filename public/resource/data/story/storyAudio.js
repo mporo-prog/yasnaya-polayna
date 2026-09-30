@@ -37,7 +37,11 @@ window.VN.data.storyAudio = [
     fadeOutDelay: 0,
     fadeInDelay: 0.5,
   },
-    transitionSound: null, // { path: 'ui/transition.mp3', volume: 0.6, delay: 0 }
+    transitionSound: {
+      path: 'ui/swipe.wav', // Отдельный эффект перехода
+      volume: 1,
+      delay: 0,                // Проиграть сразу при входе
+    },
     sounds: [], // Звуки при входе в сцену, например { path: 'voice_and_sound/intro.mp3' }
     screens: [
       { voice: { path: 'voice_and_sound/plot1_background_2.wav'}, sounds: [] },
@@ -66,7 +70,11 @@ window.VN.data.storyAudio = [
     fadeOutDelay: 0,
     fadeInDelay: 0.5,
   },
-    transitionSound: null, // { path: 'ui/transition.mp3', volume: 0.6, delay: 0 }
+    transitionSound: {
+      path: 'ui/swipe.wav', // Отдельный эффект перехода
+      volume: 1,
+      delay: 0,                // Проиграть сразу при входе
+    },
     sounds: [], // Звуки при входе в сцену, например { path: 'voice_and_sound/intro.mp3' }
     screens: [
       { voice: { path: 'voice_and_sound/screen_1_scene_3_posetitel.wav'}, sounds: [] },
@@ -86,7 +94,11 @@ window.VN.data.storyAudio = [
     fadeOutDelay: 0,
     fadeInDelay: 0.5,
   },
-    transitionSound: null, // { path: 'ui/transition.mp3', volume: 0.6, delay: 0 }
+    transitionSound: {
+      path: 'ui/swipe.wav', // Отдельный эффект перехода
+      volume: 1,
+      delay: 0,                // Проиграть сразу при входе
+    },
     sounds: [], // Звуки при входе в сцену, например { path: 'voice_and_sound/intro.mp3' }
     screens: [
       { voice: { path: 'voice_and_sound/screen1_scene4_secretary.wav'}, sounds: [] },
@@ -103,7 +115,11 @@ window.VN.data.storyAudio = [
     fadeOutDelay: 0,
     fadeInDelay: 0.5,
   },
-    transitionSound: null, // { path: 'ui/transition.mp3', volume: 0.6, delay: 0 }
+    transitionSound: {
+      path: 'ui/swipe.wav', // Отдельный эффект перехода
+      volume: 1,
+      delay: 0,                // Проиграть сразу при входе
+    },
     sounds: [], // Звуки при входе в сцену, например { path: 'voice_and_sound/intro.mp3' }
     screens: [
       { voice: { path: 'voice_and_sound/screen1_scene5_boy.wav'}, sounds: [] },
@@ -124,7 +140,11 @@ window.VN.data.storyAudio = [
     fadeOutDelay: 0,
     fadeInDelay: 0.5,
   },
-    transitionSound: null, // { path: 'ui/transition.mp3', volume: 0.6, delay: 0 }
+    transitionSound: {
+      path: 'ui/swipe.wav', // Отдельный эффект перехода
+      volume: 1,
+      delay: 0,                // Проиграть сразу при входе
+    },
     sounds: [], // Звуки при входе в сцену, например { path: 'voice_and_sound/intro.mp3' }
     screens: [
       { voice: { path: 'voice_and_sound/screen1_scene6_tolstoy.wav'}, sounds: [] },

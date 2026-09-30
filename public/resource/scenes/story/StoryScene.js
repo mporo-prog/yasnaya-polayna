@@ -291,13 +291,13 @@
       const menuBtn = this.makeIconButton(menuBtnLeft, menuBtnTop, 'images/icon_UI/pause_button.png', () => this.openPauseMenu(), menuBtnSize);
       menuBtn.bg.setDepth(20);
 
-      this.historyBtn = this.makeIconButton(100, 205, 'images/icon_UI/history_button.png', () => this.toggleHistory(), 70);
+      this.historyBtn = this.makeIconButton(100, 220, 'images/icon_UI/history_button.png', () => this.toggleHistory(), 70);
       this.historyBtn.bg.setDepth(20);
 
       // Прижимаем к левому верхнему углу экрана (с учётом выреза телефона),
       // а не к углу макета — на широком экране они уходят на поле.
       this.layout.pin(this, menuBtn.bg, { left: menuBtnLeft, top: menuBtnTop });
-      this.layout.pin(this, this.historyBtn.bg, { left: 100, top: 205 });
+      this.layout.pin(this, this.historyBtn.bg, { left: 100, top: 240 });
     }
 
     /** Кнопка-иконка (картинка вместо прямоугольника с текстом). */

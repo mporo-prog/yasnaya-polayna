@@ -379,8 +379,10 @@
     }
 
     openPauseMenu() {
-      this.scene.pause();
+      
       this.scene.launch('PauseScene', { returnSceneKey: 'QuoteMinigameScene' });
+      this.scene.pause();
+      this.scene.bringToTop('PauseScene');
     }
 
     // ---- утилиты -----------------------------------------------------------

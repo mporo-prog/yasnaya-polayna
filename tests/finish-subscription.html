@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Проверка подписки — без отправки email</title>
+    <style>
+        body { margin: 24px; font: 18px/1.4 system-ui; background: #f5eadb; }
+        select, button { font: inherit; }
+        #fixture { margin: 24px 0; }
+    </style>
+</head>
+<body>
+    <h1>Проверка подписки</h1>
+    <p>Подставные ответы. Запросы на сайт музея не выполняются.</p>
+    <label for="scenario">Ответ сервера</label>
+    <select id="scenario">
+        <option value="confirmation">Письмо отправлено</option>
+        <option value="already">Уже подписан</option>
+        <option value="error">Ошибка сервера</option>
+        <option value="unsafe">Текст с HTML</option>
+        <option value="network">Нет сети</option>
+        <option value="pending">Долгий запрос</option>
+    </select>
+    <div id="fixture"></div>
+    <p id="calls" role="status">Запросов: 0</p>
+    <button id="resolve" type="button">Завершить долгий запрос</button>
+    <script type="module">
+        import { createSubscribeForm } from '../games/finish/SubscribeForm.js';
+        import '../games/finish/style.css';
+        const scenario = document.getElementById('scenario');
+        let calls = 0;
+        let finishPending;
+        const form = createSubscribeForm({
+            width: 237, height: 41, placeholder: 'ваш email',
+            subscribe: async (_email, { signal }) => {
+                document.getElementById('calls').textContent = `Запросов: ${++calls}`;
+                if (scenario.value === 'pending') await new Promise((resolve, reject) => {
+                    finishPending = resolve;
+                    signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+                });
+                if (scenario.value === 'network') throw new Error('Network failure');
+                if (scenario.value === 'already') return { message: 'Вы уже подписаны. Спасибо!' };
+                if (scenario.value === 'error') return { message: 'Сервер отклонил адрес.' };
+                if (scenario.value === 'unsafe') return { message: '<img src=x onerror=alert(1)> Только текст' };
+                return { message: 'Проверьте свой почтовый ящик.\nМы отправили Вам письмо со ссылкой на подтверждение подписки.' };
+            }
+        });
+        form.node.style.background = `url('${import.meta.env.BASE_URL}images/icon_UI/finish_email_field.png') center / 100% 100%`;
+        document.getElementById('fixture').append(form.node);
+        document.getElementById('resolve').addEventListener('click', () => finishPending?.());
+        window.addEventListener('pagehide', () => form.destroy(), { once: true });
+    </script>
+</body>
+</html>

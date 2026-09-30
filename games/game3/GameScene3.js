@@ -1,43 +1,59 @@
-import Phaser from 'phaser';
+// import Phaser from 'phaser';
+import { ITEMS } from './data/items.js';
 
 const BASE_WIDTH = 1920;
 const BASE_HEIGHT = 1080;
+const BACKGROUND_TEXTURE = 'game3-background';
+const READY_ITEMS = ITEMS.filter(({ panel, image }) => panel && image);
+// const BASE_WIDTH = window.innerWidth;
+// const BASE_HEIGHT = window.innerHeight;
 
-const ITEM_SIZE = 246;
-const ITEM_STEP = 261;
-const ROW_Y = 180;
-const ROW_CENTER_X = 960;
+// Общий UI — тот же макет 1920×1080, что и в GameScene1.
+const PAUSE_BUTTON = {
+    xFrac: 100 / BASE_WIDTH,
+    yFrac: 90 / BASE_HEIGHT,
+    size: 110,
+    texture: 'images/icon_UI/pause_button.png'
+};
 
-const TABLE_Y = 540;
-const TABLE_SLOTS = [345, 683, 1021];
+const HINT_NEXT_ARROW = {
+    xFrac: 1600 / BASE_WIDTH,
+    yFrac: 825 / BASE_HEIGHT,
+    size: 150,
+    texture: 'images/icon_UI/next_button.png'
+};
 
-const MENU_BUTTON = {
-    x: 1830,
-    y: 14,
-    width: 72,
-    height: 66
+const INSTRUCTION_PANEL = {
+    xFrac: 310 / BASE_WIDTH,
+    yFrac: 251 / BASE_HEIGHT,
+    width: 1300,
+    height: 577.04,
+    texture: 'images/icon_UI/instruction_panel.png'
+};
+
+const ITEM_NAME_PANEL = {
+    xFrac: 39.58333 / 100,
+    yFrac: 81.48148 / 100,
+    texture: 'images/game3/item_label_panel.png'
 };
 
 const COLOR_BACKGROUND = 0xffffff;
-const COLOR_TABLE = 0xf2f2f2;
-const COLOR_ITEM = 0xd9d9d9;
-const COLOR_ITEM_WRONG = 0xff7272;
-const COLOR_MENU = 0x6f6f6f;
-const COLOR_OVERLAY = 0xd9d9d9;
+const COLOR_OVERLAY = 0x000000;
+const OVERLAY_ALPHA = 0.6;
 
 const FONT_FAMILY = 'Inter, sans-serif';
-const COLOR_TEXT = '#000000';
 
-const ITEMS = [
-    { label: 'Чай без сахара', group: 'tea', correct: true },
-    { label: 'Чай с сахаром', group: 'tea', correct: false },
-    { label: 'Книга', group: 'reading', correct: false },
-    { label: 'Газета', group: 'reading', correct: true },
-    { label: 'Овсяная каша', group: 'food', correct: true },
-    { label: 'Манная каша', group: 'food', correct: false }
-];
+const INSTRUCTION_TEXT_STYLE = {
+    fontFamily: 'Philosopher',
+    fontStyle: 'normal',
+    fontSize: '64px',
+    color: '#6E6056',
+    letterSpacing: 0,
+    wordWrap: { width: INSTRUCTION_PANEL.width * (1 - 160 / 1300) }
+};
 
-const GROUPS_TOTAL = 3;
+// Время показа подсказок; можно переопределить через hintDurationSeconds в данных сцены.
+const DEFAULT_HINT_DURATION_SECONDS = 2;
 
 export class GameScene3 extends Phaser.Scene {
 
@@ -45,162 +61,216 @@ export class GameScene3 extends Phaser.Scene {
         super('GameScene3');
     }
 
+    init(data = {}) {
+        this.storySceneIndex = data.storySceneIndex;
+        this.minigameId = data.minigameId;
+        this.hintDurationSeconds = Number.isFinite(data.hintDurationSeconds) && data.hintDurationSeconds >= 0
+            ? data.hintDurationSeconds
+            : DEFAULT_HINT_DURATION_SECONDS;
+    }
+
+    getAssetManifest() {
+        return {
+            images: [
+                { key: BACKGROUND_TEXTURE, url: `${import.meta.env.BASE_URL}images/game3/background.png` },
+                ...[PAUSE_BUTTON, HINT_NEXT_ARROW, INSTRUCTION_PANEL, ITEM_NAME_PANEL].map(({ texture }) => ({
+                    key: texture,
+                    url: `${import.meta.env.BASE_URL}${texture}`
+                })),
+                ...[...new Set(READY_ITEMS.flatMap(({ panel, hoverPanel, image }) =>
+                    [panel, hoverPanel, image].filter(Boolean)
+                ))].map(name => ({
+                    key: `game3-${name}`,
+                    url: `${import.meta.env.BASE_URL}images/game3/${name}.png`
+                }))
+            ]
+        };
+    }
+
+    preload() {
+        if (window.VN?.systems.SceneAssets) {
+            window.VN.systems.SceneAssets.preload(this);
+            return;
+        }
+        for (const { key, url } of this.getAssetManifest().images) this.load.image(key, url);
+        window.VN?.systems.SceneAudio?.preload(this);
+    }
+
     create() {
+        this.sceneAudio = null;
         this.started = false;
         this.paused = false;
         this.finished = false;
         this.completed = false;
-        this.placedCount = 0;
         this.arrivedCount = 0;
+        this.activeHint = null;
 
-        this.calculateScale();
-        this.createRoot();
+        this.layout = window.VN.systems.Layout;
         this.createBackground();
         this.createItems();
+        this.createItemNamePanel();
         this.createPauseOverlay();
-        this.createButtonMenu();
+        this.createPauseButton();
         this.createWinOverlay();
         this.createIntroOverlay();
         this.setupInput();
-    }
-
-    calculateScale() {
-        const width = this.scale.width || BASE_WIDTH;
-        const height = this.scale.height || BASE_HEIGHT;
-
-        this.gameScale = Math.min(width / BASE_WIDTH, height / BASE_HEIGHT);
-        this.offsetX = (width - BASE_WIDTH * this.gameScale) / 2;
-        this.offsetY = (height - BASE_HEIGHT * this.gameScale) / 2;
-    }
-
-    createRoot() {
-        this.root = this.add.container(this.offsetX, this.offsetY);
-        this.root.setScale(this.gameScale);
+        window.VN?.systems.SceneAssets?.prefetchNext(this);
     }
 
     createBackground() {
         this.cameras.main.setBackgroundColor(COLOR_BACKGROUND);
 
-        const background = this.add.rectangle(
-            0,
-            0,
-            BASE_WIDTH,
-            BASE_HEIGHT,
-            COLOR_BACKGROUND
-        ).setOrigin(0);
-
-        const table = this.add.rectangle(
-            0,
-            TABLE_Y,
-            BASE_WIDTH,
-            BASE_HEIGHT - TABLE_Y,
-            COLOR_TABLE
-        ).setOrigin(0);
-
-        this.root.add([background, table]);
+        // Сохраняем весь макет и поднос в кадре; поля заполняет Layout.
+        this.background = this.layout.addBackground(this, BACKGROUND_TEXTURE, {
+            keep: new Phaser.Geom.Rectangle(0, 0, BASE_WIDTH, BASE_HEIGHT)
+        });
     }
 
     createItems() {
-        this.items = ITEMS.map(data => {
+        this.items = READY_ITEMS.map(data => {
             const item = {
+                id: data.id,
                 label: data.label,
-                group: data.group,
-                correct: data.correct,
+                panelTexture: `game3-${data.panel}`,
+                hoverPanelTexture: `game3-${data.hoverPanel ?? data.panel}`,
+                tablePosition: data.tablePosition,
+                correct: data.correct ?? null,
                 placed: false,
                 removed: false
             };
 
-            item.box = this.add.rectangle(
-                0,
-                0,
-                ITEM_SIZE,
-                ITEM_SIZE,
-                COLOR_ITEM
-            );
-
-            item.text = this.add.text(0, 0, data.label, {
-                fontFamily: FONT_FAMILY,
-                fontSize: '40px',
-                color: COLOR_TEXT,
-                align: 'center',
-                wordWrap: { width: ITEM_SIZE - 40 }
-            }).setOrigin(0.5);
-
-            item.container = this.add.container(0, 0, [item.box, item.text]);
+            // Без setDisplaySize: оба PNG имеют исходные размеры в координатах макета.
+            item.box = this.add.image(0, 0, item.panelTexture).setOrigin(0.5);
+            item.panelWidth = item.box.width;
+            item.panelHeight = item.box.height;
+            item.image = this.add.image(0, 0, `game3-${data.image}`).setOrigin(0.5);
+            const x = BASE_WIDTH * data.xFrac + item.box.width / 2;
+            const y = BASE_HEIGHT * data.yFrac + item.box.height / 2;
+            item.container = this.add.container(x, y, [item.box, item.image]);
+            this.background.stage.add(item.container);
 
             item.box.setInteractive({ useHandCursor: true });
-            item.box.on('pointerdown', () => this.selectItem(item));
-
-            this.root.add(item.container);
+            item.box.on('pointerover', (pointer) => {
+                // Сенсорное наведение не меняет название до нажатия.
+                if (!pointer.wasTouch && !this.itemNameTouchQuery?.matches) {
+                    this.showItemName(item, pointer);
+                }
+            });
+            item.box.on('pointerout', () => this.hideItemName(item));
+            item.box.on('pointerdown', (pointer) => {
+                this.showItemName(item, pointer);
+                this.selectItem(item);
+            });
 
             return item;
         });
 
         this.rowItems = [...this.items];
-        this.layoutRow(false);
     }
 
-    layoutRow(animated) {
-        const count = this.rowItems.length;
-        const rowWidth = count * ITEM_SIZE + (count - 1) * (ITEM_STEP - ITEM_SIZE);
-        const startX = ROW_CENTER_X - rowWidth / 2 + ITEM_SIZE / 2;
-        const y = ROW_Y + ITEM_SIZE / 2;
+    createItemNamePanel() {
+        this.itemNameTouchQuery = window.matchMedia?.('(pointer: coarse)');
+        this.itemNameTouchMode = Boolean(this.itemNameTouchQuery?.matches);
+        this.hoveredItem = null;
 
-        this.rowItems.forEach((item, index) => {
-            const x = startX + index * ITEM_STEP;
+        const panel = this.add.image(0, 0, ITEM_NAME_PANEL.texture).setOrigin(0);
+        this.itemNameText = this.add.text(panel.width / 2, panel.height / 2, 'НАЖМИТЕ НА ПРЕДМЕТ', {
+            fontFamily: 'Ysabeau',
+            fontStyle: 'normal',
+            fontSize: '36px',
+            color: '#04151F',
+            align: 'center',
+            letterSpacing: 0,
+            wordWrap: { width: panel.width * 0.86, useAdvancedWrap: true }
+        }).setOrigin(0.5);
 
-            if (!animated) {
-                item.container.setPosition(x, y);
-                return;
-            }
+        // Размер PNG остаётся исходным; координаты — от макета 1920×1080.
+        this.itemNamePanel = this.add.container(
+            BASE_WIDTH * ITEM_NAME_PANEL.xFrac,
+            BASE_HEIGHT * ITEM_NAME_PANEL.yFrac,
+            [panel, this.itemNameText]
+        ).setVisible(this.itemNameTouchMode);
+        this.background.stage.add(this.itemNamePanel);
 
-            this.tweens.killTweensOf(item.container);
+        const updateLineHeight = () => this.itemNameText.setLineSpacing(
+            36 - this.itemNameText.style.metrics.fontSize
+        );
+        updateLineHeight();
+        const fonts = globalThis.document?.fonts;
+        fonts?.addEventListener('loadingdone', updateLineHeight);
 
-            this.tweens.add({
-                targets: item.container,
-                x: x,
-                y: y,
-                duration: 300,
-                ease: 'Power2'
-            });
+        const clearHover = () => this.hideItemName();
+        const updatePointerMode = () => {
+            this.itemNameTouchMode = this.itemNameTouchQuery.matches;
+            clearHover();
+        };
+        this.itemNameTouchQuery?.addEventListener('change', updatePointerMode);
+        this.input.on('gameout', clearHover);
+        this.events.on('pause', clearHover);
+        this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+            fonts?.removeEventListener('loadingdone', updateLineHeight);
+            this.itemNameTouchQuery?.removeEventListener('change', updatePointerMode);
+            this.input.off('gameout', clearHover);
+            this.events.off('pause', clearHover);
         });
     }
 
+    showItemName(item, pointer) {
+        if (!this.started || this.paused || this.finished || this.activeHint || item.placed || item.removed) {
+            return;
+        }
+        this.clearItemHover();
+        this.itemNameTouchMode = Boolean(pointer?.wasTouch || this.itemNameTouchQuery?.matches);
+        this.hoveredItem = this.itemNameTouchMode ? null : item;
+        if (this.hoveredItem) {
+            // Экспорт зелёной подложки может иметь другой размер: геометрию карточки сохраняем.
+            item.box.setTexture(item.hoverPanelTexture).setDisplaySize(item.panelWidth, item.panelHeight);
+        }
+        this.itemNameText.setText(item.label.toLocaleUpperCase('ru-RU'));
+        this.itemNamePanel.setVisible(true);
+    }
+
+    clearItemHover() {
+        const item = this.hoveredItem;
+        if (item) {
+            item.box.setTexture(item.panelTexture).setDisplaySize(item.panelWidth, item.panelHeight);
+        }
+        this.hoveredItem = null;
+    }
+
+    hideItemName(item) {
+        if (item && this.hoveredItem !== item) return;
+        this.clearItemHover();
+        this.itemNamePanel.setVisible(this.itemNameTouchMode);
+    }
+
     selectItem(item) {
-        if (!this.started || this.paused || this.finished) {
+        if (!this.started || this.paused || this.finished || this.activeHint) {
             return;
         }
 
-        if (item.placed || item.removed) {
+        if (item.placed || item.removed || typeof item.correct !== 'boolean') {
             return;
         }
 
         if (item.correct) {
             this.placeItem(item);
         } else {
-            item.box.setFillStyle(COLOR_ITEM_WRONG);
+            this.removeItem(item);
         }
     }
 
     placeItem(item) {
-        const partner = this.rowItems.find(
-            other => other !== item && other.group === item.group
-        );
-
         item.placed = true;
-        item.box.disableInteractive();
+        this.hideItemName(item);
+        item.box.disableInteractive().setVisible(false);
+        this.rowItems = this.rowItems.filter(other => other !== item);
+        this.background.stage.bringToTop(item.container);
+        this.background.stage.bringToTop(this.itemNamePanel);
 
-        const x = TABLE_SLOTS[this.placedCount] + ITEM_SIZE / 2;
-        const y = TABLE_Y + ITEM_SIZE / 2;
-
-        this.placedCount += 1;
-        this.rowItems = this.rowItems.filter(
-            other => other !== item && other !== partner
-        );
-
-        if (partner) {
-            this.removeItem(partner);
-        }
+        // Задана позиция угла самого предмета; контейнер и PNG имеют центр в (0, 0).
+        const x = BASE_WIDTH * item.tablePosition.xFrac + item.image.width / 2;
+        const y = BASE_HEIGHT * item.tablePosition.yFrac + item.image.height / 2;
 
         this.tweens.killTweensOf(item.container);
 
@@ -215,12 +285,12 @@ export class GameScene3 extends Phaser.Scene {
                 this.checkCompletion();
             }
         });
-
-        this.layoutRow(true);
     }
 
     removeItem(item) {
         item.removed = true;
+        this.rowItems = this.rowItems.filter(other => other !== item);
+        this.hideItemName(item);
         item.box.disableInteractive();
 
         this.tweens.killTweensOf(item.container);
@@ -235,67 +305,134 @@ export class GameScene3 extends Phaser.Scene {
     }
 
     checkCompletion() {
-        if (this.arrivedCount < GROUPS_TOTAL) {
+        // Пока список пуст или ответы не назначены всем предметам, победы нет.
+        const correctTotal = this.items.filter(item => item.correct === true).length;
+        if (this.finished || correctTotal === 0 || this.items.length !== ITEMS.length ||
+            this.items.some(item => typeof item.correct !== 'boolean') ||
+            this.arrivedCount < correctTotal) {
             return;
         }
 
         this.finished = true;
-        this.winOverlay.setVisible(true);
+        this.showHint(this.winOverlay, () => this.finishGame(), 7);
     }
 
-    createButtonMenu() {
-        const button = this.add.rectangle(
-            MENU_BUTTON.x,
-            MENU_BUTTON.y,
-            MENU_BUTTON.width,
-            MENU_BUTTON.height,
-            COLOR_MENU
-        ).setOrigin(0);
+    createPauseButton() {
+        const x = BASE_WIDTH * PAUSE_BUTTON.xFrac;
+        const y = BASE_HEIGHT * PAUSE_BUTTON.yFrac;
+        const button = this.add.image(x, y, PAUSE_BUTTON.texture)
+            .setDisplaySize(PAUSE_BUTTON.size, PAUSE_BUTTON.size)
+            .setDepth(20)
+            .setInteractive({ useHandCursor: true });
+        button.on('pointerdown', () => this.openPauseMenu());
 
-        const label = this.add.text(
-            MENU_BUTTON.x + MENU_BUTTON.width / 2,
-            MENU_BUTTON.y + MENU_BUTTON.height / 2,
-            'меню',
-            {
-                fontFamily: FONT_FAMILY,
-                fontSize: '16px',
-                color: COLOR_TEXT,
-                align: 'center'
-            }
-        ).setOrigin(0.5);
-
-        button.setInteractive({ useHandCursor: true });
-        button.on('pointerdown', () => this.togglePause());
-
-        this.root.add([button, label]);
+        this.layout.pin(this, button, { left: x, top: y });
     }
 
-    createOverlay(text, onClick) {
+    showHint(overlay, onDismiss, durationSeconds = this.hintDurationSeconds) {
+        this.clearHint();
+        this.hideItemName();
+        overlay.setVisible(true);
+
+        this.activeHint = {
+            overlay,
+            onDismiss,
+            timer: durationSeconds == null ? null
+                : this.time.delayedCall(durationSeconds * 1000, () => this.dismissHint())
+        };
+    }
+
+    clearHint() {
+        if (!this.activeHint) {
+            return;
+        }
+
+        this.activeHint.timer?.remove();
+        this.activeHint.overlay.setVisible(false);
+        this.activeHint = null;
+    }
+
+    dismissHint() {
+        const hint = this.activeHint;
+        if (!hint || (hint.waitForAudio && this.sceneAudio?.hasActiveSounds)) {
+            return;
+        }
+
+        this.clearHint();
+        hint.onDismiss();
+    }
+
+    update() {
+        if (!this.paused && this.activeHint?.waitForAudio) {
+            this.dismissHint();
+        }
+    }
+
+    createOverlay(text, onClick, { panel: panelConfig = null, textStyle = {}, lineHeight = null } = {}) {
         const background = this.add.rectangle(
             0,
             0,
             BASE_WIDTH,
             BASE_HEIGHT,
-            COLOR_OVERLAY
+            COLOR_OVERLAY,
+            OVERLAY_ALPHA
         ).setOrigin(0);
 
         const label = this.add.text(BASE_WIDTH / 2, BASE_HEIGHT / 2, text, {
             fontFamily: FONT_FAMILY,
             fontSize: '40px',
-            color: COLOR_TEXT,
-            align: 'center'
+            color: '#ffffff',
+            align: 'center',
+            ...textStyle
         }).setOrigin(0.5);
+
+        if (lineHeight !== null) {
+            const updateLineHeight = () => label.setLineSpacing(lineHeight - label.style.metrics.fontSize);
+            updateLineHeight();
+            const fonts = globalThis.document?.fonts;
+            fonts?.addEventListener('loadingdone', updateLineHeight);
+            this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+                fonts?.removeEventListener('loadingdone', updateLineHeight);
+            });
+        }
 
         background.setInteractive({ useHandCursor: Boolean(onClick) });
 
+        const elements = [background];
+        if (panelConfig) {
+            const panel = this.add.image(0, 0, panelConfig.texture)
+                .setOrigin(0)
+                .setDisplaySize(panelConfig.width, panelConfig.height);
+            elements.push(panel);
+            this.layout.onLayout(this, (visible) => {
+                const x = visible.x + visible.width * panelConfig.xFrac;
+                const y = visible.y + visible.height * panelConfig.yFrac;
+                panel.setPosition(x, y);
+                label.setPosition(x + panelConfig.width / 2, y + panelConfig.height / 2);
+            });
+        }
+        elements.push(label);
+
         if (onClick) {
             background.on('pointerdown', onClick);
+
+            // Как в GameScene1: клик принимает вся подложка, стрелка обозначает переход.
+            const nextArrow = this.add.image(0, 0, HINT_NEXT_ARROW.texture)
+                .setOrigin(0)
+                .setDisplaySize(HINT_NEXT_ARROW.size, HINT_NEXT_ARROW.size);
+            elements.push(nextArrow);
+            this.layout.onLayout(this, (visible) => {
+                nextArrow.setPosition(
+                    visible.x + visible.width * HINT_NEXT_ARROW.xFrac,
+                    visible.y + visible.height * HINT_NEXT_ARROW.yFrac
+                );
+            });
         }
 
-        const overlay = this.add.container(0, 0, [background, label]);
-        overlay.setVisible(false);
+        const overlay = this.add.container(0, 0, elements).setDepth(10).setVisible(false);
 
-        this.root.add(overlay);
+        // Затемнение закрывает фон и предметы; кнопка паузы остаётся доступна сверху.
+        this.layout.fill(this, background);
 
         return overlay;
     }
@@ -305,21 +442,55 @@ export class GameScene3 extends Phaser.Scene {
     }
 
     createWinOverlay() {
-        this.winOverlay = this.createOverlay('Ура пабеда', () => this.finishGame());
+        this.winOverlay = this.createOverlay(
+            'Длинный обеденный стол в Большой гостиной называли «столом-сороконожкой». Все дело в конструкции: он раздвижной и имеет 16 ножек.',
+            () => this.dismissHint(),
+            { panel: INSTRUCTION_PANEL, textStyle: INSTRUCTION_TEXT_STYLE, lineHeight: 64 }
+        );
     }
 
     createIntroOverlay() {
         this.introOverlay = this.createOverlay(
-            'Соберите завтрак для Толстого',
-            () => this.startGame()
+            'Собери завтрак графа Толстого.',
+            () => {
+                // Первый клик разблокирует звук, если браузер запретил автозапуск.
+                this.unlockAudio();
+                this.dismissHint();
+            },
+            { panel: INSTRUCTION_PANEL, textStyle: INSTRUCTION_TEXT_STYLE, lineHeight: 64 }
         );
 
-        this.introOverlay.setVisible(true);
+        this.showHint(this.introOverlay, () => this.startGame(), 4);
+        this.sceneAudio = window.VN?.systems.SceneAudio?.enter(this);
+        if (this.sceneAudio?.hasActiveSounds) {
+            // Закрываем правила по окончании голоса; таймер нужен только при ошибке загрузки.
+            this.activeHint.timer.remove();
+            this.activeHint.timer = null;
+            this.activeHint.waitForAudio = true;
+        }
+        this.unlockAudio();
+    }
+
+    unlockAudio() {
+        const context = this.sound?.context;
+        if (context?.state === 'suspended') {
+            context.resume();
+        }
     }
 
     startGame() {
         this.started = true;
         this.introOverlay.setVisible(false);
+    }
+
+    openPauseMenu() {
+        this.scene.launch('PauseScene', {
+            returnSceneKey: 'GameScene3'
+        });
+
+        this.scene.pause();
+
+        this.scene.bringToTop('PauseScene');
     }
 
     togglePause() {
@@ -337,29 +508,35 @@ export class GameScene3 extends Phaser.Scene {
         }
     }
 
+    // finishGame() {
+    //     if (this.completed) {
+    //         return;
+    //     }
+
+    //     this.completed = true;
+    //     this.events.emit('game3:complete');
+    // }
+
     finishGame() {
         if (this.completed) {
             return;
         }
 
         this.completed = true;
-        this.events.emit('game3:complete');
+
+        window.VN.systems.finishMinigameAndAdvance(
+            this,
+            this.storySceneIndex,
+            this.minigameId
+        );
     }
 
     setupInput() {
-        this.input.keyboard.on('keydown-ESC', () => this.togglePause());
+        this.input.keyboard.on('keydown-ESC', () => this.openPauseMenu());
 
-        this.scale.on('resize', this.handleResize, this);
-
+        // Подстройку под размер экрана делает Layout (подписка и отписка — внутри).
         this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-            this.scale.off('resize', this.handleResize, this);
+            this.clearHint();
         });
-    }
-
-    handleResize() {
-        this.calculateScale();
-
-        this.root.setPosition(this.offsetX, this.offsetY);
-        this.root.setScale(this.gameScale);
     }
 }

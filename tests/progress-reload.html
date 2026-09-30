@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<title>Проверка сохранений после перезагрузки</title>
+<h1>Сохранения: настоящая перезагрузка страницы</h1>
+<pre id="results">Проверка…</pre>
+<iframe id="site" title="Тестируемая игра" width="960" height="540"></iframe>
+<script type="module">
+  const output = document.querySelector('#results');
+  const frame = document.querySelector('#site');
+  const keys = ['vn_save_v1', 'game4_save_v1'];
+  const original = keys.map((key) => localStorage.getItem(key));
+  const lines = [];
+  let game;
+  const assert = (condition, message) => { if (!condition) throw new Error(message); };
+  const waitFor = async (condition) => {
+    const deadline = performance.now() + 30000;
+    while (!condition()) {
+      if (performance.now() > deadline) throw new Error('Превышено время ожидания');
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+  };
+  const ready = async (key, previousGame) => {
+    await waitFor(() => frame.contentWindow.game && frame.contentWindow.game !== previousGame);
+    game = frame.contentWindow.game;
+    game.sound.mute = true;
+    await waitFor(() => game.scene.isActive(key) && !frame.contentDocument.getElementById('startup-loading'));
+    return game.scene.getScene(key);
+  };
+  const reload = async (key) => {
+    const previous = game;
+    frame.contentWindow.location.reload();
+    return ready(key, previous);
+  };
+  const check = async (name, run) => {
+    await run();
+    lines.push('PASS ' + name);
+    output.textContent = lines.join('\n');
+  };
+  const state = () => frame.contentWindow.VN.systems.GameState;
+  try {
+    keys.forEach((key) => localStorage.removeItem(key));
+    frame.src = '../';
+    await ready('MainMenuScene');
+    await check('Реплика и история восстанавливаются после повторных перезагрузок', async () => {
+      game.scene.getScene('MainMenuScene').startGame();
+      await ready('StoryScene');
+      const story = game.scene.getScene('StoryScene');
+      story.goNext();
+      story.goNext();
+      const index = story.screenIndex;
+      const text = story.dialogueText.text;
+      const history = state().getFullHistory().length;
+      for (let i = 0; i < 2; i++) {
+        const restored = await reload('StoryScene');
+        assert(restored.screenIndex === index && restored.dialogueText.text === text, 'Та же реплика');
+        assert(state().getFullHistory().length === history, 'История без дубликатов');
+        assert(!game.scene.isActive('MainMenuScene'), 'Нет сброса в меню');
+      }
+    });
+    await check('Пауза -> меню -> перезагрузка -> Начать сбрасывает прохождение', async () => {
+      const story = game.scene.getScene('StoryScene');
+      story.openPauseMenu();
+      await ready('PauseScene');
+      game.scene.getScene('PauseScene').goToMainMenu();
+      await ready('MainMenuScene');
+      await reload('MainMenuScene');
+      game.scene.getScene('MainMenuScene').startGame();
+      const fresh = await ready('StoryScene');
+      assert(fresh.storySceneIndex === 0 && fresh.screenIndex === 0, 'Новое прохождение с первой реплики');
+      assert(state().getFullHistory().length === 1, 'В истории только первая реплика новой игры');
+    });
+    await check('Все мини-игры восстанавливаются с правильным сюжетным контекстом', async () => {
+      const links = frame.contentWindow.VN.data.storyMinigameLinks;
+      for (const [index, linked] of links.entries()) {
+        const key = linked || 'PlaceholderMinigameScene';
+        state().goToScreen(index, 0);
+        state().markMinigameStarted();
+        const scene = await reload(key);
+        assert(scene.storySceneIndex === index, 'Правильная сюжетная сцена для ' + key);
+        assert(scene.minigameId === `story_${index + 1}_minigame`, 'Правильный id для ' + key);
+      }
+    });
+    await check('Сортировка писем сохраняет стопку, счётчик и таймер', async () => {
+      state().goToScreen(3, 0);
+      state().markMinigameStarted();
+      const scene = await reload('GameScene4');
+      scene.timer.pause();
+      scene.deleteLetter(scene.letterStack.getTopLetter());
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      const remaining = scene.letterStack.getCount();
+      const sorted = scene.sortedLetters;
+      const seconds = scene.timeLeft;
+      const restored = await reload('GameScene4');
+      restored.timer.pause();
+      assert(restored.letterStack.getCount() === remaining, 'Оставшиеся письма');
+      assert(restored.sortedLetters === sorted, 'Число отсортированных');
+      assert(restored.timeLeft === seconds, 'Оставшееся время');
+    });
+    await check('Истечение 30 минут в скрытой вкладке очищает и сюжет, и письма', async () => {
+      const doc = frame.contentDocument;
+      Object.defineProperty(doc, 'hidden', { configurable: true, value: true });
+      doc.dispatchEvent(new frame.contentWindow.Event('visibilitychange'));
+      state().state.lastActiveAt = Date.now() - 31 * 60 * 1000;
+      localStorage.setItem('vn_save_v1', JSON.stringify(state().state));
+      await reload('MainMenuScene');
+      assert(state().state.storySceneIndex === 0, 'Просроченный сюжет сброшен');
+      assert(localStorage.getItem('game4_save_v1') === null, 'Просроченная попытка писем удалена');
+    });
+    await check('Возврат на просроченную вкладку останавливает сюжет под паузой и настройки', async () => {
+      game.scene.getScene('MainMenuScene').startGame();
+      const story = await ready('StoryScene');
+      story.goNext();
+      story.openPauseMenu();
+      await ready('PauseScene');
+      game.scene.getScene('PauseScene').openSettings();
+      await ready('SettingsScene');
+      const doc = frame.contentDocument;
+      Object.defineProperty(doc, 'hidden', { configurable: true, value: true });
+      doc.dispatchEvent(new frame.contentWindow.Event('visibilitychange'));
+      state().state.lastActiveAt = Date.now() - 31 * 60 * 1000;
+      Object.defineProperty(doc, 'hidden', { configurable: true, value: false });
+      doc.dispatchEvent(new frame.contentWindow.Event('visibilitychange'));
+      await ready('MainMenuScene');
+      for (const key of ['StoryScene', 'PauseScene', 'SettingsScene']) {
+        assert(!game.scene.isActive(key) && !game.scene.isPaused(key) && !game.scene.isSleeping(key), 'Остановлена ' + key);
+      }
+      assert(game.scene.isActive('AssetLoaderScene'), 'Загрузчик работает');
+      game.scene.getScene('MainMenuScene').startGame();
+      const fresh = await ready('StoryScene');
+      assert(fresh.storySceneIndex === 0 && fresh.screenIndex === 0, 'Новое прохождение начинается с нуля');
+    });
+    output.textContent += '\nDONE: ' + lines.length + ' проверок пройдено';
+  } catch (error) {
+    output.textContent += '\nFAIL ' + error.stack;
+  } finally {
+    game?.destroy(true);
+    frame.remove();
+    keys.forEach((key, index) => {
+      if (original[index] === null) localStorage.removeItem(key);
+      else localStorage.setItem(key, original[index]);
+    });
+  }
+</script>
+</html>

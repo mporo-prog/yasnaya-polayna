@@ -209,8 +209,7 @@ export class GameScene2 extends Phaser.Scene {
                 panelX,
                 panelY + 15,
                 [
-                    'Перемещайте предметы',
-                    'в соответствующие места на карте.'
+                    'Распредели предметы на карте усадьбы.'
                 ].join('\n'),
                 {
                     fontFamily: 'Ysabeau',

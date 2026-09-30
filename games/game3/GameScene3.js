@@ -444,7 +444,7 @@ export class GameScene3 extends Phaser.Scene {
 
     createIntroOverlay() {
         this.introOverlay = this.createOverlay(
-            'Соберите завтрак для Толстого',
+            'Собери завтрак графа Толстого.',
             () => this.dismissHint(),
             { panel: INSTRUCTION_PANEL, textStyle: INSTRUCTION_TEXT_STYLE, lineHeight: 64 }
         );

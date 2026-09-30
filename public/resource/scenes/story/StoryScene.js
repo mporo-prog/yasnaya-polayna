@@ -39,6 +39,9 @@
       this.storySceneIndex = data.storySceneIndex != null ? data.storySceneIndex : GameState.state.storySceneIndex;
       this.screenIndex = data.screenIndex != null ? data.screenIndex : GameState.state.screenIndex;
       this.historyVisible = false;
+      this.minigameFadeInMs = data.minigameFadeInMs || 0;
+      // Даже при повторной загрузке отсутствующего ресурса сохраняем чёрный экран.
+      if (this.minigameFadeInMs > 0) this.cameras.main.setAlpha(0);
     }
 
     preload() {
@@ -65,6 +68,7 @@
       });
 
       this.renderCurrentScreen();
+      this.fadeInAfterMinigame();
       window.VN.systems.SceneAssets.prefetchNext(this);
 
       // Дополнительная страховка: если вкладку скрыли — сохраняемся
@@ -79,6 +83,25 @@
         this.stopVoice();
         this.clearScreenTimer();
       });
+    }
+
+    fadeInAfterMinigame() {
+      if (this.minigameFadeInMs <= 0) return;
+      const camera = this.cameras.main;
+      const inputEnabled = this.input.enabled;
+      const keyboardEnabled = this.input.keyboard?.enabled;
+      this.input.enabled = false;
+      if (this.input.keyboard) this.input.keyboard.enabled = false;
+      const restoreInput = () => {
+        this.input.enabled = inputEnabled;
+        if (this.input.keyboard) this.input.keyboard.enabled = keyboardEnabled;
+        camera.off('camerafadeincomplete', restoreInput);
+        this.events.off('shutdown', restoreInput);
+      };
+      this.events.once('shutdown', restoreInput);
+      camera.once('camerafadeincomplete', restoreInput);
+      camera.setAlpha(1);
+      camera.fadeIn(this.minigameFadeInMs, 0, 0, 0);
     }
 
     update(time) {

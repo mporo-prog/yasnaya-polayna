@@ -32,28 +32,28 @@ window.VN.data.storyBackgrounds = [
   ],
   // Сюжетная сцена 3
   [
-    'images/backgrounds/cafetary.png',
-    'images/backgrounds/cafetary.png',
-    'images/backgrounds/cafetary.png',
-    'images/backgrounds/cafetary.png',
-    'images/backgrounds/cafetary.png',
+    'images/backgrounds/stolovay.png',
+    'images/backgrounds/stolovay.png',
+    'images/backgrounds/stolovay.png',
+    'images/backgrounds/stolovay.png',
+    'images/backgrounds/stolovay.png',
   ],
   // Сюжетная сцена 4
   [
-    'images/backgrounds/plug.png',
-    'images/backgrounds/plug.png',
+    'images/backgrounds/cafetary.png',
+    'images/backgrounds/cafetary.png',
   ],
   // Сюжетная сцена 5
   [
-    'images/backgrounds/plug.png',
-    'images/backgrounds/plug.png',
-    'images/backgrounds/plug.png',
-    'images/backgrounds/plug.png',
-    'images/backgrounds/plug.png',
-    'images/backgrounds/plug.png',
+    'images/backgrounds/cafetary.png',
+    'images/backgrounds/cafetary.png',
+    'images/backgrounds/prud.png',
+    'images/backgrounds/prud.png',
+    'images/backgrounds/prud.png',
+    'images/backgrounds/prud.png',
   ],
   // Сюжетная сцена 6
   [
-    'images/backgrounds/plug.png',
+    'images/backgrounds/tolstoy.png',
   ],
 ];

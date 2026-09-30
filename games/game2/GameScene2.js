@@ -15,15 +15,50 @@ import { Game2PanelLayout } from './systems/Game2PanelLayout.js';
 
 export class GameScene2 extends Phaser.Scene {
 
+    // constructor() {
+    //     super('GameScene2');
+
+    //     this.matcher = new Game2Matcher();
+    //     this.audio = new Game2Audio(this);
+
+    //     this.things = [];
+    //     this.targets = [];
+    //     this.completed = false;
+    // }
+
     constructor() {
         super('GameScene2');
 
+        // Отдельный класс отвечает только
+        // за проверку соответствия предмета и target.
         this.matcher = new Game2Matcher();
         this.audio = new Game2Audio(this);
 
         this.things = [];
         this.targets = [];
+
+        // Игра ещё не закончена.
         this.completed = false;
+
+        // Три состояния Game 2:
+        // rules → game → win
+        this.phase = 'rules';
+
+        // Объекты, связанные с озвучкой правил.
+        this.rulesVoice = null;
+        this.rulesTimer = null;
+
+        // Элементы экрана правил.
+        this.rulesOverlay = null;
+        this.rulesPanel = null;
+        this.rulesText = null;
+        this.rulesNextButton = null;
+
+        // Элементы экрана победы.
+        this.winOverlay = null;
+        this.winPanel = null;
+        this.winText = null;
+        this.winNextButton = null;
     }
 
     init(data = {}) {
@@ -48,12 +83,20 @@ export class GameScene2 extends Phaser.Scene {
                     url: `${imagesPath}${thing.image}.png`
                 })),
                 {
+                    key: 'game2-instruction-panel',
+                    url: `${uiPath}instruction_panel.png`
+                },
+                {
+                    key: 'game2-next',
+                    url: `${uiPath}next_button.png`
+                },
+                {
                     key: 'game2-pause',
                     url: `${uiPath}pause_button.png`
                 }
             ],
 
-            audio: [...THINGS.map((thing) => thing.sound), 'voice_and_sound/gameplay2_neverniy_vybor.wav']
+            audio: [...THINGS.map((thing) => thing.sound), 'voice_and_sound/gameplay_scene_2_rasskazchik_all.wav', 'voice_and_sound/gameplay2_neverniy_vybor.wav']
         };
     }
 
@@ -69,10 +112,20 @@ export class GameScene2 extends Phaser.Scene {
         assets.images.forEach(({ key, url }) => {
             this.load.image(key, url);
         });
+
+        if (window.VN?.systems.AudioManager) {
+        assets.audio.forEach((path) => {
+            window.VN.systems.AudioManager.load(
+                this,
+                path
+            );
+        });
+    }
     }
 
     create() {
-        this.layout = window.VN?.systems.Layout || null;
+        this.layout =
+            window.VN?.systems.Layout || null;
 
         window.VN?.systems.SceneAudio?.enter(this);
 
@@ -81,6 +134,11 @@ export class GameScene2 extends Phaser.Scene {
         this.createPauseButton();
         this.createThings();
         this.createPanelLayout();
+
+        // Сначала создаём overlay.
+        this.createRulesOverlay();
+        this.createWinOverlay();
+
         this.setupDrag();
 
         this.events.once(
@@ -89,7 +147,210 @@ export class GameScene2 extends Phaser.Scene {
             this
         );
 
+        this.events.on(
+            Phaser.Scenes.Events.RESUME,
+            this.handleResume,
+            this
+        );
+
         window.VN?.systems.SceneAssets?.prefetchNext(this);
+
+        // И только ПОСЛЕ создания overlay
+        // показываем правила.
+        this.showRulesScreen();
+    }
+
+    handleResume() {
+        // Если вернулись из паузы во время правил —
+        // запускаем озвучку правил заново.
+        if (this.phase === 'rules') {
+            this.showRulesScreen();
+        }
+    }
+
+    createRulesOverlay() {
+        const panelWidth = 1200;
+        const panelHeight = 577;
+
+        const panelX = BASE_WIDTH / 2;
+        const panelY = BASE_HEIGHT / 2;
+
+        // Плашка правил.
+        const panel = this.add
+            .image(
+                panelX,
+                panelY,
+                'game2-instruction-panel'
+            )
+            .setOrigin(0.5)
+            .setDisplaySize(
+                panelWidth,
+                panelHeight
+            );
+
+        // Заголовок.
+        const title = this.add
+            .text(
+                panelX,
+                panelY - 135,
+                'Правила игры',
+                {
+                    fontFamily: 'Philosopher',
+                    fontSize: '48px',
+                    color: '#3F2F22',
+                    align: 'center'
+                }
+            )
+            .setOrigin(0.5);
+
+        // Текст правил.
+        const text = this.add
+            .text(
+                panelX,
+                panelY + 15,
+                [
+                    'Перемещайте предметы',
+                    'в соответствующие места на карте.'
+                ].join('\n'),
+                {
+                    fontFamily: 'Ysabeau',
+                    fontSize: '36px',
+                    color: '#1B1A19',
+                    align: 'center',
+                    lineSpacing: 12,
+                    wordWrap: {
+                        width: 1100
+                    }
+                }
+            )
+            .setOrigin(0.5);
+
+        // Кнопка "Далее".
+        // Она полностью непрозрачная.
+        // Нажать её нельзя — правила заканчиваются
+        // автоматически после озвучки.
+        const nextButton = this.add
+            .image(
+                BASE_WIDTH * 0.85 + BASE_WIDTH * 0.13 / 2,
+                BASE_HEIGHT * 0.46 + BASE_HEIGHT * 0.8 / 2,
+                'game2-next'
+            )
+            .setDisplaySize(150, 150)
+            .setAlpha(1);
+
+        // Создаём пустой контейнер.
+        this.rulesOverlay = this.add
+            .container(0, 0);
+
+        // Добавляем готовые объекты.
+        this.rulesOverlay.add([
+            panel,
+            title,
+            text,
+            nextButton
+        ]);
+
+        // Контейнер целиком находится поверх игры.
+        this.rulesOverlay
+            .setDepth(2100)
+            .setVisible(false);
+
+        // Сохраняем ссылки, если они понадобятся дальше.
+        this.rulesPanel = panel;
+        this.rulesText = text;
+        this.rulesNextButton = nextButton;
+    }
+
+    createWinOverlay() {
+        const width = BASE_WIDTH;
+        const height = BASE_HEIGHT;
+
+        const panelWidth = 1300;
+        const panelHeight = 577;
+
+        const panelX = width / 2;
+        const panelY = height / 2;
+
+        // Плашка.
+        const panel = this.add
+            .image(
+                panelX,
+                panelY,
+                'game2-instruction-panel'
+            )
+            .setOrigin(0.5)
+            .setDisplaySize(
+                panelWidth,
+                panelHeight
+            );
+
+        // Заголовок победы.
+        const title = this.add
+            .text(
+                panelX,
+                panelY - 80,
+                'Игра пройдена!',
+                {
+                    fontFamily: 'Philosopher',
+                    fontSize: '48px',
+                    color: '#3F2F22',
+                    align: 'center'
+                }
+            )
+            .setOrigin(0.5);
+
+        // Текст победы.
+        const text = this.add
+            .text(
+                panelX,
+                panelY + 25,
+                'Все предметы нашли свои места.',
+                {
+                    fontFamily: 'Ysabeau',
+                    fontSize: '36px',
+                    color: '#1B1A19',
+                    align: 'center',
+                    wordWrap: {
+                        width: 1050
+                    }
+                }
+            )
+            .setOrigin(0.5);
+
+        // Кнопка "Далее".
+        const nextButton = this.add
+            .image(
+                BASE_WIDTH * 0.85 + BASE_WIDTH * 0.13 / 2,
+                BASE_HEIGHT * 0.46 + BASE_HEIGHT * 0.8 / 2,
+                'game2-next'
+            )
+            .setDisplaySize(150, 150)
+            .setInteractive({
+                useHandCursor: true
+            });
+
+        nextButton.on(
+            'pointerup',
+            () => this.finishGame()
+        );
+
+        // Создаём контейнер победы.
+        this.winOverlay = this.add
+            .container(0, 0)
+            .setDepth(2100)
+            .setVisible(false);
+
+        this.winOverlay.add([
+            panel,
+            title,
+            text,
+            nextButton
+        ]);
+
+        // Сохраняем ссылки.
+        this.winPanel = panel;
+        this.winText = text;
+        this.winNextButton = nextButton;
     }
 
     createBackground() {
@@ -161,7 +422,8 @@ export class GameScene2 extends Phaser.Scene {
 
         this.pauseButton.setInteractive({
             useHandCursor: true
-        });
+        })
+        .setDepth(1100);;
 
         this.pauseButton.on(
             'pointerdown',
@@ -208,52 +470,83 @@ export class GameScene2 extends Phaser.Scene {
 
     setupDrag() {
         this.onDragStart = (pointer, gameObject) => {
-                const thing =
-                    gameObject.getData('thing');
+            const thing =
+                gameObject.getData('thing');
 
-                if (!thing || thing.isLocked()) {
-                    return;
-                }
+            // Перетаскивание разрешено
+            // только во время основной игры.
+            if (
+                this.phase !== 'game' ||
+                !thing ||
+                thing.isLocked()
+            ) {
+                return;
+            }
 
-                this.audio.unlock();
-
-                gameObject.setDepth(100);
+            gameObject.setDepth(100);
         };
 
-        this.onDrag = (pointer, gameObject, dragX, dragY) => {
-                const thing =
-                    gameObject.getData('thing');
+        this.onDrag = (
+            pointer,
+            gameObject,
+            dragX,
+            dragY
+        ) => {
+            const thing =
+                gameObject.getData('thing');
 
-                if (!thing || thing.isLocked()) {
-                    return;
-                }
+            if (
+                this.phase !== 'game' ||
+                !thing ||
+                thing.isLocked()
+            ) {
+                return;
+            }
 
-                gameObject.setPosition(
-                    dragX,
-                    dragY
-                );
+            gameObject.setPosition(
+                dragX,
+                dragY
+            );
         };
 
-        this.onDragEnd = (pointer, gameObject) => {
-                const thing =
-                    gameObject.getData('thing');
+        this.onDragEnd = (
+            pointer,
+            gameObject
+        ) => {
+            const thing =
+                gameObject.getData('thing');
 
-                if (!thing || thing.isLocked()) {
-                    return;
+            if (
+                this.phase !== 'game' ||
+                !thing ||
+                thing.isLocked()
+            ) {
+                return;
+            }
+
+            this.handleDrop(
+                thing,
+                {
+                    x: pointer.worldX,
+                    y: pointer.worldY
                 }
-
-                this.handleDrop(
-                    thing,
-                    {
-                        x: pointer.worldX,
-                        y: pointer.worldY
-                    }
-                );
+            );
         };
 
-        this.input.on('dragstart', this.onDragStart);
-        this.input.on('drag', this.onDrag);
-        this.input.on('dragend', this.onDragEnd);
+        this.input.on(
+            'dragstart',
+            this.onDragStart
+        );
+
+        this.input.on(
+            'drag',
+            this.onDrag
+        );
+
+        this.input.on(
+            'dragend',
+            this.onDragEnd
+        );
     }
 
     handleDrop(thing, point) {
@@ -282,19 +575,36 @@ export class GameScene2 extends Phaser.Scene {
     }
 
     placeThing(thing, target) {
+        // Больше нельзя перетащить этот предмет.
         thing.lock();
+
         thing.sprite.disableInteractive();
 
         this.tweens.add({
             targets: thing.sprite,
+
+            // Перетаскиваемый предмет исчезает.
             alpha: 0,
+
             duration: 180,
+
             onComplete: () => {
                 thing.sprite.destroy();
                 thing.sprite = null;
 
+                // Полупрозрачный target
+                // становится полностью видимым.
                 target.reveal();
-                window.VN?.systems.AudioManager?.play(this, thing.sound);
+
+                // Проигрывается звук именно этого предмета.
+                //
+                // Например:
+                // book → game2_book.wav
+                // hat  → game2_hat.wav
+                window.VN?.systems.AudioManager?.play(
+                    this,
+                    thing.sound
+                );
 
                 this.checkCompletion();
             }
@@ -324,22 +634,27 @@ export class GameScene2 extends Phaser.Scene {
             (thing) => thing.isLocked()
         );
 
+        // Если ещё не все предметы
+        // размещены правильно — ничего не делаем.
         if (!done) {
             return;
         }
 
-        this.completed = true;
-
-        window.VN?.systems.finishMinigameAndAdvance?.(
-            this,
-            this.storySceneIndex,
-            this.minigameId
-        );
+        // Все предметы правильно размещены.
+        // Показываем экран победы.
+        this.showWinScreen();
     }
 
-    openPauseMenu() {
+   openPauseMenu() {
+        // После завершения игры пауза больше не нужна.
         if (this.completed) {
             return;
+        }
+
+        // Если сейчас идут правила —
+        // перед паузой полностью останавливаем их озвучку.
+        if (this.phase === 'rules') {
+            this.pauseRulesVoice();
         }
 
         this.scene.pause();
@@ -356,9 +671,238 @@ export class GameScene2 extends Phaser.Scene {
         );
     }
 
+    pauseRulesVoice() {
+        // Если озвучки сейчас нет — ничего не делаем.
+        if (!this.rulesVoice) {
+            return;
+        }
+
+        // Останавливаем запасной таймер.
+        if (this.rulesTimer) {
+            this.rulesTimer.remove();
+            this.rulesTimer = null;
+        }
+
+        // Полностью останавливаем текущую озвучку.
+        this.rulesVoice.stop();
+        this.rulesVoice.destroy();
+        this.rulesVoice = null;
+    }
+
     shutdown() {
+        this.stopRulesVoice();
+
+        this.events.off(
+            Phaser.Scenes.Events.RESUME,
+            this.handleResume,
+            this
+        );
+
         this.input.off('dragstart', this.onDragStart);
         this.input.off('drag', this.onDrag);
         this.input.off('dragend', this.onDragEnd);
+    }
+
+    startGameAfterRules() {
+        // Останавливаем всё,
+        // что осталось от озвучки правил.
+        this.stopRulesVoice();
+
+        // Скрываем экран правил.
+        if (this.rulesOverlay) {
+            this.rulesOverlay.setVisible(false);
+        }
+
+        this.restoreGameScene();
+
+        // Возвращаем возможность нажимать паузу.
+        if (this.pauseButton) {
+            this.pauseButton.setInteractive({
+                useHandCursor: true
+            })
+            .setDepth(2000);
+        }
+
+        // Теперь разрешено взаимодействовать
+        // с предметами.
+        this.phase = 'game';
+    }
+
+    stopRulesVoice() {
+        // Удаляем запасной таймер.
+        if (this.rulesTimer) {
+            this.rulesTimer.remove();
+            this.rulesTimer = null;
+        }
+
+        // Останавливаем и уничтожаем объект озвучки.
+        if (this.rulesVoice) {
+            this.rulesVoice.stop();
+            this.rulesVoice.destroy();
+            this.rulesVoice = null;
+        }
+    }
+
+    showRulesScreen() {
+        // Пока показываем правила,
+        // игра находится в состоянии "rules".
+        this.phase = 'rules';
+
+        this.dimGameScene();
+
+        // Показываем экран.
+        this.rulesOverlay.setVisible(true);
+
+        // На всякий случай останавливаем предыдущую озвучку.
+        this.stopRulesVoice();
+
+        // Если AudioManager отсутствует,
+        // не блокируем игрока навсегда.
+        if (!window.VN?.systems.AudioManager) {
+            this.startGameAfterRules();
+            return;
+        }
+
+        // Получаем загруженный звук правил.
+        this.rulesVoice =
+            window.VN.systems.AudioManager.add(
+                this,
+                'voice_and_sound/gameplay_scene_2_rasskazchik_all.wav'
+            );
+
+        // Когда озвучка закончилась,
+        // автоматически запускаем игру.
+        const finishRules = () => {
+            this.startGameAfterRules();
+        };
+
+        this.rulesVoice.once(
+            'complete',
+            finishRules
+        );
+
+        // Запускаем озвучку.
+        this.rulesVoice.play();
+
+        /*
+        * Запасной таймер.
+        *
+        * Если браузер по какой-то причине
+        * не вызовет событие complete,
+        * игра всё равно продолжится.
+        */
+        const duration =
+            Math.max(
+                4000,
+                (this.rulesVoice.totalDuration || 0) * 1000 + 500
+            );
+
+        this.rulesTimer =
+            this.time.delayedCall(
+                duration,
+                finishRules
+            );
+    }
+
+    showWinScreen() {
+        // Если уже показываем победу,
+        // повторно её не создаём.
+        if (this.completed) {
+            return;
+        }
+
+        // Теперь игра находится
+        // в состоянии "win".
+        this.phase = 'win';
+
+        // Запрещаем перетаскивание предметов.
+        this.things.forEach((thing) => {
+            if (thing.sprite) {
+                thing.sprite.disableInteractive();
+            }
+        });
+
+        // Показываем экран победы.
+        this.winOverlay.setVisible(true);
+    }
+
+    finishGame() {
+        if (this.completed) {
+            return;
+        }
+
+        this.completed = true;
+
+        // Передаём управление общей системе
+        // перехода между сценами.
+        window.VN?.systems.finishMinigameAndAdvance?.(
+            this,
+            this.storySceneIndex,
+            this.minigameId
+        );
+    }
+
+    dimGameScene() {
+        /*
+        * Делаем уже существующие элементы игры
+        * полупрозрачными.
+        *
+        * Никакого дополнительного чёрного
+        * прямоугольника не создаём.
+        */
+
+        // Фон + targets находятся внутри stage.
+        if (this.stage) {
+            this.stage.setAlpha(0.45);
+        }
+
+        // Панель с предметами.
+        if (this.panel) {
+            this.panel.setAlpha(0.45);
+        }
+
+        // Все перетаскиваемые предметы.
+        this.things.forEach((thing) => {
+            if (thing.sprite) {
+                thing.sprite.setAlpha(0.45);
+            }
+        });
+
+        /*
+        * Кнопку паузы НЕ затемняем.
+        * Она должна оставаться полностью видимой
+        * и доступной.
+        */
+        if (this.pauseButton) {
+            this.pauseButton.setAlpha(1);
+            this.pauseButton.setDepth(2000);
+        }
+    }
+
+    restoreGameScene() {
+        /*
+        * Возвращаем обычную прозрачность
+        * всем элементам игры после экрана правил.
+        */
+
+        if (this.stage) {
+            this.stage.setAlpha(1);
+        }
+
+        if (this.panel) {
+            this.panel.setAlpha(1);
+        }
+
+        this.things.forEach((thing) => {
+            if (thing.sprite) {
+                thing.sprite.setAlpha(1);
+            }
+        });
+
+        // Пауза всегда полностью видима.
+        if (this.pauseButton) {
+            this.pauseButton.setAlpha(1);
+            this.pauseButton.setDepth(2000);
+        }
     }
 }

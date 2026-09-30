@@ -1,71 +1,16 @@
-export const letterLists = [
+// image — имя файла из public/images/game4/letters/ без расширения.
 
-    [
-        { envelope: 'blue', color: 0x6e9cff },
-        { envelope: 'pink', color: 0xff8181 },
-        { envelope: 'yellow', color: 0xf7ff87 },
-        { envelope: 'black', color: 0x000000 },
-        { envelope: 'pink', color: 0xff8181 },
-        { envelope: 'blue', color: 0x6e9cff },
-        { envelope: 'black', color: 0x000000 },
-        { envelope: 'yellow', color: 0xf7ff87 },
-        { envelope: 'blue', color: 0x6e9cff },
-        { envelope: 'pink', color: 0xff8181 },
-        { envelope: 'yellow', color: 0xf7ff87 },
-        { envelope: 'black', color: 0x000000 },
-        { envelope: 'pink', color: 0xff8181 },
-        { envelope: 'blue', color: 0x6e9cff },
-        { envelope: 'black', color: 0x000000 },
-        { envelope: 'yellow', color: 0xf7ff87 },
-        { envelope: 'blue', color: 0x6e9cff },
-        { envelope: 'pink', color: 0xff8181 },
-        { envelope: 'black', color: 0x000000 },
-        { envelope: 'yellow', color: 0xf7ff87 }
-    ],
+export const letterImagesByEnvelope = {
+    pink: ['red1', 'red2', 'red3', 'red4'],
+    blue: ['blue1', 'blue2', 'blue3', 'blue4'],
+    yellow: ['yellow1', 'yellow2', 'yellow3', 'yellow4', 'pink1', 'pink2', 'pink3', 'pink4'],
+    black: ['brown1', 'brown2', 'brown3', 'brown4', 'brown5']
+};
 
-    [
-        { envelope: 'black', color: 0x000000 },
-        { envelope: 'yellow', color: 0xf7ff87 },
-        { envelope: 'blue', color: 0x6e9cff },
-        { envelope: 'pink', color: 0xff8181 },
-        { envelope: 'yellow', color: 0xf7ff87 },
-        { envelope: 'black', color: 0x000000 },
-        { envelope: 'pink', color: 0xff8181 },
-        { envelope: 'blue', color: 0x6e9cff },
-        { envelope: 'pink', color: 0xff8181 },
-        { envelope: 'black', color: 0x000000 },
-        { envelope: 'yellow', color: 0xf7ff87 },
-        { envelope: 'blue', color: 0x6e9cff },
-        { envelope: 'black', color: 0x000000 },
-        { envelope: 'pink', color: 0xff8181 },
-        { envelope: 'yellow', color: 0xf7ff87 },
-        { envelope: 'blue', color: 0x6e9cff },
-        { envelope: 'pink', color: 0xff8181 },
-        { envelope: 'yellow', color: 0xf7ff87 },
-        { envelope: 'black', color: 0x000000 },
-        { envelope: 'blue', color: 0x6e9cff }
-    ],
+export const letterImages = Object.values(letterImagesByEnvelope).flat();
 
-    [
-        { envelope: 'yellow', color: 0xf7ff87 },
-        { envelope: 'pink', color: 0xff8181 },
-        { envelope: 'black', color: 0x000000 },
-        { envelope: 'blue', color: 0x6e9cff },
-        { envelope: 'black', color: 0x000000 },
-        { envelope: 'yellow', color: 0xf7ff87 },
-        { envelope: 'blue', color: 0x6e9cff },
-        { envelope: 'pink', color: 0xff8181 },
-        { envelope: 'yellow', color: 0xf7ff87 },
-        { envelope: 'black', color: 0x000000 },
-        { envelope: 'pink', color: 0xff8181 },
-        { envelope: 'blue', color: 0x6e9cff },
-        { envelope: 'yellow', color: 0xf7ff87 },
-        { envelope: 'pink', color: 0xff8181 },
-        { envelope: 'black', color: 0x000000 },
-        { envelope: 'blue', color: 0x6e9cff },
-        { envelope: 'pink', color: 0xff8181 },
-        { envelope: 'black', color: 0x000000 },
-        { envelope: 'blue', color: 0x6e9cff },
-        { envelope: 'yellow', color: 0xf7ff87 }
-    ]
-];
+// Все письма по одному разу; порядок перемешивает сцена.
+export const letterList = Object.entries(letterImagesByEnvelope)
+    .flatMap(([envelope, images]) =>
+        images.map(image => ({ envelope, image }))
+    );

@@ -75,7 +75,7 @@
     getAssetManifest() {
       return {
         images: [
-          { key: IMG.background, url: 'images/backgrounds/plug.png' },
+          { key: IMG.background, url: 'images/backgrounds/game5.png' },
           // ВАЖНО: путь без "public/" (как и у остальных ассетов — Vite
           // сам отдаёт содержимое public/ с корня сайта, "public/" в самом
           // пути даёт 404). А "й" здесь — специально через ̆
@@ -83,7 +83,7 @@
           // на диске сохранено в NFD-форме (и + ̆ отдельно, так сохраняет
           // git/файловая система), и просто набранная "й" (NFC, слитная)
           // с этим именем побайтово не совпадает — картинка не находится.
-          { key: IMG.hero, url: 'images/hero/Толсто_1'},
+          { key: IMG.hero, url: 'images/hero/Толсто_1.png'},
           { key: IMG.plazka, url: 'images/icon_UI/rectangle_game5.png' },
           { key: IMG.dialog, url: 'images/icon_UI/dialog_text_bg.png' },
           { key: IMG.next, url: IMG.next },

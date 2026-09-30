@@ -41,6 +41,8 @@
       this.historyVisible = false;
       this.portraitPhase = null;
       this.portraitAnimationComplete = false;
+      this.portraitPlaybackReady = false;
+      this.portraitVoiceComplete = false;
       this._pendingVoiceResume = false;
       this.voiceInterruptedByOverlay = false;
       this.minigameFadeInMs = data.minigameFadeInMs || 0;
@@ -53,7 +55,7 @@
     }
 
     create() {
-      // У финального портрета звук появляется только после анимации.
+      // У финального портрета реплика запускается вместе с первым кадром видео.
       this.sceneAudio = this.currentLines[this.screenIndex].portraitReveal
         ? null : window.VN.systems.SceneAudio.enter(this);
       if (!this.sceneAudio) {
@@ -115,7 +117,7 @@
     }
 
     update(time) {
-      if (this.portraitPhase === 'animation' && this.portraitAnimationComplete) {
+      if (this.portraitPhase === 'loading' && this.portraitPlaybackReady) {
         this.portraitPhase = 'dialogue';
         this.setPortraitControlsVisible(true);
         this.renderCurrentScreen();
@@ -129,8 +131,8 @@
         this.startVoiceReveal(this._voiceConfigForCurrentScreen, this._textForCurrentScreen, time);
       }
       this.updateVoiceReveal(time);
-      if (this.portraitPhase === 'dialogue' && !this.historyVisible
-        && this.voiceTrack?.ended) {
+      if (this.portraitPhase === 'dialogue' && !this.historyVisible) {
+        if (this.voiceTrack?.ended) this.portraitVoiceComplete = true;
         this.showPortraitTitle();
       }
       if (this.pendingBackgroundPath && this.currentLines[this.screenIndex].backgroundChange?.afterVoice
@@ -867,8 +869,10 @@
     }
 
     startPortraitSequence(config) {
-      this.portraitPhase = 'animation';
+      this.portraitPhase = 'loading';
       this.portraitAnimationComplete = false;
+      this.portraitPlaybackReady = false;
+      this.portraitVoiceComplete = false;
       this.stopVoice();
       this.clearScreenTimer();
       this.setBackground(this.currentBackgrounds[this.screenIndex]);
@@ -883,20 +887,24 @@
       this.portraitVideo = video;
 
       // Последний кадр остаётся в раме до ухода со сцены.
-      video.once('created', () => video.setDisplaySize(width, height).setVisible(true));
+      video.once('created', () => {
+        video.setDisplaySize(width, height).setVisible(true);
+        this.portraitPlaybackReady = true;
+      });
       video.once('complete', () => { this.portraitAnimationComplete = true; });
       video.once('error', () => {
         // При недоступном видео остаётся исходная картина; реплику можно прочитать.
         video.setVisible(false);
         poster.setVisible(false);
         this.portraitAnimationComplete = true;
+        this.portraitPlaybackReady = true;
       });
       video.loadURL(config.video, true);
       let started = false;
       const play = () => { started = true; video.play(false); };
       const pause = () => { if (started) video.setPaused(true); };
       const resume = () => {
-        if (started && this.portraitPhase === 'animation' && !this.portraitAnimationComplete) {
+        if (started && !this.historyVisible && !this.portraitAnimationComplete) {
           video.setPaused(false);
         }
       };
@@ -918,18 +926,21 @@
         this.portraitVideo = null;
         this.portraitPhase = null;
         this.portraitAnimationComplete = false;
+        this.portraitPlaybackReady = false;
+        this.portraitVoiceComplete = false;
         this.clearPortraitSequence = null;
       };
     }
 
     showPortraitTitle() {
-      if (this.portraitPhase !== 'dialogue') return;
+      if (this.portraitPhase !== 'dialogue' || !this.portraitAnimationComplete
+        || !this.portraitVoiceComplete || this.historyVisible || this._pendingVoiceResume) return;
       this.portraitPhase = 'hold';
       this.stopVoice();
       this._pendingVoiceResume = false;
       this.voiceInterruptedByOverlay = false;
       this.setPortraitControlsVisible(false);
-      this.pauseBtn.bg.setVisible(false);
+      this.menuBtn.bg.setVisible(false);
       this.destroyGlossaryWordOverlays();
 
       const config = this.currentLines[this.screenIndex].portraitReveal;
@@ -1037,7 +1048,14 @@
     }
 
     goNext() {
-      if (this.portraitPhase && this.portraitPhase !== 'dialogue') return;
+      if (this.portraitPhase) {
+        if (this.portraitPhase === 'dialogue' && !this.historyVisible) {
+          this.skipVoice();
+          this.portraitVoiceComplete = true;
+          this.showPortraitTitle();
+        }
+        return;
+      }
       // Смена фона — отдельный шаг внутри экрана. После него следующий
       // клик переходит дальше, даже если озвучка ещё не закончилась.
       if (this.changeScreenBackground()) return;
@@ -1093,6 +1111,7 @@
      * (в preload сцены и заранее через prefetchNext предыдущей сцены).
      */
     startVoiceReveal(voiceConfig, text, nowMs) {
+      if (this.portraitPhase === 'dialogue') this.portraitVoiceComplete = false;
       // При повторном входе в сцену this.time.now хранит время до мини-игры
       // вплоть до первого update(). Берём время текущего кадра игры —
       // в той же шкале, что time в updateVoiceReveal(), даже в create().
@@ -1186,6 +1205,7 @@
      */
     stopVoice() {
       if (this.voiceTrack) {
+        if (this.portraitPhase === 'dialogue' && this.voiceTrack.ended) this.portraitVoiceComplete = true;
         this.voiceTrack.stop();
         this.voiceTrack = null;
       }
@@ -1228,11 +1248,15 @@
       // Открытие "Истории" останавливает текущую озвучку; запоминаем, была ли
       // она прервана, чтобы при закрытии окна проиграть реплику заново.
       if (!this.historyVisible) {
-        this.voiceInterruptedByOverlay = this.voiceActive;
+        this.voiceInterruptedByOverlay = this.voiceActive
+          || Boolean(this.portraitPhase === 'dialogue' && this.voiceTrack && !this.voiceTrack.ended);
         this.stopVoice();
       }
 
       this.historyVisible = !this.historyVisible;
+      if (this.portraitVideo && !this.portraitAnimationComplete) {
+        this.portraitVideo.setPaused(this.historyVisible);
+      }
       if (this.screenTimer) this.screenTimer.paused = this.historyVisible;
       this.historyContainer.setVisible(this.historyVisible);
       // Иконка "История" пропадает, пока открыто окно, и появляется снова
@@ -1262,7 +1286,8 @@
       if (this.portraitPhase === 'hold' || this.portraitPhase === 'finished') return;
       // Пока сцена на паузе, её update() не выполняется, но Web Audio
       // продолжил бы играть в фоне — останавливаем озвучку.
-      this.voiceInterruptedByOverlay = this.voiceActive;
+      this.voiceInterruptedByOverlay = this.voiceActive
+        || Boolean(this.portraitPhase === 'dialogue' && this.voiceTrack && !this.voiceTrack.ended);
       this.stopVoice();
       this.scene.pause();
       this.scene.launch('PauseScene', { returnSceneKey: 'StoryScene' });

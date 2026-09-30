@@ -6,6 +6,7 @@ export default defineConfig({
         rollupOptions: {
             input: {
                 main: 'index.html',
+                game2: 'games/game2/index.html',
                 finish: 'games/finish/index.html'
             }
         }

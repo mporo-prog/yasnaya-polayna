@@ -12,7 +12,7 @@ window.VN.data.storyCharacterPortraits = {
   'ПОСЕТИТЕЛЬ  ': 'images/hero/Репин_3.png',
   'ПОСЕТИТЕЛЬ   ': 'images/hero/Репин_4.png',
   'ПОСЕТИТЕЛЬ     ': 'images/hero/Репин_5.png',
-
+  'РЕПИН_3': 'images/hero/Репин_3.png',
   'ПАЦАН': 'images/hero/patsan.png',
   'ПАЦАН ': 'images/hero/Пацан_2.png',
 

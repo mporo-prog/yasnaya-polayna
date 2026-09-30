@@ -1,17 +1,4 @@
-import Phaser from 'phaser';
-import { GameScene2 } from './GameScene2.js';
-import '../../src/styles/reset.css';
-
-const config = {
-    type: Phaser.AUTO,
-
-    scale: {
-        mode: Phaser.Scale.RESIZE,
-        width: '100%',
-        height: '100%'
-    },
-
-    scene: [GameScene2]
-};
-
-new Phaser.Game(config);
+// Отдельный URL открывает игру через общий запуск: тот же Layout, шрифты и меню паузы.
+const gameUrl = new URL(import.meta.env.BASE_URL, window.location.origin);
+gameUrl.searchParams.set('game', '2');
+window.location.replace(gameUrl.href);

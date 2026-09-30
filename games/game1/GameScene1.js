@@ -379,7 +379,7 @@ export class GameScene1 extends Phaser.Scene {
         // Неудачные попытки не учитываем: все птицы должны войти в два пройденных раунда.
         this.sequence.forEach(index => this.playedBirds.add(index));
         if (this.round_number === 3) {
-            this.showHint(this.winOverlay, () => this.finishGame());
+            this.showHint(this.winOverlay, () => this.finishGame(), 7);
             return;
         }
         this.nextRound();
@@ -434,10 +434,12 @@ export class GameScene1 extends Phaser.Scene {
             timer: null
         };
         this.activeHint = hint;
-        hint.timer = this.time.delayedCall(durationSeconds * 1000, () => {
-            hint.autoDismiss = true;
-            if (this.activeHint === hint) this.dismissHint();
-        });
+        if (durationSeconds != null) {
+            hint.timer = this.time.delayedCall(durationSeconds * 1000, () => {
+                hint.autoDismiss = true;
+                if (this.activeHint === hint) this.dismissHint();
+            });
+        }
     }
 
     clearHint() {
@@ -445,7 +447,7 @@ export class GameScene1 extends Phaser.Scene {
             return;
         }
 
-        this.activeHint.timer.remove();
+        this.activeHint.timer?.remove();
         this.activeHint.overlay.setVisible(false);
         this.activeHint = null;
     }
@@ -551,9 +553,9 @@ export class GameScene1 extends Phaser.Scene {
 
     createWinOverlay() {
         this.winOverlay = this.createOverlay(
-            'Игра пройдена!',
+            'Самые ранние произведения Толстого – миниатюрные описания, которые посвящены птицам. Толстой написал их в возрасте 7 лет в Ясной Поляне.',
             () => this.dismissHint(),
-            { panel: INSTRUCTION_PANEL, textStyle: RESULT_MESSAGE_TEXT_STYLE }
+            { panel: INSTRUCTION_PANEL, textStyle: INSTRUCTION_TEXT_STYLE, lineHeight: 64 }
         );
     }
 

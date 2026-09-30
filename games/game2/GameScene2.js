@@ -6,10 +6,19 @@ import {
     TARGET_SIZE,
     ITEM_SIZE,
     PAUSE_BUTTON,
+    INFO_PANEL,
     MESSAGE_PANELS,
-    MESSAGE_FONT_SIZE,
     NEXT_BUTTON
 } from './constants/Game2Constants.js';
+
+// Текст плашки с правилами в начале игры.
+const RULES_TEXT = 'Распредели предметы на карте усадьбы.';
+
+// После победы: плашка с интересным фактом, затем реплика внизу экрана.
+const WIN_TITLE = 'Игра пройдена!';
+const WIN_TEXT = 'Толстой любил пешие путешествия и не отказывался от них даже после 50–60 лет. В 1880-е годы он трижды ходил пешком из Москвы в Ясную Поляну.';
+const OUTRO_SPEAKER = 'РАССКАЗЧИК';
+const OUTRO_TEXT = 'Дневник графа Толстого мог оказаться в любом месте, но свой самый важный последний дневник Лев Николаевич никому не показывал, даже жене, и хранил в сапоге.';
 import { Thing } from './models/Thing.js';
 import { Target } from './models/Target.js';
 import { Game2Matcher } from './systems/Game2Matcher.js';
@@ -95,12 +104,16 @@ export class GameScene2 extends Phaser.Scene {
                     url: `${uiPath}next_button.png`
                 },
                 {
+                    key: 'game2-info-panel',
+                    url: `${uiPath}dialog_text_bg.png`
+                },
+                {
                     key: 'game2-pause',
                     url: `${uiPath}pause_button.png`
                 }
             ],
 
-            audio: [...THINGS.map((thing) => thing.sound), 'voice_and_sound/gameplay_scene_2_rasskazchik_all.wav', 'voice_and_sound/gameplay2_neverniy_vybor.wav']
+            audio: [...THINGS.map((thing) => thing.sound).filter(Boolean),'voice_and_sound/gameplay_scene_2_rasskazchik_all.wav', 'voice_and_sound/gameplay2_neverniy_vybor.wav']
         };
     }
 
@@ -138,6 +151,7 @@ export class GameScene2 extends Phaser.Scene {
         this.createPauseButton();
         this.createThings();
         this.createPanelLayout();
+        this.createInfoPanel();
 
         // Сначала создаём overlay.
         this.createRulesOverlay();
@@ -172,29 +186,23 @@ export class GameScene2 extends Phaser.Scene {
         }
     }
 
-    createMessageOverlay(config, heading, message, onNext) {
+    /**
+     * Плашка поверх игры: картинка-рамка, её содержимое (children — в
+     * координатах относительно центра плашки) и стрелка «далее». Вся
+     * композиция стоит по центру экрана и уменьшается на узких экранах.
+     */
+    createMessageOverlay(config, children, onNext) {
         const panelWidth = BASE_WIDTH * config.widthFrac;
         const panelHeight = BASE_HEIGHT * config.heightFrac;
-        const panelTop = -panelHeight / 2;
-        const textWidth = panelWidth * config.textWidthFrac;
-        const style = {
-            fontFamily: 'Philosopher',
-            fontStyle: 'normal',
-            fontSize: `${MESSAGE_FONT_SIZE}px`,
-            color: config.color,
-            align: 'center',
-            lineSpacing: config.lineSpacing,
-            wordWrap: { width: textWidth }
-        };
 
         // Дети используют координаты своей плашки, а весь экран — координаты макета.
         const panel = this.add.image(0, 0, 'game2-instruction-panel')
             .setOrigin(0.5)
-            .setDisplaySize(panelWidth, panelHeight);
-        const title = this.add.text(0, panelTop + panelHeight * config.titleYFrac, heading, style)
-            .setOrigin(0.5);
-        const text = this.add.text(0, panelTop + panelHeight * config.textYFrac, message, style)
-            .setOrigin(0.5);
+            .setDisplaySize(
+                panelWidth,
+                panelHeight
+            );
+
         const nextButton = this.add.image(
             BASE_WIDTH * (NEXT_BUTTON.xFrac - 0.5),
             BASE_HEIGHT * (NEXT_BUTTON.yFrac - 0.5),
@@ -208,7 +216,7 @@ export class GameScene2 extends Phaser.Scene {
         }
 
         const overlay = this.add.container(BASE_WIDTH / 2, BASE_HEIGHT / 2, [
-            panel, title, text, nextButton
+            panel, ...children, nextButton
         ]).setDepth(2100).setVisible(false);
 
         this.layout?.onLayout(this, (visible, ui) => {
@@ -218,15 +226,26 @@ export class GameScene2 extends Phaser.Scene {
             ));
         });
 
-        return { overlay, panel, text, nextButton };
+        return { overlay, panel, nextButton };
     }
 
     createRulesOverlay() {
-        const { overlay, panel, text, nextButton } = this.createMessageOverlay(
-            MESSAGE_PANELS.rules,
-            '',
-            'Распредели предметы на карте усадьбы.'
-        );
+        const config = MESSAGE_PANELS.rules;
+
+        // Текст правил — без заголовка, как в остальных играх.
+        const text = this.add
+            .text(0, 0, RULES_TEXT, {
+                fontFamily: 'Philosopher',
+                fontSize: '64px',
+                color: '#6E6056',
+                align: 'center',
+                wordWrap: {
+                    width: BASE_WIDTH * config.widthFrac - 160
+                }
+            })
+            .setOrigin(0.5);
+
+        const { overlay, panel, nextButton } = this.createMessageOverlay(config, [text]);
         this.rulesOverlay = overlay;
         this.rulesPanel = panel;
         this.rulesText = text;
@@ -234,11 +253,34 @@ export class GameScene2 extends Phaser.Scene {
     }
 
     createWinOverlay() {
-        const { overlay, panel, text, nextButton } = this.createMessageOverlay(
+        // Небольшой заголовок «Игра пройдена!» и интересный факт под ним.
+        const title = this.add
+            .text(0, -130, WIN_TITLE, {
+                fontFamily: 'Philosopher',
+                fontSize: '48px',
+                color: '#6E6056',
+                align: 'center'
+            })
+            .setOrigin(0.5);
+
+        const text = this.add
+            .text(0, 35, WIN_TEXT, {
+                fontFamily: 'Ysabeau',
+                fontSize: '40px',
+                color: '#1B1A19',
+                align: 'center',
+                lineSpacing: 10,
+                wordWrap: {
+                    width: 1050
+                }
+            })
+            .setOrigin(0.5);
+
+        // Стрелка ведёт к реплике рассказчика внизу экрана.
+        const { overlay, panel, nextButton } = this.createMessageOverlay(
             MESSAGE_PANELS.win,
-            '',
-            'Толстой любил пешие путешествия и не отказывался от них даже после 50–60 лет. В 1880-е годы он трижды ходил пешком из Москвы в Ясную Поляну.',
-            () => this.finishGame()
+            [title, text],
+            () => this.showOutro()
         );
         this.winOverlay = overlay;
         this.winPanel = panel;
@@ -327,40 +369,77 @@ export class GameScene2 extends Phaser.Scene {
     }
 
     createPanelLayout() {
+        this.things.forEach((thing) => {
+            if (!thing.sprite) {
+                thing.createSprite(
+                    this,
+                    thing.slot.x,
+                    thing.slot.y,
+                    ITEM_SIZE
+                );
+                thing.sprite.setDepth(1);
+                // Нажатие на иконку показывает её название и описание.
+                thing.sprite.on('pointerdown', () => {
+                    if (this.phase === 'game') this.showThingInfo(thing);
+                });
+            }
+        });
+
         this.panelLayout = new Game2PanelLayout(
             this,
             this.things,
             this.pauseButton
         );
+    }
 
-        this.panel = this.panelLayout.createPanel();
+    /**
+     * Плашка с названием и описанием предмета — та же картинка и
+     * раскладка, что у реплики в сюжетной сцене: название слева от
+     * вертикальной черты, описание справа. Скрыта до первого нажатия.
+     */
+    createInfoPanel() {
+        const { x, y, width, height } = INFO_PANEL;
+        // Вертикальная черта нарисована в картинке на x≈437 из 1589.
+        const dividerX = x + width * (437 / 1589);
+        const centerY = y + height / 2;
 
-        this.things.forEach((thing) => {
-            if (!thing.sprite) {
-                thing.createSprite(
-                    this,
-                    this.pauseButton.x,
-                    this.pauseButton.y,
-                    ITEM_SIZE
-                );
-            }
-        });
+        const background = this.add
+            .image(x, y, 'game2-info-panel')
+            .setOrigin(0)
+            .setDisplaySize(width, height);
 
-        // Layout.onLayout() сразу расставляет предметы.
-        this.panelLayout.update(
-            this.layout
-                ? this.layout.getUiRect(this)
-                : {
-                    x: 0,
-                    y: 0,
-                    width: BASE_WIDTH,
-                    height: BASE_HEIGHT,
-                    right: BASE_WIDTH,
-                    bottom: BASE_HEIGHT,
-                    top: 0,
-                    left: 0
-                }
-        );
+        this.infoName = this.add
+            .text((x + 60 + dividerX - 30) / 2, centerY, '', {
+                fontFamily: 'Philosopher',
+                fontStyle: 'bold',
+                fontSize: '48px',
+                color: '#6E6056',
+                align: 'center',
+                wordWrap: { width: dividerX - x - 110 }
+            })
+            .setOrigin(0.5);
+
+        const textX = dividerX + 65;
+        this.infoDescription = this.add
+            .text(textX, centerY, '', {
+                fontFamily: 'Ysabeau',
+                fontSize: '34px',
+                color: '#1B1A19',
+                lineSpacing: 12,
+                wordWrap: { width: x + width - textX - 90 }
+            })
+            .setOrigin(0, 0.5);
+
+        this.infoPanel = this.add
+            .container(0, 0, [background, this.infoName, this.infoDescription])
+            .setDepth(5)
+            .setVisible(false);
+    }
+
+    showThingInfo(thing) {
+        this.infoName.setText(thing.name || '');
+        this.infoDescription.setText(thing.description || '');
+        this.infoPanel.setVisible(true);
     }
 
     setupDrag() {
@@ -500,10 +579,12 @@ export class GameScene2 extends Phaser.Scene {
                 // Например:
                 // book → game2_book.wav
                 // hat  → game2_hat.wav
-                window.VN?.systems.AudioManager?.play(
-                    this,
-                    thing.sound
-                );
+                if (thing.sound) {
+                    window.VN?.systems.AudioManager?.play(
+                        this,
+                        thing.sound
+                    );
+                }
 
                 this.checkCompletion();
             }
@@ -529,8 +610,9 @@ export class GameScene2 extends Phaser.Scene {
             return;
         }
 
+        // Предмету-«обманке» (targetId: null) места на карте нет.
         const done = this.things.every(
-            (thing) => thing.isLocked()
+            (thing) => !thing.targetId || thing.isLocked()
         );
 
         // Если ещё не все предметы
@@ -728,6 +810,36 @@ export class GameScene2 extends Phaser.Scene {
         this.winTimer = this.time.delayedCall(7000, () => this.finishGame());
     }
 
+    /**
+     * После факта игра не уходит с экрана: внизу, как реплика в сюжете,
+     * появляется плашка рассказчика со стрелкой «далее» — она и ведёт
+     * дальше по сюжету.
+     */
+    showOutro() {
+        if (this.phase === 'outro') {
+            return;
+        }
+        this.phase = 'outro';
+        this.winOverlay.setVisible(false);
+
+        const { x, y, width, height } = INFO_PANEL;
+        // «Далее» — на правом краю плашки, как в сюжетной сцене.
+        const nextX = x + width - 30;
+        const nextSize = 150;
+        const nextButton = this.add
+            .image(nextX, y + height / 2, 'game2-next')
+            .setDisplaySize(nextSize, nextSize)
+            .setInteractive({ useHandCursor: true });
+        nextButton.once('pointerup', () => this.finishGame());
+        this.infoPanel.add(nextButton);
+
+        this.infoName.setText(OUTRO_SPEAKER);
+        this.infoDescription
+            .setWordWrapWidth(nextX - nextSize / 2 - 30 - this.infoDescription.x)
+            .setText(OUTRO_TEXT);
+        this.infoPanel.setVisible(true);
+    }
+
     finishGame() {
         if (this.completed) {
             return;
@@ -760,10 +872,6 @@ export class GameScene2 extends Phaser.Scene {
             this.stage.setAlpha(0.45);
         }
 
-        // Панель с предметами.
-        if (this.panel) {
-            this.panel.setAlpha(0.45);
-        }
 
         // Все перетаскиваемые предметы.
         this.things.forEach((thing) => {
@@ -793,9 +901,6 @@ export class GameScene2 extends Phaser.Scene {
             this.stage.setAlpha(1);
         }
 
-        if (this.panel) {
-            this.panel.setAlpha(1);
-        }
 
         this.things.forEach((thing) => {
             if (thing.sprite) {

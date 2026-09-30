@@ -1,13 +1,19 @@
 export const BASE_WIDTH = 1920;
 export const BASE_HEIGHT = 1080;
 
-export const PANEL_RATIO = 0.25;
+export const ITEM_SIZE = 152;
 
-export const ITEM_SIZE = BASE_WIDTH * (148 / 1920);
-export const ITEM_GAP = BASE_HEIGHT * (80 / 1080);
+// Иконка на кружке карты — чуть больше самого кружка (≈127 px).
+export const TARGET_SIZE = 132;
+export const MATCH_RADIUS = 70;
 
-export const TARGET_SIZE = ITEM_SIZE;
-export const MATCH_RADIUS = BASE_WIDTH * (70 / 1920);
+// Плашка с названием и описанием предмета (как в сюжетной сцене).
+export const INFO_PANEL = {
+    x: 160,
+    y: 738,
+    width: 1585,
+    height: 305
+};
 
 export const PAUSE_BUTTON = {
     width: BASE_WIDTH * (150 / 1920),

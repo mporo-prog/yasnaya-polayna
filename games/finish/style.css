@@ -12,13 +12,7 @@
     max-height: 100%;
 }
 
-.finish-social-links {
-    position: relative;
-}
-
 .finish-social-link {
-    position: absolute;
-    top: 0;
     display: block;
     border-radius: 50%;
 }
@@ -48,7 +42,7 @@
     font-family: 'Philosopher', Georgia, serif;
     font-weight: 700;
     font-style: normal;
-    font-size: 36px;
+    font-size: 88px;
     line-height: 100%;
     letter-spacing: 0;
     text-align: center;

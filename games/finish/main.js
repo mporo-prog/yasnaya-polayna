@@ -5,6 +5,8 @@ import './style.css';
 const config = {
     type: Phaser.AUTO,
     dom: { createContainer: true },
+    // Прозрачный холст: фон финального экрана задан под ним на всё окно.
+    transparent: true,
 
     // Весь макет масштабируется целиком, сохраняя пропорции 16:9.
     scale: {

@@ -1,37 +1,95 @@
 (function () {
   const ROWS = [
-    { category: 'music', label: 'ГРОМКОСТЬ МУЗЫКИ' },
-    { category: 'ui', label: 'ГРОМКОСТЬ ЗВУКОВ' },
-    { category: 'voice', label: 'ГРОМКОСТЬ ГОЛОСА' },
+    { category: 'music', label: 'Громкость музыки' },
+    { category: 'ui', label: 'Громкость звуков' },
+    { category: 'voice', label: 'Громкость голоса' },
   ];
-  const TRACK_X = 675;
-  const TRACK_WIDTH = 340;
+  const TEXT_COLOR = '#1B1A19';
+  const BUTTON_TEXT_COLOR = '#6E6056';
+
+  /**
+   * Раскладка по макетам: DESKTOP — в пикселях макета 1920×1080,
+   * компактная (телефон) — считается в compactLayout() от ширины экрана.
+   * Слайдер: track — дорожка, thumb — ползунок; их y — от центра строки.
+   */
+  const DESKTOP = {
+    back: { x: 152, y: 112, size: 96 },
+    header: { x: 707, y: 47, width: 505, height: 143, fontSize: 64 },
+    panel: { x: 313, y: 243, width: 1297, height: 577 },
+    rows: [408, 535, 657],
+    label: { x: 413, fontSize: 46, fontStyle: 'normal', wrap: 0 },
+    track: { x: 937, width: 474, height: 11, dy: 10 },
+    thumb: { width: 35, height: 50, dy: -8 },
+    value: { right: 1540, fontSize: 44, dy: 0 },
+    save: { x: 1255, y: 880, width: 342, height: 95, fontSize: 60 },
+    status: { x: 313, y: 1000, fontSize: 30, wrap: 900 },
+    dim: 0.35,
+  };
 
   class SettingsScene extends Phaser.Scene {
     constructor(key = 'SettingsScene') {
       super(key);
     }
 
+    getAssetManifest() {
+      return {
+        images: [
+          { key: 'menuBackground', url: 'images/backgrounds/menu_screen.png' },
+          { key: 'settingsHeaderBg', url: 'images/icon_UI/settings_header_bg.png' },
+          { key: 'settingsPanelBg', url: 'images/icon_UI/settings_text_bg.png' },
+          { key: 'settingsSliderBar', url: 'images/icon_UI/slider_bar.png' },
+          { key: 'settingsSlider', url: 'images/icon_UI/slider.png' },
+          { key: 'saveButtonBg', url: 'images/icon_UI/save_button.png' },
+          { key: 'settingsBackButton', url: 'images/icon_UI/back_button.png' },
+        ],
+      };
+    }
+
     init(data = {}) {
       this.returnSceneKey = data.returnSceneKey || 'MainMenuScene';
     }
 
+    preload() {
+      window.VN.systems.SceneAssets.preload(this, { visualsOnly: true });
+    }
+
     create() {
       this.scene.bringToTop();
+      this.layout = window.VN.systems.Layout;
       this.audio = window.VN.systems.AudioManager;
       this.draft = this.audio.getSettings();
       this.selectedRow = 0;
-      // Белая подложка — на весь экран, включая поля по краям.
-      window.VN.systems.Layout.fill(this, this.add.rectangle(0, 0, 1920, 1080, 0xffffff).setOrigin(0));
-      this.add.rectangle(55, 60, 780, 122, 0xd9d9d9).setOrigin(0);
-      this.add.text(80, 121, this.settingsTitle || 'НАСТРОЙКИ', { fontSize: '40px', color: '#000000' }).setOrigin(0, 0.5);
-      this.makeButton(1055, 120, 210, 'НАЗАД', () => this.goBack());
 
-      this.sliders = ROWS.map((row, index) => this.makeSlider(row, 365 + index * 120));
-      this.statusText = this.add.text(55, 825, '', {
-        fontSize: '28px', color: '#333333', wordWrap: { width: 950 },
+      // Фон меню на весь экран, поверх — лёгкое затемнение (на компьютере).
+      this.layout.addBackground(this, 'menuBackground');
+      this.dim = this.add.rectangle(0, 0, 1920, 1080, 0x000000).setOrigin(0).setInteractive();
+      this.layout.fill(this, this.dim);
+
+      this.backButton = this.add.image(0, 0, 'settingsBackButton').setInteractive({ useHandCursor: true });
+      this.backButton.on('pointerup', () => this.goBack());
+
+      this.headerBg = this.add.image(0, 0, 'settingsHeaderBg').setOrigin(0, 0);
+      this.headerText = this.add.text(0, 0, this.settingsTitle || 'НАСТРОЙКИ', {
+        fontFamily: 'Philosopher', fontSize: '64px', color: TEXT_COLOR,
+      }).setOrigin(0.5);
+
+      this.panelBg = this.add.image(0, 0, 'settingsPanelBg').setOrigin(0, 0);
+      this.sliders = ROWS.map((row) => this.makeSlider(row));
+
+      this.statusText = this.add.text(0, 0, '', {
+        fontFamily: 'Ysabeau', fontSize: '30px', color: '#FFF1DE',
+        stroke: '#3f2f22', strokeThickness: 6,
       });
-      if (!this.autoSave) this.makeButton(1205, 865, 280, 'СОХРАНИТЬ', () => this.save());
+
+      if (!this.autoSave) {
+        this.saveButton = this.add.image(0, 0, 'saveButtonBg').setOrigin(0, 0).setInteractive({ useHandCursor: true });
+        this.saveLabel = this.add.text(0, 0, 'Сохранить', {
+          fontFamily: 'Philosopher', fontSize: '60px', color: BUTTON_TEXT_COLOR,
+        }).setOrigin(0.5);
+        this.saveButton.on('pointerup', () => this.save());
+      }
+
+      this.layout.onLayout(this, (visible, ui) => this.applyLayout(ui));
 
       this.onKeyDown = (event) => {
         if (event.ctrlKey || event.metaKey || event.altKey) return;
@@ -62,42 +120,118 @@
       });
     }
 
-    makeButton(x, y, width, label, callback) {
-      const button = this.add.rectangle(x, y, width, 82, 0xd9d9d9).setInteractive({ useHandCursor: true });
-      this.add.text(x, y, label, { fontSize: '38px', color: '#000000' }).setOrigin(0.5);
-      button.on('pointerover', () => button.setFillStyle(0xc9c9c9));
-      button.on('pointerout', () => button.setFillStyle(0xd9d9d9));
-      button.on('pointerup', callback);
+    /** Мобильный макет: x — доли ширины экрана, y — пиксели макета 1080. */
+    compactLayout(ui) {
+      const x = (px) => ui.x + ui.width * px / 917;
+      const w = (px) => ui.width * px / 917;
+      return {
+        back: { x: x(50), y: 197, size: 157 },
+        header: null,
+        panel: { x: x(110), y: 52, width: w(695), height: 800 },
+        rows: [283, 459, 642],
+        label: { x: x(150), fontSize: 58, fontStyle: '600', wrap: w(150) },
+        track: { x: x(420), width: w(265), height: 16, dy: -29 },
+        thumb: { width: 52, height: 73, dy: -52 },
+        value: { right: x(755), fontSize: 58, dy: -29 },
+        save: { x: x(568), y: 891, width: w(232), height: 157, fontSize: 89 },
+        status: { x: x(110), y: 905, fontSize: 40, wrap: w(440) },
+        dim: 0,
+      };
     }
 
-    makeSlider(row, y) {
-      this.add.text(55, y, row.label, { fontSize: '38px', color: '#000000' }).setOrigin(0, 0.5);
-      this.add.rectangle(TRACK_X, y, TRACK_WIDTH, 16, 0xd9d9d9).setOrigin(0, 0.5);
-      const fill = this.add.rectangle(TRACK_X, y, 1, 16, 0x777777).setOrigin(0, 0.5);
-      const thumb = this.add.rectangle(TRACK_X, y, 42, 48, 0xd9d9d9);
-      const valueText = this.add.text(TRACK_X + TRACK_WIDTH + 50, y, '', {
-        fontSize: '38px', color: '#000000',
-      }).setOrigin(0, 0.5);
-      const slider = { ...row, fill, thumb, valueText };
-      this.renderValue(slider);
+    applyLayout(ui) {
+      const compact = !this.forceDesktopLayout && this.layout.isCompact(this);
+      const L = compact ? this.compactLayout(ui) : DESKTOP;
+      // На компьютере кнопка «назад» — у левого верхнего угла экрана.
+      const backX = compact ? L.back.x : ui.x + L.back.x;
+      const backY = compact ? L.back.y : ui.y + L.back.y;
+      this.rowLayout = L;
 
+      this.dim.setAlpha(L.dim);
+      this.backButton.setPosition(backX, backY).setDisplaySize(L.back.size, L.back.size);
+
+      const header = L.header;
+      this.headerBg.setVisible(Boolean(header));
+      this.headerText.setVisible(Boolean(header));
+      if (header) {
+        this.headerBg.setPosition(header.x, header.y).setDisplaySize(header.width, header.height);
+        this.headerText.setPosition(header.x + header.width / 2, header.y + header.height / 2).setFontSize(header.fontSize);
+      }
+
+      this.panelBg.setPosition(L.panel.x, L.panel.y).setDisplaySize(L.panel.width, L.panel.height);
+      this.sliders.forEach((slider, index) => this.layoutSlider(slider, L, L.rows[index]));
+
+      this.statusText
+        .setPosition(L.status.x, L.status.y)
+        .setFontSize(L.status.fontSize)
+        .setWordWrapWidth(L.status.wrap);
+
+      if (this.saveButton) {
+        const s = L.save;
+        this.saveButton.setPosition(s.x, s.y).setDisplaySize(s.width, s.height);
+        this.saveLabel.setPosition(s.x + s.width / 2, s.y + s.height / 2).setFontSize(s.fontSize);
+      }
+    }
+
+    makeSlider(row) {
+      const label = this.add.text(0, 0, row.label, {
+        fontFamily: 'Ysabeau', fontSize: '46px', color: TEXT_COLOR,
+      }).setOrigin(0, 0.5);
+      // Дорожка — вертикальная картинка, повёрнутая на 90°.
+      const track = this.add.image(0, 0, 'settingsSliderBar').setAngle(-90);
+      const thumb = this.add.image(0, 0, 'settingsSlider');
+      const valueText = this.add.text(0, 0, '', {
+        fontFamily: 'Ysabeau', fontSize: '44px', color: TEXT_COLOR,
+      }).setOrigin(1, 0.5);
       // Широкая зона для мыши и касания; drag продолжает работать за краями дорожки.
-      const hitArea = this.add.zone(TRACK_X + TRACK_WIDTH / 2, y, TRACK_WIDTH + 44, 80).setInteractive({ useHandCursor: true });
+      const hitArea = this.add.zone(0, 0, 1, 1).setInteractive({ useHandCursor: true });
       this.input.setDraggable(hitArea);
+
+      const slider = { ...row, label, track, thumb, valueText, hitArea, trackX: 0, trackWidth: 1 };
       const update = (pointer) => {
         this.selectRow(ROWS.findIndex((item) => item.category === row.category));
         // worldX, а не x: камера сдвинута на поле слева, экранная координата
         // больше не совпадает с координатой макета.
-        this.setValue(slider, (pointer.worldX - TRACK_X) / TRACK_WIDTH * 100);
+        this.setValue(slider, (pointer.worldX - slider.trackX) / slider.trackWidth * 100);
       };
       hitArea.on('pointerdown', update);
       hitArea.on('drag', update);
       return slider;
     }
 
+    layoutSlider(slider, L, rowY) {
+      slider.label
+        .setPosition(L.label.x, rowY)
+        .setFontSize(L.label.fontSize)
+        .setFontStyle(L.label.fontStyle)
+        .setWordWrapWidth(L.label.wrap || null);
+      slider.trackX = L.track.x;
+      slider.trackWidth = L.track.width;
+      slider.trackY = rowY + L.track.dy;
+      slider.thumbY = rowY + L.thumb.dy;
+      // Повёрнута на 90°: ширина картинки — толщина дорожки, высота — длина.
+      slider.track
+        .setPosition(L.track.x + L.track.width / 2, slider.trackY)
+        .setDisplaySize(L.track.height, L.track.width);
+      slider.thumb.setDisplaySize(L.thumb.width, L.thumb.height);
+      slider.valueText
+        .setPosition(L.value.right, rowY + L.value.dy)
+        .setFontSize(L.value.fontSize)
+        .setFontStyle(L.label.fontStyle);
+      const hitHeight = Math.max(80, L.thumb.height + 30);
+      slider.hitArea
+        .setPosition(L.track.x + L.track.width / 2, (slider.trackY + slider.thumbY) / 2)
+        .setSize(L.track.width + L.thumb.width + 20, hitHeight);
+      slider.hitArea.input.hitArea.setSize(slider.hitArea.width, slider.hitArea.height);
+      this.renderValue(slider);
+    }
+
     selectRow(index) {
       this.selectedRow = index;
-      this.sliders.forEach((slider, i) => slider.thumb.setStrokeStyle(i === index ? 2 : 0, 0x555555));
+      this.sliders.forEach((slider, i) => {
+        if (i === index) slider.thumb.setTint(0x3f2f22);
+        else slider.thumb.clearTint();
+      });
     }
 
     setValue(slider, value) {
@@ -111,8 +245,9 @@
 
     renderValue(slider) {
       const value = this.draft[slider.category];
-      slider.fill.width = TRACK_WIDTH * value / 100;
-      slider.thumb.x = TRACK_X + TRACK_WIDTH * value / 100;
+      // Ползунок не выходит за концы дорожки.
+      const half = slider.thumb.displayWidth / 2;
+      slider.thumb.setPosition(slider.trackX + half + (slider.trackWidth - half * 2) * value / 100, slider.thumbY);
       slider.valueText.setText(value + '%');
     }
 

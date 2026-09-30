@@ -52,6 +52,26 @@ const INSTRUCTION_TEXT_STYLE = {
     wordWrap: { width: INSTRUCTION_PANEL.width * (1 - 160 / 1300) }
 };
 
+// Экран победы: небольшой заголовок и интересный факт.
+const WIN_TITLE = 'Игра пройдена!';
+const WIN_FACT = 'Длинный обеденный стол в Большой гостиной называли «столом-сороконожкой». Все дело в конструкции: он раздвижной и имеет 16 ножек.';
+
+const WIN_TITLE_TEXT_STYLE = {
+    fontFamily: 'Philosopher',
+    fontSize: '48px',
+    color: '#6E6056',
+    align: 'center'
+};
+
+const WIN_FACT_TEXT_STYLE = {
+    fontFamily: 'Ysabeau',
+    fontSize: '40px',
+    color: '#1B1A19',
+    align: 'center',
+    lineSpacing: 10,
+    wordWrap: { width: INSTRUCTION_PANEL.width - 200 }
+};
+
 // Время показа подсказок; можно переопределить через hintDurationSeconds в данных сцены.
 const DEFAULT_HINT_DURATION_SECONDS = 2;
 
@@ -174,7 +194,7 @@ export class GameScene3 extends Phaser.Scene {
         this.hoveredItem = null;
 
         const panel = this.add.image(0, 0, ITEM_NAME_PANEL.texture).setOrigin(0);
-        this.itemNameText = this.add.text(panel.width / 2, panel.height / 2, 'НАЖМИТЕ НА ПРЕДМЕТ', {
+        this.itemNameText = this.add.text(panel.width / 2, panel.height / 2, 'НАЖМИ НА ПРЕДМЕТ', {
             fontFamily: 'Ysabeau',
             fontStyle: 'normal',
             fontSize: '36px',
@@ -337,7 +357,9 @@ export class GameScene3 extends Phaser.Scene {
         this.activeHint = {
             overlay,
             onDismiss,
-            timer: durationSeconds == null ? null
+            // durationSeconds = null — экран ждёт нажатия.
+            timer: durationSeconds == null
+                ? null
                 : this.time.delayedCall(durationSeconds * 1000, () => this.dismissHint())
         };
     }
@@ -443,10 +465,24 @@ export class GameScene3 extends Phaser.Scene {
 
     createWinOverlay() {
         this.winOverlay = this.createOverlay(
-            'Длинный обеденный стол в Большой гостиной называли «столом-сороконожкой». Все дело в конструкции: он раздвижной и имеет 16 ножек.',
+            WIN_FACT,
             () => this.dismissHint(),
-            { panel: INSTRUCTION_PANEL, textStyle: INSTRUCTION_TEXT_STYLE, lineHeight: 64 }
+            { panel: INSTRUCTION_PANEL, textStyle: WIN_FACT_TEXT_STYLE }
         );
+        this.addWinTitle(this.winOverlay);
+    }
+
+    /** Небольшой заголовок «Игра пройдена!» над фактом на той же плашке. */
+    addWinTitle(overlay) {
+        const [, panel] = overlay.list;
+        const fact = overlay.list.find(object => object.type === 'Text');
+        const title = this.add.text(0, 0, WIN_TITLE, WIN_TITLE_TEXT_STYLE).setOrigin(0.5);
+        overlay.add(title);
+        // Срабатывает после раскладки плашки в createOverlay().
+        this.layout.onLayout(this, () => {
+            title.setPosition(panel.x + panel.displayWidth / 2, panel.y + 120);
+            fact.setPosition(panel.x + panel.displayWidth / 2, panel.y + panel.displayHeight / 2 + 45);
+        });
     }
 
     createIntroOverlay() {

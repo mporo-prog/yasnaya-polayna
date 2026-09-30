@@ -19,7 +19,7 @@ window.VN.data.sceneAudio = {
     music: null,
     sounds: [{ path: 'voice_and_sound/game4.wav', loop: false }]
   },
-  QuoteMinigameScene: { music: null },
+  QuoteMinigameScene: { music: { path: 'voice_and_sound/music_gameplay_5.mp3', loop: true } },
   PlaceholderMinigameScene: { music: null },
   // Настройки продолжают музыку того меню, из которого были открыты.
 };

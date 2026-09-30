@@ -1,5 +1,5 @@
-export const SUBSCRIPTION_UNAVAILABLE = 'Подписка временно недоступна. Попробуйте позже.';
-export const SUBSCRIPTION_NETWORK_ERROR = 'Нет доступа к сайту. Попробуйте ещё раз позже.';
+export const SUBSCRIPTION_UNAVAILABLE = 'Подписка временно недоступна. Попробуй позже.';
+export const SUBSCRIPTION_NETWORK_ERROR = 'Нет доступа к сайту. Попробуй ещё раз позже.';
 
 /** Контракт основного сайта: POST /request/subscribe, email + _csrf, JSON. */
 export function createSubscriptionClient({
@@ -58,11 +58,11 @@ export function createSubscriptionClient({
             if (result?.error === 0 || result?.error === '0') {
                 return {
                     status: 'confirmation',
-                    message: 'Проверьте свой почтовый ящик.\nМы отправили Вам письмо со ссылкой на подтверждение подписки.'
+                    message: 'Проверь свой почтовый ящик.\nМы отправили тебе письмо со ссылкой на подтверждение подписки.'
                 };
             }
             if (result?.error === 11 || result?.error === '11') {
-                return { status: 'already-subscribed', message: 'Вы уже подписаны. Спасибо!' };
+                return { status: 'already-subscribed', message: 'Эта почта уже подписана. Спасибо!' };
             }
             return {
                 status: 'error',

@@ -40,10 +40,10 @@
                     signal.addEventListener('abort', () => reject(signal.reason), { once: true });
                 });
                 if (scenario.value === 'network') throw new Error('Network failure');
-                if (scenario.value === 'already') return { message: 'Вы уже подписаны. Спасибо!' };
+                if (scenario.value === 'already') return { message: 'Эта почта уже подписана. Спасибо!' };
                 if (scenario.value === 'error') return { message: 'Сервер отклонил адрес.' };
                 if (scenario.value === 'unsafe') return { message: '<img src=x onerror=alert(1)> Только текст' };
-                return { message: 'Проверьте свой почтовый ящик.\nМы отправили Вам письмо со ссылкой на подтверждение подписки.' };
+                return { message: 'Проверь свой почтовый ящик.\nМы отправили тебе письмо со ссылкой на подтверждение подписки.' };
             }
         });
         form.node.style.background = `url('${import.meta.env.BASE_URL}images/icon_UI/finish_email_field.png') center / 100% 100%`;

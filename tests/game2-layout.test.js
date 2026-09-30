@@ -14,8 +14,10 @@ function fixture() {
         scene: {}, x: 0, y: 0,
         setPosition(x, y) { Object.assign(this, { x, y }); }
     });
-    const things = Array.from({ length: 4 }, (_, id) => {
-        const thing = new Thing({ id }, 'item');
+    // Места предметов справа от карты — как в data/things.js.
+    const slots = [{ x: 1343, y: 296 }, { x: 1530, y: 296 }, { x: 1445, y: 457 }, { x: 1632, y: 457 }];
+    const things = slots.map((slot, id) => {
+        const thing = new Thing({ id, slot }, 'item');
         thing.sprite = object();
         return thing;
     });
@@ -57,7 +59,8 @@ test('resize updates a dragged item return slot without moving the item under th
     cancelled.length = 0;
     panel.update(rect(-300, 0, 2520, 1080));
     assert.deepEqual([thing.sprite.x, thing.sprite.y], [450, 570]);
-    assert.equal(thing.startX, 1905);
+    // Место предмета привязано к карте, а не к краю экрана.
+    assert.deepEqual([thing.startX, thing.startY], [thing.slot.x, thing.slot.y]);
     assert.ok(!cancelled.includes(thing.sprite));
     thing.dragging = false;
     thing.resetPosition();

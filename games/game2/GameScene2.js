@@ -5,7 +5,10 @@ import {
     BASE_HEIGHT,
     TARGET_SIZE,
     ITEM_SIZE,
-    PAUSE_BUTTON
+    PAUSE_BUTTON,
+    MESSAGE_PANELS,
+    MESSAGE_FONT_SIZE,
+    NEXT_BUTTON
 } from './constants/Game2Constants.js';
 import { Thing } from './models/Thing.js';
 import { Target } from './models/Target.js';
@@ -168,185 +171,75 @@ export class GameScene2 extends Phaser.Scene {
         }
     }
 
-    createRulesOverlay() {
-        const panelWidth = 1200;
-        const panelHeight = 577;
+    createMessageOverlay(config, heading, message, onNext) {
+        const panelWidth = BASE_WIDTH * config.widthFrac;
+        const panelHeight = BASE_HEIGHT * config.heightFrac;
+        const panelTop = -panelHeight / 2;
+        const textWidth = panelWidth * config.textWidthFrac;
+        const style = {
+            fontFamily: 'Philosopher',
+            fontStyle: 'normal',
+            fontSize: `${MESSAGE_FONT_SIZE}px`,
+            color: config.color,
+            align: 'center',
+            lineSpacing: config.lineSpacing,
+            wordWrap: { width: textWidth }
+        };
 
-        const panelX = BASE_WIDTH / 2;
-        const panelY = BASE_HEIGHT / 2;
-
-        // Плашка правил.
-        const panel = this.add
-            .image(
-                panelX,
-                panelY,
-                'game2-instruction-panel'
-            )
+        // Дети используют координаты своей плашки, а весь экран — координаты макета.
+        const panel = this.add.image(0, 0, 'game2-instruction-panel')
             .setOrigin(0.5)
-            .setDisplaySize(
-                panelWidth,
-                panelHeight
-            );
-
-        // Заголовок.
-        const title = this.add
-            .text(
-                panelX,
-                panelY - 135,
-                'Правила игры',
-                {
-                    fontFamily: 'Philosopher',
-                    fontSize: '48px',
-                    color: '#3F2F22',
-                    align: 'center'
-                }
-            )
+            .setDisplaySize(panelWidth, panelHeight);
+        const title = this.add.text(0, panelTop + panelHeight * config.titleYFrac, heading, style)
             .setOrigin(0.5);
-
-        // Текст правил.
-        const text = this.add
-            .text(
-                panelX,
-                panelY + 15,
-                [
-                    'Распредели предметы на карте усадьбы.'
-                ].join('\n'),
-                {
-                    fontFamily: 'Ysabeau',
-                    fontSize: '36px',
-                    color: '#1B1A19',
-                    align: 'center',
-                    lineSpacing: 12,
-                    wordWrap: {
-                        width: 1100
-                    }
-                }
-            )
+        const text = this.add.text(0, panelTop + panelHeight * config.textYFrac, message, style)
             .setOrigin(0.5);
+        const nextButton = this.add.image(
+            BASE_WIDTH * (NEXT_BUTTON.xFrac - 0.5),
+            BASE_HEIGHT * (NEXT_BUTTON.yFrac - 0.5),
+            'game2-next'
+        ).setDisplaySize(NEXT_BUTTON.size, NEXT_BUTTON.size);
 
-        // Кнопка "Далее".
-        // Она полностью непрозрачная.
-        // Нажать её нельзя — правила заканчиваются
-        // автоматически после озвучки.
-        const nextButton = this.add
-            .image(
-                BASE_WIDTH * 0.85 + BASE_WIDTH * 0.13 / 2,
-                BASE_HEIGHT * 0.46 + BASE_HEIGHT * 0.8 / 2,
-                'game2-next'
-            )
-            .setDisplaySize(150, 150)
-            .setAlpha(1);
+        // Правила заканчиваются после озвучки; на победе стрелка доступна для нажатия.
+        if (onNext) {
+            nextButton.setInteractive({ useHandCursor: true });
+            nextButton.on('pointerup', onNext);
+        }
 
-        // Создаём пустой контейнер.
-        this.rulesOverlay = this.add
-            .container(0, 0);
+        const overlay = this.add.container(BASE_WIDTH / 2, BASE_HEIGHT / 2, [
+            panel, title, text, nextButton
+        ]).setDepth(2100).setVisible(false);
 
-        // Добавляем готовые объекты.
-        this.rulesOverlay.add([
-            panel,
-            title,
-            text,
-            nextButton
-        ]);
+        this.layout?.onLayout(this, (visible, ui) => {
+            // Один масштаб для всей композиции сохраняет пропорции текста и картинок.
+            overlay.setPosition(ui.centerX, ui.centerY).setScale(Math.min(
+                1, ui.width / BASE_WIDTH, ui.height / BASE_HEIGHT
+            ));
+        });
 
-        // Контейнер целиком находится поверх игры.
-        this.rulesOverlay
-            .setDepth(2100)
-            .setVisible(false);
+        return { overlay, panel, text, nextButton };
+    }
 
-        // Сохраняем ссылки, если они понадобятся дальше.
+    createRulesOverlay() {
+        const { overlay, panel, text, nextButton } = this.createMessageOverlay(
+            MESSAGE_PANELS.rules,
+            // 'Правила игры',
+            'Распредели предметы на карте усадьбы.'
+        );
+        this.rulesOverlay = overlay;
         this.rulesPanel = panel;
         this.rulesText = text;
         this.rulesNextButton = nextButton;
     }
 
     createWinOverlay() {
-        const width = BASE_WIDTH;
-        const height = BASE_HEIGHT;
-
-        const panelWidth = 1300;
-        const panelHeight = 577;
-
-        const panelX = width / 2;
-        const panelY = height / 2;
-
-        // Плашка.
-        const panel = this.add
-            .image(
-                panelX,
-                panelY,
-                'game2-instruction-panel'
-            )
-            .setOrigin(0.5)
-            .setDisplaySize(
-                panelWidth,
-                panelHeight
-            );
-
-        // Заголовок победы.
-        const title = this.add
-            .text(
-                panelX,
-                panelY - 80,
-                'Игра пройдена!',
-                {
-                    fontFamily: 'Philosopher',
-                    fontSize: '48px',
-                    color: '#3F2F22',
-                    align: 'center'
-                }
-            )
-            .setOrigin(0.5);
-
-        // Текст победы.
-        const text = this.add
-            .text(
-                panelX,
-                panelY + 25,
-                'Все предметы нашли свои места.',
-                {
-                    fontFamily: 'Ysabeau',
-                    fontSize: '36px',
-                    color: '#1B1A19',
-                    align: 'center',
-                    wordWrap: {
-                        width: 1050
-                    }
-                }
-            )
-            .setOrigin(0.5);
-
-        // Кнопка "Далее".
-        const nextButton = this.add
-            .image(
-                BASE_WIDTH * 0.85 + BASE_WIDTH * 0.13 / 2,
-                BASE_HEIGHT * 0.46 + BASE_HEIGHT * 0.8 / 2,
-                'game2-next'
-            )
-            .setDisplaySize(150, 150)
-            .setInteractive({
-                useHandCursor: true
-            });
-
-        nextButton.on(
-            'pointerup',
+        const { overlay, panel, text, nextButton } = this.createMessageOverlay(
+            MESSAGE_PANELS.win,
+            'Игра пройдена!',
+            'Все предметы нашли свои места.',
             () => this.finishGame()
         );
-
-        // Создаём контейнер победы.
-        this.winOverlay = this.add
-            .container(0, 0)
-            .setDepth(2100)
-            .setVisible(false);
-
-        this.winOverlay.add([
-            panel,
-            title,
-            text,
-            nextButton
-        ]);
-
-        // Сохраняем ссылки.
+        this.winOverlay = overlay;
         this.winPanel = panel;
         this.winText = text;
         this.winNextButton = nextButton;
@@ -356,7 +249,9 @@ export class GameScene2 extends Phaser.Scene {
         if (this.layout) {
             this.background = this.layout.addBackground(
                 this,
-                'game2-background'
+                'game2-background',
+                // Карта и её зоны сохраняются целиком при любых пропорциях окна.
+                { keep: new Phaser.Geom.Rectangle(0, 0, BASE_WIDTH, BASE_HEIGHT) }
             );
             this.stage = this.background.stage;
             return;
@@ -422,7 +317,7 @@ export class GameScene2 extends Phaser.Scene {
         this.pauseButton.setInteractive({
             useHandCursor: true
         })
-        .setDepth(1100);;
+        .setDepth(1100);
 
         this.pauseButton.on(
             'pointerdown',
@@ -482,6 +377,8 @@ export class GameScene2 extends Phaser.Scene {
                 return;
             }
 
+            this.tweens.killTweensOf(gameObject);
+            thing.dragging = true;
             gameObject.setDepth(100);
         };
 
@@ -514,6 +411,8 @@ export class GameScene2 extends Phaser.Scene {
         ) => {
             const thing =
                 gameObject.getData('thing');
+
+            if (thing) thing.dragging = false;
 
             if (
                 this.phase !== 'game' ||

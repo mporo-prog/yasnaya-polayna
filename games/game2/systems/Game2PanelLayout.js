@@ -18,7 +18,7 @@ export class Game2PanelLayout {
             this.update(ui);
         };
 
-        this.layout.onLayout(
+        this.layout?.onLayout(
             scene,
             this.handler
         );
@@ -70,7 +70,7 @@ export class Game2PanelLayout {
             ITEM_SIZE / 2;
 
         this.things.forEach((thing, index) => {
-            if (!thing.sprite || !thing.sprite.scene) {
+            if (!thing.sprite || !thing.sprite.scene || thing.isLocked()) {
                 return;
             }
 
@@ -79,18 +79,20 @@ export class Game2PanelLayout {
                 firstCenterY +
                 index * (ITEM_SIZE + ITEM_GAP);
 
-            thing.sprite.setPosition(x, y);
-
-            if (!thing.isLocked()) {
-                thing.startX = x;
-                thing.startY = y;
+            thing.startX = x;
+            thing.startY = y;
+            // Resize во время перетаскивания не вырывает предмет из-под указателя.
+            // Возврат после ошибки должен закончиться уже в новом слоте панели.
+            if (!thing.dragging) {
+                this.scene.tweens.killTweensOf(thing.sprite);
+                thing.sprite.setPosition(x, y);
             }
         });
 
         if (this.pauseButton && this.pauseButton.scene) {
             this.pauseButton.setPosition(
-                PAUSE_BUTTON.left,
-                PAUSE_BUTTON.top
+                ui.left + PAUSE_BUTTON.left,
+                ui.top + PAUSE_BUTTON.top
             );
         }
     }

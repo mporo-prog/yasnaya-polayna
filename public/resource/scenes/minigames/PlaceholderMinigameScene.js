@@ -24,13 +24,6 @@
       const height = this.scale.height;
 
       window.VN.systems.Layout.fill(this, this.add.rectangle(0, 0, width, height, 0x222222).setOrigin(0, 0));
-      this.add
-        .text(width / 2, height / 2 - 60, 'Мини-игра ещё не готова\n(' + this.minigameId + ')', {
-          fontSize: '36px',
-          color: '#ffffff',
-          align: 'center',
-        })
-        .setOrigin(0.5);
 
       const btn = this.add
         .rectangle(width / 2, height / 2 + 80, 300, 80, 0xd9d9d9)

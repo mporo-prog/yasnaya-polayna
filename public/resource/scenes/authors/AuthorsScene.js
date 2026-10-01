@@ -67,6 +67,7 @@
       this.layout = window.VN.systems.Layout;
       this.scrollY = 0;
       this.maxScroll = 0;
+      this.easterEggClicks = 0;
       // Phaser переиспользует объект сцены при повторном запуске:
       // сбрасываем масштаб, чтобы колонка собралась заново.
       this.contentScale = null;
@@ -148,7 +149,24 @@
       let rowsBottom = CARD.firstRowY;
       card.people.forEach(([name, org], index) => {
         const y = CARD.firstRowY + index * CARD.rowStep;
-        rows.push(this.add.text(CARD.nameX * s, (top + y) * s, name, rowStyle).setOrigin(0, 0.5));
+        const nameText = this.add.text(CARD.nameX * s, (top + y) * s, name, rowStyle).setOrigin(0, 0.5);
+        if (name === 'Евгений Скуковский') {
+          let pressedPointer = null;
+          nameText.setInteractive();
+          nameText.on('pointerdown', (pointer) => { pressedPointer = pointer.id; });
+          nameText.on('pointerout', () => { pressedPointer = null; });
+          nameText.on('pointerup', (pointer) => {
+            const clicked = pressedPointer === pointer.id;
+            pressedPointer = null;
+            if (!clicked || this.dragMoved) return;
+            this.easterEggClicks += 1;
+            if (this.easterEggClicks === 5) {
+              this.easterEggClicks = 0;
+              window.open('https://www.youtube.com/watch?v=dQw4w9WgXcQ', '_blank', 'noopener');
+            }
+          });
+        }
+        rows.push(nameText);
         const orgText = this.add.text(CARD.orgX * s, (top + y) * s, org, { ...rowStyle, align: 'right' })
           .setOrigin(1, 0.5);
         // Организация в две строки растёт вниз от строки с именем.

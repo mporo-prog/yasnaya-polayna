@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<title>Проверка завершения игр 2 и 5</title>
+<style>body { font: 16px system-ui; } iframe { width: 960px; height: 540px; border: 0; } pre { white-space: pre-wrap; }</style>
+<h1>Завершение игр 2 и 5</h1>
+<button id="run">Проверить</button>
+<label><input id="failure" type="checkbox"> Сбой предзагрузки и зависшее видео</label>
+<pre id="results">Ожидание запуска</pre>
+<iframe id="site" title="Проверяемая игра"></iframe>
+<div id="capture"></div>
+<script type="module">
+  const frame = document.querySelector('#site');
+  const output = document.querySelector('#results');
+  const run = document.querySelector('#run');
+  const assert = (condition, message) => { if (!condition) throw new Error(message); };
+  const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+  const waitFor = async (condition) => {
+    const end = performance.now() + 30000;
+    while (!condition()) {
+      if (performance.now() > end) throw new Error('Timeout: ' + condition);
+      await wait(25);
+    }
+  };
+  run.onclick = async () => {
+    run.disabled = true;
+    const simulateFailure = document.querySelector('#failure').checked;
+    document.querySelector('#capture').replaceChildren();
+    output.textContent = 'Проверка…';
+    const saves = new Map(['vn_save_v1', 'game4_save_v1'].map(key => [key, localStorage.getItem(key)]));
+    const pass = text => { output.textContent += '\nPASS ' + text; };
+    let game;
+    function mouse(type, object, scene) {
+      const bounds = object.getBounds();
+      const camera = scene.cameras.main;
+      const rect = game.canvas.getBoundingClientRect();
+      game.canvas.dispatchEvent(new frame.contentWindow.MouseEvent(type, {
+        bubbles: true, button: 0, buttons: type === 'mouseup' ? 0 : 1,
+        clientX: rect.left + ((bounds.centerX - camera.scrollX) * camera.zoom + camera.x) * rect.width / game.scale.gameSize.width,
+        clientY: rect.top + ((bounds.centerY - camera.scrollY) * camera.zoom + camera.y) * rect.height / game.scale.gameSize.height,
+        view: frame.contentWindow,
+      }));
+    }
+    async function click(object, scene) {
+      mouse('mousedown', object, scene);
+      await wait(30);
+      mouse('mouseup', object, scene);
+      await wait(50);
+    }
+    try {
+      frame.src = '../?game=5';
+      await waitFor(() => frame.contentWindow.game?.scene.isActive('QuoteMinigameScene') && !frame.contentDocument.querySelector('#startup-loading'));
+      game = frame.contentWindow.game;
+      const quote = game.scene.getScene('QuoteMinigameScene');
+      // Match the normal story route, even on older builds whose ?game=5 shortcut uses index 0.
+      quote.storySceneIndex = 4;
+      quote.minigameId = 'story_5_minigame';
+      const overlay = () => quote.children.list.find(object => object.type === 'Container' && object.depth === 15);
+      await click(overlay().list.at(-1), quote);
+      for (let index = 0; index < 4; index++) {
+        assert(quote.currentRoundIndex === index, 'Correct round index');
+        await click(quote.answerButtons.find(button => !button.correct).bg, quote);
+        assert(!quote.roundSolved, 'Wrong answer keeps the round playable');
+        await click(quote.answerButtons.find(button => button.correct).bg, quote);
+        assert(quote.roundSolved && quote.replyPanelParts.every(part => part.visible), 'Correct answer reveals the reply');
+        await click(quote.replyPanelParts.at(-1), quote);
+      }
+      assert(quote.winShown && overlay(), 'Victory panel appears after the fourth reply');
+      assert(overlay().list[1].texture.key === 'images/icon_UI/finish_stats_panel.png', 'Use the new finish panel');
+      await new Promise(resolve => game.renderer.snapshot(image => {
+        image.alt = 'Новая финальная плашка игры 5';
+        image.style.width = 'min(960px, 100%)';
+        document.querySelector('#capture').append(image);
+        resolve();
+      }));
+      await wait(1500);
+      assert(game.scene.isActive('QuoteMinigameScene'), 'Victory waits for a separate click');
+      pass('Все четыре цитаты пройдены; финальная плашка ждёт клика');
+      const assets = frame.contentWindow.VN.systems.SceneAssets;
+      const story = game.scene.getScene('StoryScene');
+      const prefetch = assets.prefetch;
+      const addVideo = story.add.video;
+      if (simulateFailure) {
+        assets.prefetch = async function (scene, key, data) {
+          if (key === 'StoryScene' && data.storySceneIndex === 5) {
+            await wait(1000);
+            throw new Error('Simulated prefetch failure');
+          }
+          return prefetch.call(this, scene, key, data);
+        };
+        story.add.video = function (...args) {
+          const video = addVideo.apply(this, args);
+          video.loadURL = () => video;
+          video.play = () => video;
+          return video; // Neither a first frame nor an error arrives.
+        };
+      }
+      await click(overlay().list.at(-1), quote);
+      if (simulateFailure) {
+        await waitFor(() => frame.contentDocument.querySelector('#startup-loading'));
+        pass('При задержке продолжения виден индикатор загрузки');
+      }
+      await waitFor(() => game.scene.isActive('StoryScene'));
+      await waitFor(() => story.portraitPhase === 'dialogue');
+      assert(story.storySceneIndex === 5 && story.input.enabled, 'Final story is interactive');
+      if (simulateFailure) {
+        assert(story.portraitAnimationComplete && !story.portraitVideo.visible, 'Stalled video falls back to a still painting');
+        pass('После ошибки предзагрузки и таймаута видео финал продолжился без перезагрузки');
+      }
+      assets.prefetch = prefetch;
+      story.add.video = addVideo;
+      pass('Закрытие плашки запускает заключительную сцену без перезагрузки');
+      story.scene.start('GameScene2', { storySceneIndex: 1, minigameId: 'story_2_minigame' });
+      await waitFor(() => game.scene.isActive('GameScene2'));
+      const second = game.scene.getScene('GameScene2');
+      await click(second.rulesNextButton, second);
+      second.showOutro();
+      if (second.outroReveal) await click(second.outroNextButton, second);
+      await wait(1500);
+      assert(second.phase === 'outro', 'Narration does not close the outro');
+      await click(second.outroNextButton, second);
+      assert(second.phase === 'win', 'Click opens the victory panel');
+      await wait(1500);
+      assert(!second.completed && second.winOverlay.visible, 'Victory does not advance automatically');
+      // A release whose press happened before the victory panel must not dismiss it.
+      mouse('mouseup', second.winNextButton, second);
+      await wait(100);
+      assert(!second.completed, 'An isolated release cannot dismiss the victory panel');
+      await click(second.winNextButton, second);
+      await waitFor(() => game.scene.isActive('StoryScene'));
+      assert(game.scene.getScene('StoryScene').storySceneIndex === 2, 'Game 2 advances after a fresh click');
+      pass('Игра 2: реплика и победа ждут отдельного клика; случайное отпускание не пропускает финал');
+      output.textContent += '\nDONE';
+    } catch (error) {
+      output.textContent += '\nFAIL ' + error.stack;
+      if (game) output.textContent += '\n' + JSON.stringify(game.scene.scenes.map(scene => ({
+        key: scene.sys.settings.key, status: scene.sys.settings.status,
+        input: scene.input?.enabled, phase: scene.phase, portrait: scene.portraitPhase,
+        fade: scene.cameras.main?.fadeEffect?.isRunning,
+        queue: scene.queue && { busy: scene.queue.busy, waiting: scene.queue.waiting.length, pending: scene.queue.pending.size },
+      })), null, 2);
+    } finally {
+      frame.src = 'about:blank';
+      await wait(100);
+      for (const [key, value] of saves) {
+        if (value === null) localStorage.removeItem(key);
+        else localStorage.setItem(key, value);
+      }
+      run.disabled = false;
+    }
+  };
+</script>
+</html>

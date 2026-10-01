@@ -162,6 +162,10 @@
         && !this.historyVisible && (!this.voiceTrack || this.voiceTrack.ended)) {
         this.changeScreenBackground();
       }
+      if (this.pendingAutoAdvance && !this.historyVisible && (!this.voiceTrack || this.voiceTrack.ended)) {
+        this.pendingAutoAdvance = false;
+        this.advanceScreen();
+      }
     }
 
     // ---- откуда сейчас брать контент ---------------------------------------
@@ -958,9 +962,17 @@
         .setScale(small.width / width, small.height / height);
       this.background.stage.add([this.portraitArtwork, this.portraitFrame]);
       this.portraitVideo = video;
+      let playbackTimer = null;
+      let failed = false;
+      const stopPlaybackTimer = () => {
+        playbackTimer?.remove(false);
+        playbackTimer = null;
+      };
 
       // Масштабируется контейнер: видео играет один раз и сохраняет последний кадр.
       video.once('created', () => {
+        if (failed) return;
+        stopPlaybackTimer();
         // В исходном видео сверху есть тёмная полоса в 4 px. Убираем её,
         // заполняя прежнюю область портрета без смещения его видимого края.
         const topInset = 4;
@@ -971,18 +983,30 @@
         this.portraitPlaybackReady = true;
       });
       video.once('complete', () => { this.portraitAnimationComplete = true; });
-      video.once('error', () => {
+      const showFallback = () => {
+        if (failed) return;
+        failed = true;
+        stopPlaybackTimer();
         // При недоступном видео показываем картину без рамы в том же контейнере.
+        video.stop();
         video.setVisible(false);
         const texture = this.textures.get(config.fallbackImage);
         if (!texture.has('portrait')) texture.add('portrait', 0, x, y, width, height);
         poster.setTexture(config.fallbackImage, 'portrait').setDisplaySize(width, height);
         this.portraitAnimationComplete = true;
         this.portraitPlaybackReady = true;
-      });
+      };
+      video.once('error', showFallback);
       video.loadURL(config.video, true);
       let started = false;
-      const play = () => { started = true; video.play(false); };
+      const play = () => {
+        if (failed) return;
+        started = true;
+        // Некоторые браузеры не присылают ни первый кадр, ни ошибку при зависшей загрузке.
+        // Часы сцены останавливаются в паузе; после таймаута продолжим со статичной картиной.
+        playbackTimer = this.time.delayedCall(15000, showFallback);
+        video.play(false);
+      };
       const pause = () => { if (started) video.setPaused(true); };
       const resume = () => {
         if (started && !this.historyVisible && !this.portraitAnimationComplete) {
@@ -996,6 +1020,7 @@
 
       this.clearPortraitSequence = () => {
         // CameraManager уже может убрать main до пользовательского shutdown.
+        stopPlaybackTimer();
         camera.off('camerafadeincomplete', play);
         this.events.off('pause', pause);
         this.events.off('resume', resume);
@@ -1094,6 +1119,17 @@
     clearScreenTimer() {
       this.screenTimer?.remove(false);
       this.screenTimer = null;
+      this.pendingAutoAdvance = false;
+    }
+
+    autoAdvanceScreen() {
+      // Ветер должен доиграть даже после смены фона или перезапуска из паузы.
+      // Ручной переход по «Далее» по-прежнему позволяет пропустить экран.
+      if (this.currentLines[this.screenIndex].autoAdvanceAfterVoice && this.voiceTrack && !this.voiceTrack.ended) {
+        this.pendingAutoAdvance = true;
+        return;
+      }
+      this.advanceScreen();
     }
 
     scheduleScreenAction(entry) {
@@ -1103,7 +1139,7 @@
       const delay = this.pendingBackgroundPath ? entry.backgroundChange.delay : entry.autoAdvanceDelay;
       this.scheduleScreenTimer(delay, () => {
         if (this.pendingBackgroundPath) this.changeScreenBackground();
-        else this.advanceScreen();
+        else this.autoAdvanceScreen();
       });
     }
 
@@ -1126,7 +1162,7 @@
       const path = this.pendingBackgroundPath;
       const entry = this.currentLines[this.screenIndex];
       this.pendingBackgroundPath = null;
-      const scheduleAdvance = () => this.scheduleScreenTimer(entry.autoAdvanceDelay, () => this.advanceScreen());
+      const scheduleAdvance = () => this.scheduleScreenTimer(entry.autoAdvanceDelay, () => this.autoAdvanceScreen());
       const fadeDuration = entry.backgroundChange.fadeDuration || 0;
       if (fadeDuration <= 0) {
         this.setBackground(path);

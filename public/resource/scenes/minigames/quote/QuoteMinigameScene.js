@@ -10,6 +10,7 @@
     next: 'images/icon_UI/next_button.png',
     pause: 'images/icon_UI/pause_button.png',
     instruction: 'images/icon_UI/text_bg.png',
+    finish: 'images/icon_UI/finish_stats_panel.png',
   };
 
   // Плашка с правилами в начале — как в остальных мини-играх (игра 1).
@@ -91,6 +92,7 @@
           { key: IMG.next, url: IMG.next },
           { key: IMG.pause, url: IMG.pause },
           { key: IMG.instruction, url: IMG.instruction },
+          { key: IMG.finish, url: IMG.finish },
         ],
       };
     }
@@ -160,7 +162,11 @@
         this.clearQuote();
       });
       // Правила игры поверх первого раунда; «далее» обрывает озвучку рассказчика.
-      this.showPanelOverlay(null, INTRO_TEXT, () => this.sceneAudio?.stopSounds?.());
+      this.showPanelOverlay(null, INTRO_TEXT, () => {
+        this.phase = 'game';
+        this.sceneAudio?.stopSounds?.();
+      });
+      window.VN.systems.SceneAssets.prefetchNext(this);
     }
 
       // Сначала создаём оба overlay (правила/финал) — как в GameScene2 —
@@ -320,18 +326,21 @@
      * и стрелка «далее» — как в остальных мини-играх. Закрывается нажатием
      * в любом месте экрана, после чего вызывается onClose.
      */
-    showPanelOverlay(title, text, onClose) {
+    showPanelOverlay(title, text, onClose, texture = IMG.instruction) {
       const dim = this.add.rectangle(0, 0, WIDTH, HEIGHT, 0x000000, 0.6)
         .setOrigin(0)
         .setInteractive({ useHandCursor: true });
       this.layout.fill(this, dim);
 
-      const p = INSTRUCTION_PANEL;
+      const isFinish = texture === IMG.finish;
+      // Сохраняем пропорции новой плашки (855 × 328), заголовок — по центру.
+      const height = isFinish ? INSTRUCTION_PANEL.width * 328 / 855 : INSTRUCTION_PANEL.height;
+      const p = { ...INSTRUCTION_PANEL, y: (HEIGHT - height) / 2, height };
       const centerX = p.x + p.width / 2;
-      const panel = this.add.image(p.x, p.y, IMG.instruction).setOrigin(0).setDisplaySize(p.width, p.height);
+      const panel = this.add.image(p.x, p.y, texture).setOrigin(0).setDisplaySize(p.width, p.height);
       const parts = [dim, panel];
       if (title) {
-        parts.push(this.add.text(centerX, p.y + 120, title, {
+        parts.push(this.add.text(centerX, p.y + (text ? 120 : p.height / 2), title, {
           fontFamily: 'Philosopher',
           fontSize: '48px',
           color: '#6E6056',
@@ -636,7 +645,9 @@
         // Перед переходом дальше по сюжету — интересный факт.
         if (this.winShown) return;
         this.winShown = true;
-        this.showPanelOverlay(WIN_TITLE, WIN_FACT, () => this.finishMinigame());
+        this.phase = 'win';
+        this.hideReplyPanel();
+        this.showPanelOverlay(WIN_TITLE, WIN_FACT, () => this.finishMinigame(), IMG.finish);
         window.VN?.systems.AudioManager?.win?.(this);
         return;
       }

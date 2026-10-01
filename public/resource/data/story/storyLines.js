@@ -4,6 +4,7 @@
  * autoAdvanceDelay, backgroundChange.delay и backgroundChange.fadeDuration — в миллисекундах.
  * backgroundChange.afterVoice запускает смену фона после окончания озвучки.
  * При backgroundChange autoAdvanceDelay отсчитывается после полного появления нового фона.
+ * autoAdvanceAfterVoice дополнительно ждёт конца звука перед автоматическим переходом.
  
  */
 window.VN.data.storyLines = [
@@ -42,6 +43,7 @@ window.VN.data.storyLines = [
       speaker: '', text: '', character: 'РЕПИН_3',
       backgroundChange: { path: 'images/backgrounds/house.png', delay: 2000 },
       autoAdvanceDelay: 2000,
+      autoAdvanceAfterVoice: true,
     },
     { speaker: 'ИЛЬЯ\nЕФИМОВИЧ', character: '', text: 'А вот и следы! И ведут они к скамейке.'},
     { speaker: 'ИЛЬЯ\nЕФИМОВИЧ', character: 'ПОСЕТИТЕЛЬ   ', text: 'Дневник Толстого! Не мог же он его потерять? Возможно, что-то случилось? Нужно срочно отнести его в усадьбу!'},
@@ -95,7 +97,7 @@ window.VN.data.storyLines = [
         transitionDuration: 1000,
         title: 'И. Е. Репин «Л. Н. Толстой босой» (1901)',
         titlePanel: 'images/icon_UI/result_message_panel.png',
-        popupText: 'Источник: С оригиналом картины И. Е. Репина «Л. Н. Толстой босой» (1901) можно познакомиться в Русском музее (Михайловский дворец, Санкт-Петербург).',
+        popupText: 'Источник: С оригиналом картины И. Е. Репина «Л. Н. Толстой босой» (1901) можно познакомиться в Русском музее (Михайловский дворец, Санкт-Петербург)',
       },
     },
   ],

@@ -51,11 +51,12 @@ function fixture(t, coarse = false) {
     globalThis.document = { fonts };
     const scene = new GameScene3();
     const animations = [];
+    const timers = [];
     Object.assign(scene, {
         started: true, paused: false, finished: false, activeHint: null,
         arrivedCount: 0, hintDurationSeconds: 2,
         winOverlay: new DisplayObject(0, 0).setVisible(false),
-        time: { delayedCall: () => ({ remove() {} }) },
+        time: { delayedCall: (delay, callback) => { timers.push({ delay, callback }); return { remove() {} }; } },
         events: new EventEmitter(), input: new EventEmitter(),
         background: { stage: {
             list: [],
@@ -74,7 +75,7 @@ function fixture(t, coarse = false) {
     scene.createItems();
     scene.createItemNamePanel();
     t.after(() => scene.events.emit('shutdown'));
-    return { scene, media, fonts, animations };
+    return { scene, media, fonts, animations, timers };
 }
 
 const mouse = { wasTouch: false };
@@ -228,8 +229,8 @@ for (const [mode, pointer, order] of [
 }
 
 for (const [mode, pointer] of [['mouse', mouse], ['touch', touch]]) {
-    test(`${mode} selection removes only the three wrong items together with their panels`, (t) => {
-        const { scene, animations } = fixture(t, pointer.wasTouch);
+    test(`${mode} selection shows the click panel, then removes only the three wrong items after 2 seconds`, (t) => {
+        const { scene, animations, timers } = fixture(t, pointer.wasTouch);
         const wrongIds = ['sandwich', 'macaroni-cheese', 'sparkling-water'];
         assert.deepEqual(scene.items.filter(item => item.correct === false).map(item => item.id), wrongIds);
         for (const id of wrongIds) {
@@ -241,13 +242,19 @@ for (const [mode, pointer] of [['mouse', mouse], ['touch', touch]]) {
             assert.ok(!scene.rowItems.includes(item));
             assert.equal(scene.hoveredItem, null);
             assert.equal(scene.itemNamePanel.visible, pointer.wasTouch);
-            assert.equal(item.box.texture.key, item.panelTexture);
+            assert.equal(item.box.texture.key, item.clickPanelTexture);
+            assert.equal(item.box.displayWidth, item.panelWidth);
+            assert.equal(item.box.displayHeight, item.panelHeight);
+            assert.ok(!item.container.destroyed, 'the item stays on screen before the delay');
+            const timerCount = timers.length;
+            const timer = timers.at(-1);
+            assert.equal(timer.delay, 2000);
+            item.box.emit('pointerdown', pointer);
+            assert.equal(timers.length, timerCount, 'repeated clicks cannot schedule removal twice');
+            timer.callback();
             const animation = animations.at(-1);
             assert.equal(animation.targets, item.container);
             assert.equal(animation.alpha, 0);
-            const count = animations.length;
-            item.box.emit('pointerdown', pointer);
-            assert.equal(animations.length, count, 'repeated clicks cannot schedule removal twice');
             animation.onComplete();
             assert.ok(item.container.destroyed && item.image.destroyed && item.box.destroyed);
         }

@@ -85,6 +85,8 @@
             : vn.data.sceneAudio[key];
         assets.push(...vn.systems.SceneAudio.paths(config).map(audio));
         assets.push(...(declared.audio ?? []).map(audio));
+        // Клик и победа нужны везде; файл скачивается один раз.
+        assets.push(...Object.values(vn.systems.AudioManager.UI_SOUNDS ?? {}).map(audio));
       }
       return [...new Map(assets.map((asset) => [asset.type + ':' + asset.key, asset])).values()];
     },

@@ -2,10 +2,10 @@
 
 const BASE_WIDTH = 1920;
 const BASE_HEIGHT = 1080;
-const FINISH_IMAGES = `${import.meta.env.BASE_URL}images/finish/`;
+const FINISH_IMAGES = `${import.meta.env.BASE_URL}images/icon_UI/`;
 
 const BACKGROUND = {
-    image: 'background.PNG',
+    image: 'game5.png',
     color: '#8fa3a3'
 };
 
@@ -99,7 +99,7 @@ export class FinishScene extends Phaser.Scene {
         // Холст прозрачный, а обои лежат под ним на всё окно (cover):
         // так они заполняют и поля, которые оставляет FIT, без стыков.
         const app = this.game.canvas.parentElement;
-        app.style.background = `${BACKGROUND.color} url("${encodeURI(FINISH_IMAGES + BACKGROUND.image)}") center / cover no-repeat`;
+        app.style.background = `${BACKGROUND.color} url("${encodeURI(`${import.meta.env.BASE_URL}images/backgrounds/${BACKGROUND.image}`)}") center / cover no-repeat`;
         this.events.once('shutdown', () => {
             app.style.background = '';
         });
@@ -183,7 +183,8 @@ export class FinishScene extends Phaser.Scene {
         button.textContent = text;
         button.style.width = `${width}px`;
         button.style.height = `${height}px`;
-        button.style.backgroundImage = `url("${import.meta.env.BASE_URL}images/icon_UI/finish_replay_button.png")`;
+        // Та же плашка, что у кнопок меню.
+        button.style.backgroundImage = `url("${import.meta.env.BASE_URL}images/icon_UI/main_button.png")`;
 
         const returnToMenu = () => {
             // При входе основная страница должна открыть меню, а не сохранённую сцену.

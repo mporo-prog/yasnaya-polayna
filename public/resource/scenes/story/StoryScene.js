@@ -76,6 +76,21 @@
 
       this.layout.onLayout(this, (visible, ui) => this.applyLayout(visible, ui));
 
+      // Пробел — то же, что кнопка «далее» (кроме открытой истории и сноски).
+      const onSpace = (event) => {
+        event.preventDefault?.();
+        // Phaser может повторно обходить очередь клавиш до следующего кадра
+        // (как в SettingsScene): одно нажатие — один переход.
+        if (event.vnHandled) return;
+        event.vnHandled = true;
+        event.stopPropagation?.();
+        if (event.repeat || this.historyVisible || this.glossaryContainer.visible) return;
+        if (!this.bottomGroup.visible || !this.nextBtn.bg.visible) return;
+        this.goNext();
+      };
+      this.input.keyboard?.on('keydown-SPACE', onSpace);
+      this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.input.keyboard?.off('keydown-SPACE', onSpace));
+
       this.renderCurrentScreen();
       this.fadeInAfterMinigame();
       window.VN.systems.SceneAssets.prefetchNext(this);
@@ -255,7 +270,8 @@
       // Оба слоя живут в bottomGroup вместе с плашкой, поэтому на любых
       // пропорциях экрана (Layout) они двигаются вместе с ней.
       this.dialogueText = this.add
-        .text(0, 0, '', { ...dialogueTextStyle, color: '#E3D8CA' })
+        // Текст до анимации читается, но заметно светлее проговорённого (#1B1A19).
+        .text(0, 0, '', { ...dialogueTextStyle, color: '#9A8D82' })
         .setOrigin(0, 0);
     /**
      * для цитат начало
@@ -305,6 +321,7 @@
       this.historyBtn = this.makeIconButton(100, 220, 'images/icon_UI/history_button.png', () => this.toggleHistory(), 70);
 //       // Позиции и размеры — в layoutTopButtons().
       this.menuBtn = this.makeIconButton(0, 0, 'images/icon_UI/pause_button.png', () => this.openPauseMenu());
+      this.layout.pinPauseButton(this, this.menuBtn.bg);
 //       this.menuBtn.bg.setDepth(20);
 
 //       this.historyBtn = this.makeIconButton(0, 0, 'images/icon_UI/history_button.png', () => this.toggleHistory());
@@ -318,7 +335,7 @@
       const compact = this.layout.isCompact(this);
       // Плашка, персонаж и кнопки «далее/назад» прижаты к нижнему краю.
       this.bottomGroup.y = ui.bottom - HEIGHT;
-      this.layoutBottomBar(ui, compact);
+      this.layoutBottomBar(ui);
       this.layoutTopButtons(ui, compact);
       this.layoutHistoryOverlay(ui, compact);
       this.layoutGlossaryOverlay(ui, compact);
@@ -329,58 +346,19 @@
      * Плашка реплики и кнопки «далее/назад». Координаты — внутри
      * bottomGroup (по вертикали — макет 1080, прижатый к низу экрана).
      */
-    layoutBottomBar(ui, compact) {
-      let panel, name, text, next, back;
-      if (compact) {
-        // Мобильный макет: плашка почти во всю ширину экрана, крупный текст,
-        // кнопки под палец. «Далее» и «Назад» заходят на края плашки.
-        const panelLeft = ui.x + ui.width * 0.076;
-        const panelRight = ui.right - ui.width * 0.062;
-        panel = { x: panelLeft, y: 688, width: panelRight - panelLeft, height: 340 };
-        next = { x: ui.right - 176, y: 891, size: 230 };
-        back = { x: ui.x + 189, y: 930, size: 160 };
-        const dividerX = panel.x + panel.width * 0.275;
-        name = { x: panel.x + panel.width * 0.07, y: panel.y + 70, size: 52, wrap: dividerX - panel.x - panel.width * 0.07 - 30 };
-        const textX = dividerX + 60;
-        text = {
-          x: textX,
-          y: panel.y + 62,
-          size: 42,
-          minSize: 32,
-          lineSpacing: 6,
-          wrap: next.x - next.size / 2 - 30 - textX,
-          maxHeight: panel.height - 62 - 45,
-        };
-      } else {
-        // Плашка диалога — по дизайну задан её ПРАВЫЙ ВЕРХНИЙ угол:
-        // 8.63% от правого края макета, 68.58% от верхнего края,
-        // фиксированный размер 1580.17 x 314.3px.
-        const width = 1580.17;
-        const height = 314.3;
-        panel = { x: WIDTH - WIDTH * 0.0863 - width, y: HEIGHT * 0.6858, width: width, height: height };
-        // Имя героя: 5.643% / 25% от левого верхнего угла плашки.
-        name = { x: panel.x + width * 0.0564306372099, y: panel.y + height * 0.25, size: 40, wrap: width * 0.32 - 55 };
-        // Текст реплики: 29.185% / 25% от плашки, ширина 922px.
-        text = {
-          x: panel.x + width * 0.291848345431,
-          y: panel.y + height * 0.25,
-          size: 32,
-          minSize: 26,
-          lineSpacing: 0,
-          wrap: 922,
-          maxHeight: height * 0.62,
-        };
-        // «Далее» — левый верхний угол на 85.417% / 76.389%, размер 150;
-        // «Назад» — на 6.77% / 86.389%, размер 96. x/y — центр кнопки.
-        next = { x: WIDTH * 0.8541666667 + 75, y: HEIGHT * 0.7638888889 + 75, size: 150 };
-        back = { x: WIDTH * 0.0677 + 48, y: HEIGHT * 0.8638888889 + 48, size: 96 };
-      }
+    layoutBottomBar(ui) {
+      // Раскладка — общая с репликами в мини-играх (Layout.dialogueLayout).
+      const { panel, name, text, next, back } = this.layout.dialogueLayout(this, ui);
 
       this.panelBg.setPosition(panel.x, panel.y).setDisplaySize(panel.width, panel.height);
+      this.speakerNameLayout = name;
+      // x — центр колонки имени; строки имени выровнены по центру.
       this.speakerNameText
+        .setOrigin(0.5, 0)
+        .setAlign('center')
         .setPosition(name.x, name.y)
-        .setFontSize(name.size)
         .setWordWrapWidth(name.wrap);
+      this.fitSpeakerName();
 
       this.dialogueTextY = text.y;
       this.dialogueLayout = text;
@@ -397,13 +375,13 @@
 
     /** Пауза и «История» — у верхних углов экрана (с учётом выреза). */
     layoutTopButtons(ui, compact) {
+      // Размеры — общие для всех сцен (Layout.UI_BUTTONS); пауза ставится
+      // через Layout.pinPauseButton — так же, как в мини-играх.
+      const historySize = this.layout.buttonSize(this, 'history');
       if (compact) {
-        this.menuBtn.bg.setPosition(ui.x + 125, ui.y + 120).setDisplaySize(190, 190);
-        this.historyBtn.bg.setPosition(ui.right - 130, ui.y + 115).setDisplaySize(150, 150);
+        this.historyBtn.bg.setPosition(ui.right - 130, ui.y + 115).setDisplaySize(historySize, historySize);
       } else {
-        // Левый верхний угол паузы — 1.5% / 2.3% макета, размер 150.
-        this.menuBtn.bg.setPosition(ui.x + WIDTH * 0.015 + 75, ui.y + HEIGHT * 0.023 + 75).setDisplaySize(150, 150);
-        this.historyBtn.bg.setPosition(ui.x + 100, ui.y + 240).setDisplaySize(70, 70);
+        this.historyBtn.bg.setPosition(ui.x + 100, ui.y + 240).setDisplaySize(historySize, historySize);
       }
     }
 
@@ -423,6 +401,21 @@
       this.dialogueFontSize = size;
     }
 
+    /**
+     * Имя героя не переносится посреди слова — длинное имя на узкой
+     * плашке уменьшаем, чтобы оно не заходило за черту плашки.
+     */
+    fitSpeakerName() {
+      const name = this.speakerNameLayout;
+      if (!name) return;
+      let size = name.size;
+      this.speakerNameText.setFontSize(size);
+      while (size > name.minSize && this.speakerNameText.width > name.wrap) {
+        size -= 2;
+        this.speakerNameText.setFontSize(size);
+      }
+    }
+
     /** После смены раскладки: переносит строки текущей реплики заново. */
     refreshDialogueLayout() {
       const text = this._textForCurrentScreen;
@@ -435,6 +428,9 @@
       }
       const glossaryEntries = window.VN.data.getGlossaryLinksFor(this.storySceneIndex, this.screenIndex);
       this.buildGlossaryWordOverlays(text, glossaryEntries);
+      // Пересозданные ссылки скрыты — показываем уже «проговорённые»
+      // (иначе после поворота экрана сноски пропадали до следующей реплики).
+      this.applyGlossaryReveal(this.voiceActive ? this.dialogueRevealedText.text.length : Infinity);
     }
 
     /** Кнопка-иконка (картинка вместо прямоугольника с текстом). */
@@ -450,6 +446,7 @@
       img.on('pointerup', (pointer) => {
         if (pressedPointer !== pointer) return;
         pressedPointer = null;
+        window.VN?.systems.AudioManager?.click?.(this);
         onClick();
       });
       return { bg: img, text: null };
@@ -491,7 +488,10 @@
       const closeBtn = this.add
         .image(0, 0, 'closeButton')
         .setInteractive({ useHandCursor: true });
-      closeBtn.on('pointerup', () => this.toggleHistory());
+      closeBtn.on('pointerup', () => {
+        window.VN?.systems.AudioManager?.click?.(this);
+        this.toggleHistory();
+      });
       this.historyCloseBtn = closeBtn;
 
       // Сам текст — внутри отдельного контейнера, который двигается вверх/
@@ -553,20 +553,20 @@
         panel = { x: ui.centerX - width / 2, y: ui.centerY - height / 2, width: width, height: height };
         titleY = panel.y + 110;
         titleSize = 68;
-        close = { x: panel.x + width - 45, y: panel.y + 75, size: 180 };
+        close = { x: panel.x + width - 45, y: panel.y + 75, size: this.layout.buttonSize(this, 'close') };
         pad = { left: 140, top: 210, right: 180, bottom: 90 };
         fontSize = 42;
-        lineSpacing = 14;
+        lineSpacing = 6;
       } else {
         const width = WIDTH * 0.62;
         const height = HEIGHT * 0.82;
         panel = { x: (WIDTH - width) / 2, y: (HEIGHT - height) / 2, width: width, height: height };
         titleY = panel.y + 90;
         titleSize = 48;
-        close = { x: panel.x + width - 50, y: panel.y + 50, size: 60 };
+        close = { x: panel.x + width - 50, y: panel.y + 50, size: this.layout.buttonSize(this, 'close') };
         pad = { left: 90, top: 150, right: 110, bottom: 100 };
         fontSize = 28;
-        lineSpacing = 24;
+        lineSpacing = 14;
       }
 
       const viewport = this.historyViewport;
@@ -633,11 +633,29 @@
         offset += line.length + 1; // +1 — символ \n между строками
       }
 
+      // Ссылкой может быть и фраза (например, целая цитата): переносы строк
+      // могли разорвать её между строками, поэтому ищем её в склеенном
+      // тексте, где пробел мог стать переносом, и подчёркиваем по кускам —
+      // отдельно на каждой строке.
+      const joined = lines.join('\n');
+      const escape = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
       entries.forEach((entry) => {
+        const pattern = new RegExp(entry.word.split(/\s+/).map(escape).join('\\s+'));
+        const match = pattern.exec(joined);
+        if (!match) return;
+        const start = match.index;
+        const end = start + match[0].length;
+
         for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
           const line = lines[lineIndex];
-          const charIndex = line.indexOf(entry.word);
-          if (charIndex === -1) continue;
+          const lineStart = lineOffsets[lineIndex];
+          const from = Math.max(start, lineStart);
+          const to = Math.min(end, lineStart + line.length);
+          if (from >= to) continue;
+          const charIndex = from - lineStart;
+          const part = line.slice(charIndex, to - lineStart).trimEnd();
+          if (!part) continue;
 
           this.glossaryMeasureText.setFontSize(this.dialogueFontSize).setText(line.slice(0, charIndex));
           const wordX = this.dialogueText.x + this.glossaryMeasureText.width;
@@ -651,7 +669,7 @@
           // обводкой (stroke): она утолщает контур букв, не меняя их
           // ширину и расположение.
           const wordText = this.add
-            .text(wordX, wordY, entry.word, {
+            .text(wordX, wordY, part, {
               // Берём шрифт/размер у glossaryMeasureText — он создан с теми
               // же значениями, что и сам текст реплики (см. buildBottomBar).
               fontFamily: this.glossaryMeasureText.style.fontFamily,
@@ -670,19 +688,22 @@
             .setInteractive({ useHandCursor: true })
             .setVisible(false);
 
-          const openPopup = () => this.openGlossaryPopup(entry.text);
+          const openPopup = () => {
+            window.VN?.systems.AudioManager?.click?.(this);
+            this.openGlossaryPopup(entry.text);
+          };
           wordText.on('pointerup', openPopup);
           underline.on('pointerup', openPopup);
 
           this.bottomGroup.add([wordText, underline]);
           this.glossaryWordOverlays.push(wordText, underline);
-          // Слово целиком должно "проговориться" (стать тёмным), прежде
-          // чем поверх него появятся жирное начертание и подчёркивание.
+          // Кусок ссылки на этой строке должен "проговориться" (стать
+          // тёмным), прежде чем поверх него появятся жирное начертание и
+          // подчёркивание.
           this.glossaryWordReveals.push({
-            endIndex: lineOffsets[lineIndex] + charIndex + entry.word.length,
+            endIndex: lineStart + charIndex + part.length,
             objects: [wordText, underline],
           });
-          break;
         }
       });
     }
@@ -725,41 +746,57 @@
           fontFamily: 'Ysabeau',
           fontSize: '28px',
           color: '#3f2f22',
-          lineSpacing: 10,
+          lineSpacing: 2,
         });
 
         this.glossaryCloseBtn = this.add
           .image(0, 0, 'closeButton')
           .setInteractive({ useHandCursor: true });
-        this.glossaryCloseBtn.on('pointerup', () => this.closeGlossaryPopup());
+        this.glossaryCloseBtn.on('pointerup', () => {
+          window.VN?.systems.AudioManager?.click?.(this);
+          this.closeGlossaryPopup();
+        });
 
         this.glossaryContainer.add([dimBg, this.glossaryPanelBg, this.glossaryText, this.glossaryCloseBtn]);
       }
 
       layoutGlossaryOverlay(ui, compact) {
-        let panel, padding, fontSize, closeSize, closeInset;
-        if (compact) {
-          const width = Math.min(ui.width * 0.62, 1500);
-          const height = 540;
-          panel = { x: ui.centerX - width / 2, y: ui.centerY - height / 2, width: width, height: height };
-          padding = 100;
-          fontSize = 42;
-          closeSize = 150;
-          closeInset = 40;
-        } else {
-          const width = WIDTH * 0.4;
-          const height = HEIGHT * 0.35;
-          panel = { x: (WIDTH - width) / 2, y: (HEIGHT - height) / 2, width: width, height: height };
-          padding = 70;
-          fontSize = 28;
-          closeSize = 60;
-          closeInset = 50;
+        const closeSize = this.layout.buttonSize(this, 'close');
+        this.glossaryLayout = compact
+          ? {
+            ui, width: Math.min(ui.width * 0.62, 1500), minHeight: 540,
+            padding: 100, fontSize: 48, minFontSize: 34, closeSize, closeInset: 40,
+          }
+          : {
+            ui, width: WIDTH * 0.4, minHeight: HEIGHT * 0.35,
+            padding: 70, fontSize: 28, minFontSize: 22, closeSize, closeInset: 50,
+          };
+        this.fitGlossaryPopup();
+      }
+
+      /**
+       * Раскладка сноски под её текст: текст не заходит под крестик и не
+       * выходит за плашку. Сначала уменьшается шрифт (не меньше minFontSize),
+       * потом плашка растёт по высоте (не выше экрана). Текст — по центру.
+       */
+      fitGlossaryPopup() {
+        const L = this.glossaryLayout;
+        if (!L) return;
+        const { ui, width, padding, closeSize, closeInset } = L;
+        // Справа оставляем место под крестик в углу плашки.
+        const rightPadding = Math.max(padding, closeInset + closeSize / 2 + 16);
+        const maxHeight = ui.height - 40;
+        const maxTextHeight = maxHeight - padding * 2;
+        let size = L.fontSize;
+        this.glossaryText.setWordWrapWidth(width - padding - rightPadding).setFontSize(size);
+        while (size > L.minFontSize && this.glossaryText.height > maxTextHeight) {
+          size -= 2;
+          this.glossaryText.setFontSize(size);
         }
+        const height = Math.min(maxHeight, Math.max(L.minHeight, this.glossaryText.height + padding * 2));
+        const panel = { x: ui.centerX - width / 2, y: ui.centerY - height / 2, width, height };
         this.glossaryPanelBg.setPosition(panel.x, panel.y).setDisplaySize(panel.width, panel.height);
-        this.glossaryText
-          .setPosition(panel.x + padding, panel.y + padding)
-          .setFontSize(fontSize)
-          .setWordWrapWidth(panel.width - padding * 2);
+        this.glossaryText.setPosition(panel.x + padding, panel.y + (height - this.glossaryText.height) / 2);
         this.glossaryCloseBtn
           .setPosition(panel.x + panel.width - closeInset, panel.y + closeInset)
           .setDisplaySize(closeSize, closeSize);
@@ -767,6 +804,7 @@
 
       openGlossaryPopup(text) {
         this.glossaryText.setText(text);
+        this.fitGlossaryPopup();
         this.glossaryContainer.setVisible(true);
       }
 
@@ -810,6 +848,7 @@
       this.setBackground(backgroundPath);
       this.setCharacter(entry.character ?? speakerName);
       this.speakerNameText.setText(speakerName || '');
+      this.fitSpeakerName();
       this.dialogueText.setText(text);
       this.fitDialogueText();
 

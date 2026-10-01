@@ -110,6 +110,163 @@
     return cssHeight < COMPACT_MAX_CSS_HEIGHT;
   }
 
+  // ---- кнопки-иконки ------------------------------------------------------
+
+  /**
+   * Единые размеры кнопок-иконок (в пикселях макета) — одинаковые во всех
+   * сценах: сюжет, мини-игры, настройки. На телефоне (isCompact) кнопки
+   * крупнее, чтобы по ним было удобно попадать пальцем.
+   */
+  const UI_BUTTONS = {
+    desktop: { pause: 150, next: 150, back: 96, history: 70, close: 60 },
+    compact: { pause: 190, next: 230, back: 160, history: 150, close: 160 },
+  };
+  // Центр кнопки паузы — от левого верхнего угла области без выреза.
+  const PAUSE_POSITION = {
+    desktop: { left: 104, top: 100 },
+    compact: { left: 125, top: 120 },
+  };
+  // Центр стрелки «далее» на плашках мини-игр — точка макета 1920×1080,
+  // отсчитывается от центра экрана (см. fromCenter).
+  const HINT_NEXT_CENTER = { x: 1675, y: 900 };
+
+  function buttonSize(scene, kind) {
+    return UI_BUTTONS[isCompact(scene) ? 'compact' : 'desktop'][kind];
+  }
+
+  /** Кнопка паузы: единый размер и место у левого верхнего угла. */
+  function pinPauseButton(scene, button) {
+    onLayout(scene, (v, ui) => {
+      if (!isAlive(button)) return;
+      const mode = isCompact(scene) ? 'compact' : 'desktop';
+      const size = UI_BUTTONS[mode].pause;
+      button
+        .setOrigin(0.5)
+        .setDisplaySize(size, size)
+        .setPosition(ui.x + PAUSE_POSITION[mode].left, ui.y + PAUSE_POSITION[mode].top);
+    });
+    return button;
+  }
+
+  /**
+   * Точка макета (x, y в пикселях 1920×1080), привязанная к ЦЕНТРУ экрана:
+   * на любых пропорциях она на том же расстоянии от центра, что в макете.
+   * Так плашки правил/победы/проигрыша и их кнопки не разъезжаются на
+   * широких телефонах и планшетах (при привязке к краям — разъезжались).
+   */
+  function fromCenter(visible, x, y) {
+    return {
+      x: visible.centerX + (x - SAFE_WIDTH / 2),
+      y: visible.centerY + (y - SAFE_HEIGHT / 2),
+    };
+  }
+
+  /**
+   * Стрелка «далее» на плашках мини-игр (правила, подсказки, победа):
+   * единый размер, центр в одном и том же месте относительно центра экрана.
+   * Кнопка может иметь любой origin — ставим её по центру.
+   */
+  function nextArrowCenter(visible) {
+    return fromCenter(visible, HINT_NEXT_CENTER.x, HINT_NEXT_CENTER.y);
+  }
+
+  function placeNextArrow(scene, arrow, visible) {
+    if (!isAlive(arrow)) return arrow;
+    const size = buttonSize(scene, 'next');
+    const { x: cx, y: cy } = nextArrowCenter(visible);
+    arrow
+      .setDisplaySize(size, size)
+      .setPosition(cx + (arrow.originX - 0.5) * size, cy + (arrow.originY - 0.5) * size);
+    return arrow;
+  }
+
+  // ---- диалоговая плашка ---------------------------------------------------
+
+  /**
+   * Колонка имени на картинке dialog_text_bg.png (1592 px в ширину):
+   * внутренний край левой рамки — x≈32, вертикальная черта — x≈400.
+   * Возвращает центр колонки и ширину для текста с отступом margin
+   * от рамки и от черты.
+   */
+  function dialogueNameColumn(panel, margin) {
+    const left = panel.x + panel.width * (32 / 1592);
+    const right = panel.x + panel.width * (400 / 1592);
+    return { x: (left + right) / 2, wrap: right - left - margin * 2 };
+  }
+
+  /**
+   * Раскладка диалоговой плашки — одна для сюжетных сцен и для реплик в
+   * мини-играх: плашка, имя (центр колонки, origin 0.5/0), текст реплики
+   * (левый верхний угол), кнопки «далее» и «назад» (центры). Координаты —
+   * в группе, прижатой к нижнему краю экрана (по вертикали — макет 1080).
+   * size/minSize — размер шрифта и нижний предел при подгонке под плашку.
+   */
+  function dialogueLayout(scene, ui) {
+    const nextSize = buttonSize(scene, 'next');
+    const backSize = buttonSize(scene, 'back');
+    let panel, name, text, next, back;
+    if (isCompact(scene)) {
+      // Мобильный макет: плашка почти во всю ширину экрана, крупный текст,
+      // кнопки под палец. «Далее» и «Назад» заходят на края плашки.
+      const panelLeft = ui.x + ui.width * 0.076;
+      const panelRight = ui.right - ui.width * 0.062;
+      panel = { x: panelLeft, y: 688, width: panelRight - panelLeft, height: 340 };
+      // «Далее» — по центру высоты плашки, на её правом краю.
+      next = { x: ui.right - 176, y: panel.y + panel.height / 2, size: nextSize };
+      back = { x: ui.x + 189, y: 930, size: backSize };
+      const dividerX = panel.x + panel.width * 0.275;
+      // Имя — посередине между рамкой и чертой, чуть ниже верхней грани,
+      // чтобы не залезать на рамку.
+      name = { ...dialogueNameColumn(panel, 20), y: panel.y + 95, size: 56, minSize: 36 };
+      const textX = dividerX + 60;
+      // Текст реплики немного опущен от верхней грани плашки.
+      const textTop = 60;
+      text = {
+        x: textX,
+        y: panel.y + textTop,
+        size: 48,
+        minSize: 36,
+        lineSpacing: -2,
+        wrap: next.x - next.size / 2 - 30 - textX,
+        maxHeight: panel.height - textTop - 40,
+      };
+    } else {
+      // Плашка диалога — по дизайну задан её ПРАВЫЙ ВЕРХНИЙ угол:
+      // 8.63% от правого края макета, 68.58% от верхнего края,
+      // фиксированный размер 1580.17 x 314.3px.
+      const width = 1580.17;
+      const height = 314.3;
+      panel = { x: SAFE_WIDTH - SAFE_WIDTH * 0.0863 - width, y: SAFE_HEIGHT * 0.6858, width: width, height: height };
+      // Имя героя: посередине между рамкой и чертой, верх — на 25% высоты плашки.
+      name = { ...dialogueNameColumn(panel, 15), y: panel.y + height * 0.25, size: 40, minSize: 28 };
+      // Текст реплики: 29.185% / 25% от плашки, ширина 922px.
+      text = {
+        x: panel.x + width * 0.291848345431,
+        y: panel.y + height * 0.25,
+        size: 32,
+        minSize: 26,
+        lineSpacing: -2,
+        wrap: 922,
+        maxHeight: height * 0.62,
+      };
+      // «Далее» — левый верхний угол на 85.417% / 76.389%, размер 150;
+      // «Назад» — на 6.77% / 86.389%, размер 96. x/y — центр кнопки.
+      next = { x: SAFE_WIDTH * 0.8541666667 + 75, y: SAFE_HEIGHT * 0.7638888889 + 75, size: nextSize };
+      back = { x: SAFE_WIDTH * 0.0677 + 48, y: SAFE_HEIGHT * 0.8638888889 + 48, size: backSize };
+    }
+    return { panel, name, text, next, back };
+  }
+
+  /** Уменьшает шрифт text, пока tooBig() — не ниже minSize. Возвращает размер. */
+  function fitFontSize(text, size, minSize, tooBig) {
+    text.setFontSize(size);
+    while (size > minSize && tooBig()) {
+      size -= 2;
+      text.setFontSize(size);
+    }
+    return size;
+  }
+
   // ---- подписка сцены на изменения размера ------------------------------
 
   function isAlive(obj) {
@@ -283,11 +440,21 @@
    * нельзя обрезать ни на каком экране. Если из-за него фон не может
    * закрыть весь экран, оставшиеся полосы у края заполняются зеркальным
    * отражением картинки — переход получается бесшовным.
+   *
+   * options.fillFrom — Phaser.Geom.Rectangle (в координатах картинки) с
+   * «пустым» участком фона (например, дерево без карты). Вместо зеркал
+   * этот участок растягивается под весь экран позади фона, так что
+   * полосы у края заполнены тем же фоном без отражений.
    */
   function addBackground(scene, key, options) {
     options = options || {};
     const keep = options.keep || null;
+    const fillFrom = options.fillFrom || null;
 
+    // Подложка из участка фона — лежит позади основной картинки.
+    const backdrop = fillFrom
+      ? scene.add.image(0, 0, '__DEFAULT').setOrigin(0, 0).setVisible(false)
+      : null;
     const image = scene.add.image(0, 0, '__DEFAULT').setOrigin(0, 0);
     // Зеркальные копии по четырём сторонам — видны только в полосах.
     const mirrors = [
@@ -303,25 +470,50 @@
     });
     const stage = scene.add.container(0, 0, mirrors.concat([image]));
 
-    const handle = { stage: stage, image: image, key: null };
+    const handle = { stage: stage, image: image, backdrop: backdrop, key: null };
 
     function relayout(v) {
       if (!handle.key) {
         mirrors.forEach(function (m) { m.setVisible(false); });
+        if (backdrop) backdrop.setVisible(false);
         return;
       }
       const t = computeBackgroundTransform(v, keep);
       stage.setPosition(t.x, t.y).setScale(t.zoom);
-      mirrors.forEach(function (m) { m.setVisible(!t.covers); });
+      if (backdrop) {
+        mirrors.forEach(function (m) { m.setVisible(false); });
+        // По вертикали совпадаем с фоном, чтобы доски продолжались без сдвига;
+        // выходим за него только если фон не закрывает экран по высоте.
+        const top = Math.min(v.y, t.y);
+        const bottom = Math.max(v.bottom, t.y + SAFE_HEIGHT * t.zoom);
+        backdrop
+          .setPosition(v.x, top)
+          .setDisplaySize(v.width, bottom - top)
+          .setVisible(!t.covers);
+      } else {
+        mirrors.forEach(function (m) { m.setVisible(!t.covers); });
+      }
+    }
+
+    function backdropFrame(textureKey) {
+      const texture = scene.textures.get(textureKey);
+      const name = '__layoutFill';
+      if (!texture.has(name)) {
+        texture.add(name, 0, fillFrom.x, fillFrom.y, fillFrom.width, fillFrom.height);
+      }
+      return name;
     }
 
     handle.setTexture = function (textureKey) {
       if (textureKey && scene.textures.exists(textureKey)) {
         handle.key = textureKey;
-        image.setTexture(textureKey).setDisplaySize(SAFE_WIDTH, SAFE_HEIGHT).setVisible(true);
+        // Кадр '__BASE' (вся картинка) — явно: после добавления кадра
+        // подложки (fillFrom) Phaser считает кадром по умолчанию именно его.
+        image.setTexture(textureKey, '__BASE').setDisplaySize(SAFE_WIDTH, SAFE_HEIGHT).setVisible(true);
         mirrors.forEach(function (m) {
-          m.setTexture(textureKey).setDisplaySize(SAFE_WIDTH, SAFE_HEIGHT);
+          m.setTexture(textureKey, '__BASE').setDisplaySize(SAFE_WIDTH, SAFE_HEIGHT);
         });
+        if (backdrop) backdrop.setTexture(textureKey, backdropFrame(textureKey));
       } else {
         handle.key = null;
         image.setVisible(false);
@@ -332,6 +524,7 @@
 
     handle.setDepth = function (depth) {
       stage.setDepth(depth);
+      if (backdrop) backdrop.setDepth(depth);
       return handle;
     };
 
@@ -344,6 +537,36 @@
    * Настройки масштабирования для new Phaser.Game({ scale: ... }).
    * Одни и те же для основной игры и отдельных страниц мини-игр.
    */
+  // ---- меню (главное и пауза) ---------------------------------------------
+
+  /**
+   * Раскладка экрана меню — одна для главного меню и меню паузы: слева
+   * кнопки (slots — левый верхний угол и размер), справа вывеска (logo),
+   * fontSize — размер подписей кнопок. На компьютере — по startStyle,
+   * на телефоне (isCompact) — по мобильному макету: кнопки и вывеска крупнее.
+   */
+  function menuLayout(scene, ui) {
+    const style = window.VN.data.startStyle;
+    if (isCompact(scene)) {
+      // Мобильный макет: доли ширины экрана, высоты — в пикселях макета.
+      const x = ui.x + ui.width * 0.1036;
+      const width = ui.width * 0.2726;
+      return {
+        slots: [118, 393, 655].map((y) => ({ x, y, width, height: 223 })),
+        logo: { x: ui.x + ui.width * 0.529, y: 183, width: 825, height: 432 },
+        fontSize: 79,
+      };
+    }
+    const t = style.title;
+    return {
+      slots: style.buttons.map((slot) => ({
+        x: SAFE_WIDTH * slot.xFrac, y: SAFE_HEIGHT * slot.yFrac, width: slot.width, height: slot.height,
+      })),
+      logo: { x: SAFE_WIDTH * t.xFrac, y: SAFE_HEIGHT * t.yFrac, width: t.width, height: t.height },
+      fontSize: parseInt(style.buttonFontSize, 10),
+    };
+  }
+
   function getScaleConfig(parent) {
     return {
       parent: parent,
@@ -362,6 +585,15 @@
     getUiRect: getUiRect,
     getSafeInsets: getSafeInsets,
     isCompact: isCompact,
+    UI_BUTTONS: UI_BUTTONS,
+    buttonSize: buttonSize,
+    pinPauseButton: pinPauseButton,
+    dialogueLayout: dialogueLayout,
+    menuLayout: menuLayout,
+    fitFontSize: fitFontSize,
+    fromCenter: fromCenter,
+    nextArrowCenter: nextArrowCenter,
+    placeNextArrow: placeNextArrow,
     attach: attach,
     onLayout: onLayout,
     pin: pin,

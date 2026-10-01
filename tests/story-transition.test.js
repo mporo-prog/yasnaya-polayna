@@ -47,7 +47,7 @@ function fixture() {
       goToScreen: (...screen) => savedScreens.push(screen),
     },
     SceneAssets: { prefetchNext() {}, prefetch: () => Promise.resolve() },
-    Layout: { onLayout() {} },
+    Layout: { onLayout() {}, pinPauseButton() {}, buttonSize: () => 150 },
   });
   const scope = vm.createContext({
     window: f.window,
@@ -74,7 +74,7 @@ function fixture() {
   f.game.getTime = () => now;
   const story = new f.window.VN.scenes.StoryScene();
   Object.assign(story, f.scene(), {
-    cameras: { main: camera() }, input: { enabled: true, keyboard: { enabled: true } },
+    cameras: { main: camera() }, input: { enabled: true, keyboard: { enabled: true, on() {}, off() {} } },
     time: { now, delayedCall(delay, callback) {
       const timer = { remaining: delay, paused: false, callback, remove() { timers.delete(timer); } };
       timers.add(timer);
@@ -351,7 +351,7 @@ test('leaving story 5 cancels fade callbacks and restores input in either fade p
 
 test('going back from the pond cancels its timer; unavailable voice still allows the transition', () => {
   const f = fixture();
-  f.buffers.delete(f.audio.getUrl('voice_and_sound/screen1_scene5_posetitel.wav'));
+  f.buffers.delete(f.audio.getUrl('voice_and_sound/scene5_gameplay5/plot/screen1_scene5_posetitel.wav'));
   f.start(4, 1);
   f.tick(1016);
   f.tick(1391);
@@ -638,7 +638,7 @@ test('portrait waits until the minigame fade ends before playing', async () => {
 
 test('video failure falls back to the existing painting and a missing voice remains readable', () => {
   const f = fixture();
-  f.buffers.delete(f.audio.getUrl('voice_and_sound/screen1_scene6_tolstoy.wav'));
+  f.buffers.delete(f.audio.getUrl('voice_and_sound/screen6_gameplay6/screen1_scene6_tolstoy.wav'));
   f.start(5);
   f.story.portraitVideo.emit('error');
   f.tick(1016);

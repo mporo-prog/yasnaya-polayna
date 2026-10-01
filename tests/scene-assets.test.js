@@ -206,6 +206,8 @@ test('portrait preloads its initial frame and game3 title panel without entering
   const f = fixture();
   f.data.storyLines[1] = [{ portraitReveal: {
     poster: 'images/backgrounds/tolstoy-portrait-start-e1ebd194.png',
+    frameImage: 'images/backgrounds/portrait-frame.png',
+    fallbackImage: 'images/backgrounds/tolstoy.png',
     titlePanel: 'images/icon_UI/result_message_panel.png',
   } }];
   const assets = f.assets.assetsFor(f.game, 'StoryScene', { storySceneIndex: 1 });

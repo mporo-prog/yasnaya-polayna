@@ -54,6 +54,6 @@ window.VN.data.storyBackgrounds = [
   ],
   // Сюжетная сцена 6
   [
-    'images/backgrounds/tolstoy.png',
+    'images/backgrounds/portrait-wallpaper.png',
   ],
 ];

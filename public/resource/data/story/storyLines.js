@@ -87,9 +87,13 @@ window.VN.data.storyLines = [
       portraitReveal: {
         video: 'video/tolstoy-portrait-e1ebd194.mp4',
         poster: 'images/backgrounds/tolstoy-portrait-start-e1ebd194.png',
-        // Внутренняя область рамы на фоне tolstoy.png.
+        dialogueFrame: { x: 1920 * 0.45, y: 1080 * 0.065, width: 208, height: 612 },
+        // Финальная область портрета совпадает с прежней картиной.
         frame: { x: 807, y: 73, width: 308, height: 924 },
-        title: 'И. Е. Репина «Л. Н. Толстой босой» (1901)',
+        frameImage: 'images/backgrounds/portrait-frame.png',
+        fallbackImage: 'images/backgrounds/tolstoy.png',
+        transitionDuration: 1000,
+        title: 'И. Е. Репин «Л. Н. Толстой босой» (1901)',
         titlePanel: 'images/icon_UI/result_message_panel.png',
         holdDuration: 4000, // Время показа портрета с названием, в миллисекундах.
       },

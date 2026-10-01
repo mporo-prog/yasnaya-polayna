@@ -72,6 +72,9 @@
           if (entry.backgroundChange?.path) assets.push(image(entry.backgroundChange.path));
           if (entry.portraitReveal) {
             assets.push(image(entry.portraitReveal.poster), image(entry.portraitReveal.titlePanel));
+            for (const path of [entry.portraitReveal.frameImage, entry.portraitReveal.fallbackImage]) {
+              if (path) assets.push(image(path));
+            }
           }
         }
         for (const name of ['pause', 'history', 'back', 'next', 'main']) {

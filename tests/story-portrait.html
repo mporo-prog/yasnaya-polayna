@@ -66,7 +66,7 @@
       assert(story.background.key.endsWith('/portrait-wallpaper.png'), 'Use the supplied empty wallpaper');
       assert(artwork.x === 864 && Math.abs(artwork.y - 70.2) < 0.01, 'Dialogue position: 45% / 6.5%');
       assert(Math.abs(video.displayWidth * artwork.scaleX - 208) < 0.01
-        && Math.abs(video.displayHeight * artwork.scaleY - 612) < 0.01, 'Dialogue size: 208 x 612');
+        && Math.abs(video.displayHeight * (1 - video.originY) * artwork.scaleY - 612) < 0.01, 'Dialogue size: 208 x 612');
       assert(story.portraitFrame.alpha === 0 && !story.portraitTitle, 'No frame or title during dialogue');
       assert(Math.abs((game.getTime() - story.voiceStartTime) / 1000 - story.portraitVideo.video.currentTime) < 0.3,
         'Video and voice must share the same start');

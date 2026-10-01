@@ -20,7 +20,7 @@ const RULES_TEXT = 'Распредели предметы на карте уса
 const WIN_TITLE = 'Игра пройдена!';
 const WIN_TEXT = 'Толстой любил пешие путешествия и не отказывался от них даже после 50–60 лет. В 1880-е годы он трижды ходил пешком из Москвы в Ясную Поляну';
 const OUTRO_SPEAKER = 'РАССКАЗЧИК';
-const OUTRO_TEXT = 'Дневник графа Толстого мог оказаться в любом месте, но свой самый важный последний дневник Лев Николаевич никому не показывал, даже жене, и хранил в сапоге.';
+const OUTRO_TEXT = 'Дневник графа Толстого мог оказаться в любом месте, но свой самый важный последний дневник Лев Николаевич никому не показывал, даже жене, и хранил в сапоге';
 
 // Озвучка рассказчика: правила и реплика про дневник — отдельные файлы.
 const RULES_VOICE = 'voice_and_sound/scene2_gameplay2/gameplay_scene_2_rasskazchik.wav';
@@ -255,10 +255,10 @@ export class GameScene2 extends Phaser.Scene {
             'game2-next'
         ).setDisplaySize(NEXT_BUTTON.size, NEXT_BUTTON.size);
 
-        // Правила заканчиваются после озвучки; на победе стрелка доступна для нажатия.
+        // И правила, и победа закрываются отдельным кликом.
         if (onNext) {
             nextButton.setInteractive({ useHandCursor: true });
-            nextButton.on('pointerup', onNext);
+            this.bindPanelClick(nextButton, onNext);
         }
 
         const overlay = this.add.container(BASE_WIDTH / 2, BASE_HEIGHT / 2, [
@@ -280,6 +280,18 @@ export class GameScene2 extends Phaser.Scene {
         });
 
         return { overlay, panel, nextButton };
+    }
+
+    // Отпускание после перетаскивания или предыдущей плашки не считается кликом.
+    bindPanelClick(object, onClick) {
+        let pressedPointer = null;
+        object.on('pointerdown', (pointer) => { pressedPointer = pointer.id; });
+        object.on('pointerout', () => { pressedPointer = null; });
+        object.on('pointerup', (pointer) => {
+            const clicked = pressedPointer === pointer.id;
+            pressedPointer = null;
+            if (clicked) onClick();
+        });
     }
 
     createRulesOverlay() {
@@ -306,7 +318,7 @@ export class GameScene2 extends Phaser.Scene {
             this.startGameAfterRules();
         };
         const { overlay, panel, nextButton } = this.createMessageOverlay(config, [text], skipRules);
-        panel.setInteractive({ useHandCursor: true }).on('pointerup', skipRules);
+        this.bindPanelClick(panel.setInteractive({ useHandCursor: true }), skipRules);
         this.rulesOverlay = overlay;
         this.rulesPanel = panel;
         this.rulesText = text;
@@ -349,7 +361,7 @@ export class GameScene2 extends Phaser.Scene {
             [title, text],
             finishFromWin
         );
-        panel.setInteractive({ useHandCursor: true }).on('pointerup', finishFromWin);
+        this.bindPanelClick(panel.setInteractive({ useHandCursor: true }), finishFromWin);
 
         // Тёмный оверлей на весь экран, как на победных экранах остальных
         // игр (чёрный, 60% непрозрачности): под плашкой, над картой и
@@ -361,7 +373,7 @@ export class GameScene2 extends Phaser.Scene {
             .setDepth(1500)
             .setVisible(false)
             .setInteractive({ useHandCursor: true });
-        this.winDim.on('pointerup', finishFromWin);
+        this.bindPanelClick(this.winDim, finishFromWin);
         if (this.layout) {
             this.layout.fill(this, this.winDim);
         }
@@ -517,7 +529,7 @@ export class GameScene2 extends Phaser.Scene {
         this.outroNextButton = this.add.image(0, 0, 'game2-next')
             .setInteractive({ useHandCursor: true })
             .setVisible(false);
-        this.outroNextButton.on('pointerup', () => this.onOutroNext());
+        this.bindPanelClick(this.outroNextButton, () => this.onOutroNext());
 
         this.infoPanel = this.add
             .container(0, 0, [

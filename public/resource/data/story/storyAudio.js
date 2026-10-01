@@ -57,11 +57,12 @@ window.VN.data.storyAudio = [
       { voice: {path: 'voice_and_sound/scene2_gameplay2/new_veter/screen_2_1_scene_2_posetitel.wav'}, sounds: [] },
       { voice: {path: 'voice_and_sound/scene2_gameplay2/screen_3_scene_2_veter_beg.wav'}, sounds: [] },
       { voice: {path: 'voice_and_sound/scene2_gameplay2/screen_4_scene_2_posetitel.wav'}, sounds: [] },
-      { voice: {path: 'voice_and_sound/scene2_gameplay2/new_veter/screen5_scene2_posetitel!.wav'}, sounds: [] },
+      { voice: {path: 'voice_and_sound/scene2_gameplay2/screen5_scene2_posetitel.wav'}, sounds: [] },
     ],
   },
   // Сюжетная сцена 3
   {
+    // Уровень самого WAV поднят на 18 дБ для баланса с фоном сцены 4.
     music: { path: 'voice_and_sound/scene3_gameplay3/plot/plot3_background.wav', loop: true }, // { path: 'music/theme.mp3', volume: 0.8, loop: true }
     transition: {
     type: 'crossfade',
@@ -86,8 +87,7 @@ window.VN.data.storyAudio = [
   },
   // Сюжетная сцена 4
   {
-    // Тот же фон, что в сцене 3.
-    music: { path: 'voice_and_sound/scene3_gameplay3/plot/plot3_background.wav', loop: true },
+    music: { path: 'voice_and_sound/scene4_gameplay4/plot4_background.wav', loop: true },
     transition: {
     type: 'crossfade',
     fadeOutDuration: 1,
@@ -108,8 +108,8 @@ window.VN.data.storyAudio = [
   },
   // Сюжетная сцена 5
   {
-    // До появления Толстого — тот же фон, что в сцене 3.
-    music: { path: 'voice_and_sound/scene3_gameplay3/plot/plot3_background.wav', loop: true },
+    // До появления Толстого — тот же фон, что в сцене 4.
+    music: { path: 'voice_and_sound/scene4_gameplay4/plot4_background.wav', loop: true },
     transition: {
     type: 'crossfade',
     fadeOutDuration: 1,
@@ -139,7 +139,7 @@ window.VN.data.storyAudio = [
   },
   // Сюжетная сцена 6
   {
-    music: { path: 'music/music_menu_2.wav', volume: 1, loop: true },
+    music: { path: 'music/music_menu_2.wav', volume: 0.2, loop: true },
     transition: {
     type: 'crossfade',
     fadeOutDuration: 1,

@@ -117,6 +117,7 @@ function fixture() {
         Object.assign(video, { width: 384, height: 1132 });
         video.loadURL = (url, noAudio) => { Object.assign(video, { url, noAudio }); return video; };
         video.play = (loop) => { Object.assign(video, { loop, playing: true }); return video; };
+        video.stop = () => { video.playing = false; return video; };
         video.setPaused = (paused) => { video.paused = paused; return video; };
         return video;
       },
@@ -163,6 +164,7 @@ function fixture() {
   const mini = {
     cameras: { main: camera() }, input: { enabled: true, keyboard: { enabled: true } },
     events: new EventEmitter(),
+    time: story.time,
     scene: { start(key, data) {
       starts.push({ key, data });
       mini.events.emit('shutdown');
@@ -236,23 +238,33 @@ test('an early click on screen 12 changes the background; the second advances an
   ]);
 });
 
-test('screen 12 advances automatically two seconds after the timed background change', () => {
+test('screen 12 preserves the full 17-second wind after changing the background', () => {
   const f = fixture();
+  f.buffers.get(f.audio.getUrl('voice_and_sound/scene2_gameplay2/screen_3_scene_2_veter_beg.wav')).duration = 17;
   f.start(1, 11);
+  const wind = f.story.voiceTrack;
   f.tick(3000);
   assert.equal(f.story.screenIndex, 11);
   assert.equal(f.backgrounds.at(-1), 'images/backgrounds/house.png');
   f.tick(4999);
   assert.equal(f.story.screenIndex, 11);
   f.tick(5000);
+  assert.equal(f.story.screenIndex, 11, 'The timer must not cut the wind short');
+  assert.equal(f.story.voiceTrack, wind);
+  assert.equal(wind.ended, false);
+  f.advance(16.999);
+  f.tick(17999);
+  assert.equal(f.story.screenIndex, 11);
+  f.advance(17);
+  f.tick(18000);
   assert.equal(f.story.screenIndex, 12);
   assert.deepEqual(f.savedScreens.at(-1), [1, 12]);
   assert.equal(f.backgrounds.at(-1), 'images/backgrounds/hat.png');
-  f.tick(9000);
+  f.tick(20000);
   assert.equal(f.story.screenIndex, 12, 'The timer must only advance once');
 });
 
-test('an early background change starts a fresh two-second countdown to the next screen', () => {
+test('an early background change still waits for the wind after the two-second countdown', () => {
   const f = fixture();
   f.start(1, 11);
   f.tick(1500);
@@ -263,7 +275,26 @@ test('an early background change starts a fresh two-second countdown to the next
   f.tick(3499);
   assert.equal(f.story.screenIndex, 11);
   f.tick(3500);
+  assert.equal(f.story.screenIndex, 11);
+  f.advance(10);
+  f.tick(11000);
   assert.equal(f.story.screenIndex, 12);
+});
+
+test('short or unavailable wind does not skip the background hold or block auto-advance', () => {
+  for (const missing of [false, true]) {
+    const f = fixture();
+    const key = f.audio.getUrl('voice_and_sound/scene2_gameplay2/screen_3_scene_2_veter_beg.wav');
+    if (missing) f.buffers.delete(key);
+    else f.buffers.get(key).duration = 1;
+    f.start(1, 11);
+    f.advance(1);
+    f.tick(3000);
+    f.tick(4999);
+    assert.equal(f.story.screenIndex, 11);
+    f.tick(5000);
+    assert.equal(f.story.screenIndex, 12);
+  }
 });
 
 test('story 5 waits for the voice to end, fades to the pond, then advances after two visible seconds', () => {
@@ -405,11 +436,15 @@ test('back and shutdown cancel the auto-advance after the background has changed
     const f = fixture();
     f.start(1, 11);
     f.tick(3000);
+    f.tick(5000);
+    assert.equal(f.story.pendingAutoAdvance, true);
     if (exit === 'back') f.story.goBack();
     else f.story.events.emit('shutdown');
     const screen = f.story.screenIndex;
     const backgroundCount = f.backgrounds.length;
     f.tick(6000);
+    f.advance(20);
+    f.tick(21000);
     assert.equal(f.story.screenIndex, screen);
     assert.equal(f.backgrounds.length, backgroundCount);
   }
@@ -444,7 +479,7 @@ test('leaving the scene cancels both kinds of screen timer', () => {
 });
 
 for (const screenIndex of [0, 11]) {
-  test(`history suspends auto-advance on screen ${screenIndex + 1} and closing it continues the remaining delay`, () => {
+  test(`history suspends auto-advance on screen ${screenIndex + 1} and respects restarted audio`, () => {
     const f = fixture();
     f.start(1, screenIndex);
     if (screenIndex === 11) f.story.goNext();
@@ -461,6 +496,11 @@ for (const screenIndex of [0, 11]) {
     f.tick(10999);
     assert.equal(f.story.screenIndex, screenIndex);
     f.tick(11000);
+    if (screenIndex === 11) {
+      assert.equal(f.story.screenIndex, screenIndex, 'Restarted wind must also finish');
+      f.advance(10);
+      f.tick(21000);
+    }
     assert.equal(f.story.screenIndex, screenIndex + 1);
   });
 }
@@ -484,7 +524,7 @@ for (const game of [2, 3, 4, 5]) {
     f.tick(120016);
     assert.equal(story.voiceActive, true);
     assert.notEqual(story.dialogueRevealedText.text, story.voiceFullText);
-    f.tick(game === 5 ? 125016 : 125000);
+    f.tick(game === 5 ? 124016 : 125000); // Final narration uses an 8-second reveal (10s audio minus its 2s margin).
     assert.equal(story.dialogueRevealedText.text, story.voiceRevealText.slice(0, Math.floor(story.voiceRevealText.length / 2)));
     f.tick(game === 5 ? 130016 : 130000);
     assert.equal(story.dialogueRevealedText.text, story.voiceFullText);
@@ -505,11 +545,11 @@ test('portrait video, voice and dialogue start together when the first frame is 
   assert.equal(f.sources.length, 1, 'Only background music starts before the video is ready');
   assert.equal(f.story.bottomGroup.visible, false);
   for (const action of ['goNext', 'goBack', 'advanceScreen', 'startMinigame', 'toggleHistory']) f.story[action]();
-  f.tick(20000);
+  f.tick(14000);
   assert.equal(f.story.portraitPhase, 'loading', 'Wait for a real frame, not a fixed timer');
   assert.equal(f.sources.length, 1, 'Loading the portrait must not start the voice early');
   video.emit('created');
-  f.tick(20016);
+  f.tick(14016);
   assert.equal(f.story.portraitPhase, 'dialogue');
   assert.equal(f.story.bottomGroup.visible, true);
   assert.equal(f.backgrounds.at(-1), 'images/backgrounds/portrait-wallpaper.png');
@@ -519,11 +559,11 @@ test('portrait video, voice and dialogue start together when the first frame is 
   assert.equal(video.displayWidth * f.story.portraitArtwork.scaleX, 208);
   assert.ok(Math.abs(video.displayHeight * (1 - video.originY) * f.story.portraitArtwork.scaleY - 612) < 0.001);
   assert.equal(f.story.voiceActive, true);
-  assert.equal(f.story.voiceStartTime, 20016);
+  assert.equal(f.story.voiceStartTime, 14016);
   assert.equal(f.story.portraitAnimationComplete, false, 'Voice starts before video ends');
   video.emit('complete');
-  f.tick(21016);
-  assert.equal(f.story.voiceStartTime, 20016, 'Completion cannot restart the phrase');
+  f.tick(15016);
+  assert.equal(f.story.voiceStartTime, 14016, 'Completion cannot restart the phrase');
   assert.equal(f.story.portraitPhase, 'dialogue', 'Video completion alone cannot hide dialogue');
 });
 
@@ -875,12 +915,89 @@ test('slow loading finishes before fading and repeated completion cannot restart
   assert.equal(f.mini.cameras.main.fadeEffect.isRunning, false);
   assert.equal(f.starts.length, 0);
   assert.equal(f.savedScreens.length, 1);
+  f.tick(1300);
+  assert.deepEqual(f.loadingScreens, ['Загрузка продолжения…']);
   ready();
   await flush();
   f.beginMinigameExit();
   assert.equal(f.mini.cameras.main.listenerCount('camerafadeoutcomplete'), 1);
   f.mini.cameras.main.fadeEffect.update(0, 375);
   assert.equal(f.starts.length, 1);
+});
+
+for (const synchronous of [false, true]) {
+  test(`failed prefetch retries in the story loader instead of trapping disabled minigame input (sync: ${synchronous})`, async () => {
+    const f = fixture();
+    f.window.VN.systems.SceneAssets.prefetch = () => {
+      const error = new Error('Temporary loading failure');
+      if (synchronous) throw error;
+      return Promise.reject(error);
+    };
+    f.beginMinigameExit(4);
+    await flush();
+    assert.equal(f.starts.length, 1);
+    assert.equal(f.story.storySceneIndex, 5);
+    assert.equal(f.mini.input.enabled, true, 'Shutdown restores input for the next run');
+    assert.equal(f.loadingScreens.length, 1);
+    assert.equal(f.warnings.length, 1);
+    f.tick(1400);
+    assert.equal(f.story.input.enabled, true);
+    assert.equal(f.story.portraitVideo.playing, true);
+  });
+}
+
+test('leaving during failed prefetch cancels its fallback and loading indicator', async () => {
+  const f = fixture();
+  let fail;
+  f.window.VN.systems.SceneAssets.prefetch = () => new Promise((resolve, reject) => { fail = reject; });
+  f.beginMinigameExit(4);
+  await flush();
+  f.mini.events.emit('shutdown');
+  fail(new Error('Cancelled load'));
+  await flush();
+  f.tick(2000);
+  assert.equal(f.starts.length, 0);
+  assert.equal(f.loadingScreens.length, 0);
+  assert.equal(f.warnings.length, 0);
+});
+
+test('a portrait video that never produces a frame falls back and permits completing the game', () => {
+  const f = fixture();
+  f.start(5);
+  const video = f.story.portraitVideo;
+  f.tick(15999);
+  assert.equal(f.story.portraitPhase, 'loading');
+  f.tick(16000);
+  assert.equal(f.story.portraitPhase, 'dialogue');
+  assert.equal(f.story.portraitArtwork.list[0].textureKey, 'images/backgrounds/tolstoy.png');
+  assert.equal(video.playing, false);
+  assert.equal(video.visible, false);
+  video.emit('created'); // A late video callback must not replace the fallback.
+  assert.equal(video.visible, false);
+  f.story.goNext();
+  f.finishPortraitReveal();
+  assert.equal(f.story.portraitPhase, 'hold');
+  f.story.goNext();
+  assert.deepEqual(f.navigations, ['games/finish/index.html']);
+});
+
+test('ready portrait video cancels the loading timeout and shutdown removes pending fallback', () => {
+  for (const ready of [false, true]) {
+    const f = fixture();
+    f.start(5);
+    const video = f.story.portraitVideo;
+    if (ready) {
+      video.emit('created');
+      f.tick(1016);
+      f.tick(20000);
+      assert.equal(video.visible, true);
+      assert.equal(f.story.portraitAnimationComplete, false);
+    }
+    f.story.events.emit('shutdown');
+    f.tick(40000);
+    assert.equal(f.story.portraitPhase, null);
+    assert.equal(video.destroyed, true);
+  }
 });
 
 for (const duringFade of [false, true]) {

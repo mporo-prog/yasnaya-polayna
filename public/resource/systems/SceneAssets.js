@@ -29,6 +29,10 @@
         this.label = scene.add.text(width / 2, height / 2, 'Загрузка…', {
           fontFamily: 'sans-serif', fontSize: '32px', color: '#3f2f22',
         }).setOrigin(0.5);
+        // В EXPAND холст шире/выше макета; фон должен закрывать всю видимую область.
+        const layout = window.VN.systems.Layout;
+        layout?.fill(scene, this.panel);
+        layout?.pin(scene, this.label, { centerX: 0, centerY: 0 });
         this.showProgress = (progress) => this.label.setText('Загрузка… ' + Math.round(progress * 100) + '%');
       }
     }

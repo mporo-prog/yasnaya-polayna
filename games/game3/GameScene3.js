@@ -391,7 +391,6 @@ export class GameScene3 extends Phaser.Scene {
 
         this.finished = true;
         this.showHint(this.winOverlay, () => this.finishGame(), null);
-        window.VN?.systems.AudioManager?.win?.(this);
     }
 
     createPauseButton() {

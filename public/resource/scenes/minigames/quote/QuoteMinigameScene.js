@@ -648,7 +648,6 @@
         this.phase = 'win';
         this.hideReplyPanel();
         this.showPanelOverlay(WIN_TITLE, WIN_FACT, () => this.finishMinigame(), IMG.finish);
-        window.VN?.systems.AudioManager?.win?.(this);
         return;
       }
       this.clearRound();

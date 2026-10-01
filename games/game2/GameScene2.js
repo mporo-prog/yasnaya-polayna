@@ -1001,7 +1001,6 @@ export class GameScene2 extends Phaser.Scene {
         // только нажатием («далее», плашка или оверлей) — дальше по сюжету.
         this.winDim.setVisible(true);
         this.winOverlay.setVisible(true);
-        window.VN?.systems.AudioManager?.win?.(this);
     }
 
     playClick() {

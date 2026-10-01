@@ -969,6 +969,8 @@ export class GameScene4 extends Phaser.Scene {
             null
         );
         window.VN?.systems.AudioManager?.win?.(this);
+        this.sceneAudio?.stopSounds();
+        this.sceneAudio?.showScreen(1);
     }
 
     loseGame() {
@@ -1005,7 +1007,7 @@ export class GameScene4 extends Phaser.Scene {
     }
 
     // Затемнение на весь экран, панель с текстом и стрелка «далее».
-    // Клик по экрану или стрелке сразу закрывает его и обрывает озвучку правил.
+    // Клик по экрану или стрелке сразу закрывает его и обрывает озвучку.
     createOverlay(text, { panel: panelConfig, textStyle }) {
 
         const background = this.add.rectangle(

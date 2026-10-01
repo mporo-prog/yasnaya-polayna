@@ -24,6 +24,27 @@
   }
 
   window.VN.systems.StartupScreen = {
+    show(message = 'Загрузка…') {
+      let screen = document.getElementById('startup-loading');
+      if (!screen) {
+        screen = document.createElement('div');
+        screen.id = 'startup-loading';
+        screen.setAttribute('role', 'status');
+        screen.setAttribute('aria-live', 'polite');
+        const label = document.createElement('p');
+        label.id = 'startup-label';
+        const bar = document.createElement('progress');
+        bar.id = 'startup-progress';
+        bar.max = 100;
+        bar.setAttribute('aria-labelledby', label.id);
+        screen.append(label, bar);
+        document.body.append(screen);
+      }
+      document.getElementById('startup-label').textContent = message;
+      document.getElementById('startup-progress').removeAttribute('value');
+      return screen;
+    },
+
     track(scene) {
       const screen = document.getElementById('startup-loading');
       if (!screen) return null;

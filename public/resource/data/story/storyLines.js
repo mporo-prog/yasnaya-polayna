@@ -95,7 +95,6 @@ window.VN.data.storyLines = [
         transitionDuration: 1000,
         title: 'И. Е. Репин «Л. Н. Толстой босой» (1901)',
         titlePanel: 'images/icon_UI/result_message_panel.png',
-        holdDuration: 4000, // Время показа портрета с названием, в миллисекундах.
       },
     },
   ],

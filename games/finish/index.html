@@ -7,16 +7,41 @@
         content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     >
     <title>Финиш</title>
+    <!-- Видно до загрузки Phaser, модулей и изображений финального экрана. -->
+    <style>
+        html, body { margin: 0; background: #e8dcc0; }
+        #startup-loading {
+            position: fixed;
+            inset: 0;
+            z-index: 900;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            background: #e8dcc0;
+            color: #3f2f22;
+            font: 24px/1.4 system-ui, sans-serif;
+            text-align: center;
+        }
+        #startup-loading p { margin: 0; }
+        #startup-progress { width: min(320px, 80vw); accent-color: #3f2f22; }
+    </style>
     <link rel="stylesheet" href="../../resource/core/screen.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Philosopher:wght@700&family=Ysabeau:wght@400&display=swap">
+    <link id="game-fonts" rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=Philosopher:wght@700&family=Ysabeau:wght@400&display=swap">
 </head>
 
 <body>
+    <div id="startup-loading" role="status" aria-live="polite">
+        <p id="startup-label">Загрузка финального экрана…</p>
+        <progress id="startup-progress" max="100" aria-labelledby="startup-label"></progress>
+    </div>
     <div id="app"></div>
     <script src="../../resource/lib/phaser.min.js"></script>
     <script src="../../resource/core/namespace.js"></script>
+    <script src="../../resource/systems/StartupScreen.js"></script>
     <script src="../../resource/systems/SaveManager.js"></script>
     <script src="../../resource/systems/GameState.js"></script>
     <script src="../../resource/systems/Layout.js"></script>

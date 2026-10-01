@@ -1016,9 +1016,13 @@
             onComplete: () => {
               this.portraitTween = null;
               this.portraitPhase = 'hold';
-              const duration = Number.isFinite(config.holdDuration) && config.holdDuration >= 0
-                ? config.holdDuration : 4000;
-              this.scheduleScreenTimer(duration, () => this.finishPortraitSequence());
+              // Оставляем только «далее»: картина ждёт отдельного нажатия.
+              for (const object of [this.characterImage, this.panelBg, this.speakerNameText,
+                this.dialogueText, this.dialogueRevealedText, this.backBtn.bg]) {
+                object.setVisible(false);
+              }
+              this.bottomGroup.setVisible(true);
+              this.nextBtn.bg.setVisible(true);
             },
           });
         },
@@ -1030,6 +1034,7 @@
       this.portraitPhase = 'finished';
       this.clearScreenTimer();
       window.VN.systems.GameState.save();
+      window.VN.systems.StartupScreen.show('Загрузка финального экрана…');
       this.scene.stop();
       window.location.assign('games/finish/index.html');
     }
@@ -1118,7 +1123,9 @@
 
     goNext() {
       if (this.portraitPhase) {
-        if (this.portraitPhase === 'dialogue' && !this.historyVisible) {
+        if (this.portraitPhase === 'hold') {
+          this.finishPortraitSequence();
+        } else if (this.portraitPhase === 'dialogue' && !this.historyVisible) {
           this.skipVoice();
           this.portraitVoiceComplete = true;
           this.showPortraitTitle();

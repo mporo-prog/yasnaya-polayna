@@ -55,17 +55,16 @@
    * data/minigames/quote/quoteData.js, внешний вид —
    * data/minigames/quote/quoteStyle.js.
    *
-   * Раунд: цитата с пустой рамкой и три плашки-варианта. Неправильный
+   * Раунд: цитата с подчёркиваниями и три плашки-варианта. Неправильный
    * вариант закрывается красной накладкой. После правильного цитата
    * собирается целиком, варианты исчезают, снизу появляется диалоговая
    * плашка героя (как в сюжетной сцене) со своей репликой; стрелка на
    * плашке ведёт к следующему раунду, после последнего — дальше по сюжету.
    *
    * У раунда есть mode:
-   *   'prefix' — рамка-пропуск сверху, известный текст (prompt) под ней;
-   *   'suffix' — известный текст (prompt) сверху, рамка-пропуск под ним;
-   *   'middle' — рамка-пропуск ПОСЕРЕДИНЕ: текст до неё (prefix) сверху,
-   *              текст после (suffix) снизу — три строки друг под другом.
+   *   'prefix' — пропуск перед известным текстом (prompt);
+   *   'suffix' — пропуск после известного текста (prompt);
+   *   'middle' — пропуск между prefix и suffix внутри общего текста.
    */
   class QuoteMinigameScene extends Phaser.Scene {
     constructor() {
@@ -108,7 +107,8 @@
       this.roundSolved = false;
       this.gameFinished = false;
       this.winShown = false;
-      this.quoteParts = [];
+      this.quoteImage = null;
+      this.quoteTexture = null;
       this.answerButtons = null;
 
       // Три состояния, как в GameScene2: rules → game → win.
@@ -149,6 +149,16 @@
 
       this.buildPauseButton();
       this.startRound(this.currentRoundIndex);
+      // Canvas-текстуру нужно пересчитать, если веб-шрифт пришёл позже сцены.
+      const refreshQuote = () => {
+        this.buildQuote();
+        this.positionAnswerButtons();
+      };
+      document.fonts?.addEventListener('loadingdone', refreshQuote);
+      this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+        document.fonts?.removeEventListener('loadingdone', refreshQuote);
+        this.clearQuote();
+      });
       // Правила игры поверх первого раунда; «далее» обрывает озвучку рассказчика.
       this.showPanelOverlay(null, INTRO_TEXT, () => this.sceneAudio?.stopSounds?.());
     }
@@ -449,8 +459,7 @@
     }
 
     clearRound() {
-      this.quoteParts.forEach((part) => part.destroy());
-      this.quoteParts = [];
+      this.clearQuote();
       if (this.answerButtons) {
         this.answerButtons.forEach((b) => { b.bg.destroy(); b.overlay.destroy(); b.text.destroy(); });
         this.answerButtons = null;
@@ -458,104 +467,85 @@
       this.hideReplyPanel();
     }
 
-    quoteTextStyle() {
-      const style = this.style;
-      return {
-        fontFamily: style.quoteFontFamily,
-        fontStyle: 'bold',
-        fontSize: style.quoteFontSize + 'px',
-        color: style.textColor,
-        wordWrap: { width: style.quoteWrapWidth },
-      };
+    clearQuote() {
+      this.quoteImage?.destroy();
+      this.quoteImage = null;
+      if (this.quoteTexture) this.textures.remove(this.quoteTexture.key);
+      this.quoteTexture = null;
     }
 
-    /** Кавычка, «висящая» слева от первой строки цитаты. */
-    addOpeningMark(y) {
-      const mark = this.add.text(this.style.quoteX - 2, y, '«', this.quoteTextStyle()).setOrigin(1, 0);
-      this.quoteParts.push(mark);
+    /** Части одного абзаца: курсив относится только к угаданной фразе. */
+    quoteSegments() {
+      const round = this.currentRound;
+      const before = (round.mode === 'middle' ? round.prefix : round.mode === 'prefix' ? '' : round.prompt).trim();
+      const after = (round.mode === 'middle' ? round.suffix : round.mode === 'prefix' ? round.prompt : '').trim();
+      return [
+        { text: '«' + (before ? before + ' ' : ''), italic: false },
+        { text: this.roundSolved ? round.answer : '___', italic: this.roundSolved },
+        { text: (after && !/^[,.;:!?…]/u.test(after) ? ' ' : '') + after + '»', italic: false },
+      ];
     }
 
-    /**
-     * Цитата с пустой рамкой:
-     *   'suffix' — текст (prompt), под ним рамка;
-     *   'prefix' — рамка, под ней текст (prompt);
-     *   'middle' — текст (prefix), под ним рамка, под ней текст (suffix).
-     * Закрывающая кавычка — после последней части.
-     */
+    /** Одна текстура абзаца: общий перенос слов с учётом ширины курсива. */
     buildQuote() {
       const style = this.style;
-      const x = style.quoteX;
-      let y = style.quoteY;
-      this.addOpeningMark(y);
-
-      const addLine = (str) => {
-        const text = this.add.text(x, y, str, this.quoteTextStyle());
-        this.quoteParts.push(text);
-        y += text.height + 20;
-        return text;
-      };
-      const addBlank = () => {
-        const blank = this.add
-          .rectangle(x, y, style.blankWidth, style.blankHeight)
-          .setOrigin(0, 0)
-          .setStrokeStyle(style.blankStrokeWidth, style.blankStrokeColor);
-        this.quoteParts.push(blank);
-        y += style.blankHeight + 20;
-        return blank;
-      };
-
-      const mode = this.currentRound.mode;
-      let last;
-      if (mode === 'prefix') {
-        addBlank();
-        last = addLine(this.currentRound.prompt);
-      } else if (mode === 'middle') {
-        addLine(this.currentRound.prefix);
-        addBlank();
-        last = addLine(this.currentRound.suffix);
-      } else {
-        addLine(this.currentRound.prompt);
-        last = addBlank();
+      const padding = 8; // Запас для выступающих краёв курсивных букв.
+      const lineHeight = Math.ceil(style.quoteFontSize * 1.25);
+      const width = style.quoteWrapWidth + padding * 2;
+      if (!this.quoteTexture) {
+        this.quoteTexture = this.textures.createCanvas('quoteParagraph', width, 1);
       }
-      // Ёлочка встаёт вплотную к тексту, но с отступом от пустой рамки.
-      const closeX = last.x + (last.displayWidth || last.width) + (mode === 'suffix' ? 18 : 2);
-      // Закрывающая кавычка — без точки (точка в конце только у реплик в диалогах).
-      this.quoteParts.push(this.add.text(closeX, last.y, '»', this.quoteTextStyle()));
-
-      // Запоминаем, где на самом деле закончилась цитата в ЭТОМ раунде —
-      // addLine()/addBlank() уже учли перенос строк (wordWrap) и число строк
-      // (у 'middle' их на одну больше). buildAnswerButtons() использует это,
-      // чтобы не дать плашкам-вариантам наехать на длинную цитату.
-      this.quoteBottomY = y;
-    }
-
-    /** После правильного ответа: цитата целиком, в две строки, ниже. */
-    buildSolvedQuote() {
-      const style = this.style;
-      this.quoteParts.forEach((part) => part.destroy());
-      this.quoteParts = [];
-
-      const round = this.currentRound;
-      let lines;
-      if (round.mode === 'prefix') {
-        lines = [round.answer, round.prompt];
-      } else if (round.mode === 'middle') {
-        // "Надо жить, надо" / "        любить, надо верить." — вторая
-        // строка начинается с ответа и продолжается известным суффиксом.
-        lines = [round.prefix, round.answer + round.suffix];
-      } else {
-        lines = [round.prompt, round.answer];
-      }
-
-      let y = style.solvedQuoteY;
-      this.addOpeningMark(y);
-      const first = this.add.text(style.quoteX, y, lines[0], this.quoteTextStyle());
-      y += first.height + 4;
-      const second = this.add.text(style.quoteX + style.solvedSecondLineIndent, y, lines[1] + '»', {
-        ...this.quoteTextStyle(),
-        wordWrap: { width: style.quoteWrapWidth - style.solvedSecondLineIndent },
+      const texture = this.quoteTexture;
+      const context = texture.context;
+      const font = (italic) => `${italic ? 'italic ' : ''}bold ${style.quoteFontSize}px "${style.quoteFontFamily}"`;
+      let offset = 0;
+      const segments = this.quoteSegments().map((segment) => {
+        const start = offset;
+        offset += segment.text.length;
+        return { ...segment, start, end: offset };
       });
-      this.quoteParts.push(first, second);
+      const text = segments.map((segment) => segment.text).join('');
+      context.font = font(false);
+      const spaceWidth = context.measureText(' ').width;
+      const runs = [];
+      let x = 0;
+      let line = 0;
+      // Пунктуация остаётся с соседним словом, даже на границе курсива.
+      for (const match of text.matchAll(/\S+/gu)) {
+        const start = match.index;
+        const end = start + match[0].length;
+        const word = segments.filter((segment) => segment.end > start && segment.start < end).map((segment) => {
+          const part = segment.text.slice(Math.max(start - segment.start, 0), Math.min(end, segment.end) - segment.start);
+          context.font = font(segment.italic);
+          return { text: part, italic: segment.italic, width: context.measureText(part).width };
+        });
+        const wordWidth = word.reduce((sum, run) => sum + run.width, 0);
+        if (x && x + spaceWidth + wordWidth > style.quoteWrapWidth) {
+          x = 0;
+          line++;
+        }
+        if (x) x += spaceWidth;
+        for (const run of word) {
+          runs.push({ ...run, x, y: line * lineHeight });
+          x += run.width;
+        }
+      }
+      const height = (line + 1) * lineHeight;
+      texture.setSize(width, height + padding * 2);
+      context.clearRect(0, 0, texture.width, texture.height);
+      context.fillStyle = style.textColor;
+      context.textBaseline = 'alphabetic';
+      for (const run of runs) {
+        context.font = font(run.italic);
+        context.fillText(run.text, padding + run.x, padding + style.quoteFontSize + run.y);
+      }
+      texture.refresh();
+      if (!this.quoteImage) {
+        this.quoteImage = this.add.image(style.quoteX - padding, style.quoteY - padding, texture.key).setOrigin(0);
+      } else {
+        this.quoteImage.setTexture(texture.key);
+      }
+      this.quoteBottomY = style.quoteY + height + 20;
     }
 
     // ---- варианты ответа ---------------------------------------------------
@@ -567,21 +557,21 @@
         )
       );
 
-      // style.slots подобраны под "обычную" короткую цитату
-      // (answerAreaDesignedTopY). Если в ЭТОМ раунде цитата длиннее —
-      // из-за переноса строк или режима 'middle' (три строки вместо
-      // двух) — сдвигаем все три плашки вниз на одну и ту же величину,
-      // чтобы они не наезжали на текст, но остались друг относительно
-      // друга в том же треугольном расположении.
-      const overflow = this.quoteBottomY - this.style.answerAreaDesignedTopY;
-      this.answerAreaShiftY = Math.max(0, overflow);
-
       this.answerButtons = options.map((option, i) => this.buildOneAnswerButton(option, this.style.slots[i]));
+      this.positionAnswerButtons();
     }
 
-    buildOneAnswerButton(option, slotDef) {
+    positionAnswerButtons() {
+      // Длинная цитата сдвигает варианты вниз, сохраняя промежуток до текста.
+      const shift = Math.max(0, this.quoteBottomY - this.style.answerAreaDesignedTopY);
+      this.answerButtons?.forEach((button, index) => {
+        const slot = this.style.slots[index];
+        [button.bg, button.overlay, button.text].forEach((part) => part.setPosition(slot.x, slot.y + shift));
+      });
+    }
+
+    buildOneAnswerButton(option, slot) {
       const style = this.style;
-      const slot = { x: slotDef.x, y: slotDef.y + this.answerAreaShiftY };
       const text = this.add
         .text(slot.x, slot.y, option.text, {
           fontFamily: style.quoteFontFamily,
@@ -630,7 +620,7 @@
       if (this.isLastRound()) this.gameFinished = true;
       this.answerButtons.forEach((b) => { b.bg.destroy(); b.overlay.destroy(); b.text.destroy(); });
       this.answerButtons = null;
-      this.buildSolvedQuote();
+      this.buildQuote();
       this.showReplyPanel(this.currentRound);
     }
 

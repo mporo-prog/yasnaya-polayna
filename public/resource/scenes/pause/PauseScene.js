@@ -5,8 +5,8 @@
 
   /**
    * Пауза — по макету: фон главного меню, слева три кнопки, справа вывеска
-   * «Один день Льва Толстого». На телефоне (Layout.isCompact) кнопки и
-   * вывеска крупнее, как в мобильном макете.
+   * «Один день Льва Толстого». Раскладка общая с главным меню
+   * (Layout.menuLayout); на телефоне кнопки и вывеска крупнее.
    */
   class PauseScene extends Phaser.Scene {
     constructor() {
@@ -62,7 +62,10 @@
           fontSize: '48px',
           color: TEXT_COLOR,
         }).setOrigin(0.5);
-        bg.on('pointerup', () => this.onButtonClick(buttonData.action));
+        bg.on('pointerup', () => {
+          window.VN?.systems.AudioManager?.click?.(this);
+          this.onButtonClick(buttonData.action);
+        });
         return { bg, label };
       });
 
@@ -70,24 +73,8 @@
     }
 
     applyLayout(ui) {
-      const style = window.VN.data.startStyle;
-      let slots, logo, fontSize;
-      if (this.layout.isCompact(this)) {
-        // Мобильный макет: доли ширины экрана, высоты — в пикселях макета.
-        const x = ui.x + ui.width * 0.1036;
-        const width = ui.width * 0.2726;
-        slots = [118, 393, 655].map((y) => ({ x, y, width, height: 223 }));
-        logo = { x: ui.x + ui.width * 0.529, y: 183, width: 825, height: 432 };
-        fontSize = 79;
-      } else {
-        // Как на главном экране (startStyle).
-        slots = style.buttons.map((slot) => ({
-          x: WIDTH * slot.xFrac, y: HEIGHT * slot.yFrac, width: slot.width, height: slot.height,
-        }));
-        const t = style.title;
-        logo = { x: WIDTH * t.xFrac, y: HEIGHT * t.yFrac, width: t.width, height: t.height };
-        fontSize = parseInt(style.buttonFontSize, 10);
-      }
+      // Раскладка — общая с главным меню (Layout.menuLayout).
+      const { slots, logo, fontSize } = this.layout.menuLayout(this, ui);
 
       this.logo.setPosition(logo.x, logo.y).setDisplaySize(logo.width, logo.height);
       this.buttons.forEach(({ bg, label }, i) => {

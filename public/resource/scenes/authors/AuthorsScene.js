@@ -43,13 +43,13 @@
       return {
         images: [
           { key: 'menuBackground', url: 'images/backgrounds/menu_screen.png' },
-          { key: 'settingsHeaderBg', url: 'images/icon_UI/settings_header_bg.png' },
+          { key: 'settingsHeaderBg', url: 'images/icon_UI/result_message_panel.png' },
           { key: 'authorsCardBg', url: 'images/icon_UI/text_bg.png' },
           { key: 'settingsBackButton', url: 'images/icon_UI/back_button.png' },
-          { key: 'authorsMuseumLogo', url: 'images/finish/YP_Logo.png' },
-          { key: 'authorsPartnerLogos', url: 'images/finish/all_logos.png' },
-          { key: 'authorsVk', url: 'images/finish/Group%2060.png' },
-          { key: 'authorsTelegram', url: 'images/finish/Group%2062.png' },
+          { key: 'authorsMuseumLogo', url: 'images/icon_UI/YP_Logo.png' },
+          { key: 'authorsPartnerLogos', url: 'images/icon_UI/all_logos.png' },
+          { key: 'authorsVk', url: 'images/icon_UI/Group%2060.png' },
+          { key: 'authorsTelegram', url: 'images/icon_UI/Group%2062.png' },
         ],
       };
     }
@@ -80,7 +80,10 @@
       this.backButton = this.add.image(0, 0, 'settingsBackButton')
         .setDepth(10)
         .setInteractive({ useHandCursor: true });
-      this.backButton.on('pointerup', () => this.goBack());
+      this.backButton.on('pointerup', () => {
+        window.VN?.systems.AudioManager?.click?.(this);
+        this.goBack();
+      });
 
       this.layout.onLayout(this, (visible, ui) => this.applyLayout(visible, ui));
       this.installScrolling();
@@ -88,10 +91,12 @@
 
     applyLayout(visible, ui) {
       const compact = this.layout.isCompact(this);
+      // Размер «назад» — общий для всех сцен (Layout.UI_BUTTONS).
+      const backSize = this.layout.buttonSize(this, 'back');
       if (compact) {
-        this.backButton.setPosition(ui.x + ui.width * 50 / 917, 197).setDisplaySize(157, 157);
+        this.backButton.setPosition(ui.x + ui.width * 50 / 917, 197).setDisplaySize(backSize, backSize);
       } else {
-        this.backButton.setPosition(ui.x + 152, ui.y + 112).setDisplaySize(96, 96);
+        this.backButton.setPosition(ui.x + 152, ui.y + 112).setDisplaySize(backSize, backSize);
       }
 
       const scale = compact ? COMPACT_SCALE : DESKTOP_SCALE;
@@ -173,7 +178,9 @@
           .setInteractive({ useHandCursor: true });
         button.on('pointerup', () => {
           // Отпускание после прокрутки — не нажатие.
-          if (!this.dragMoved) window.open(social.href, '_blank', 'noopener');
+          if (this.dragMoved) return;
+          window.VN?.systems.AudioManager?.click?.(this);
+          window.open(social.href, '_blank', 'noopener');
         });
         this.content.add(button);
       });

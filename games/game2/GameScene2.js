@@ -12,13 +12,31 @@ import {
 } from './constants/Game2Constants.js';
 
 // Текст плашки с правилами в начале игры.
-const RULES_TEXT = 'Распредели предметы на карте усадьбы.';
+const RULES_TEXT = 'Распредели предметы на карте усадьбы';
 
-// После победы: плашка с интересным фактом, затем реплика внизу экрана.
+// Когда все предметы на местах: дневник пульсирует, внизу — реплика
+// рассказчика (текст проявляется под озвучку, как в сюжете), затем по
+// «далее» — плашка победы с интересным фактом.
 const WIN_TITLE = 'Игра пройдена!';
-const WIN_TEXT = 'Толстой любил пешие путешествия и не отказывался от них даже после 50–60 лет. В 1880-е годы он трижды ходил пешком из Москвы в Ясную Поляну.';
+const WIN_TEXT = 'Толстой любил пешие путешествия и не отказывался от них даже после 50–60 лет. В 1880-е годы он трижды ходил пешком из Москвы в Ясную Поляну';
 const OUTRO_SPEAKER = 'РАССКАЗЧИК';
 const OUTRO_TEXT = 'Дневник графа Толстого мог оказаться в любом месте, но свой самый важный последний дневник Лев Николаевич никому не показывал, даже жене, и хранил в сапоге.';
+
+// Озвучка рассказчика: правила и реплика про дневник — отдельные файлы.
+// Распределены по длительности (12.7 с и 7.8 с); если перепутаны — поменять местами.
+const RULES_VOICE = 'voice_and_sound/scene2_gameplay2/gameplay_scene_2_rasskazchik2.wav';
+const OUTRO_VOICE = 'voice_and_sound/scene2_gameplay2/gameplay_scene_2_rasskazchik.wav';
+const WRONG_SOUND = 'voice_and_sound/scene2_gameplay2/GAMEPLAY2_NEW/gameplay2_neverniy_vybor.wav';
+// Нажатие на предмет на панели.
+const PICK_SOUND = 'voice_and_sound/scene2_gameplay2/GAMEPLAY2_NEW/gameplay3_nazhatie_na_object.wav';
+
+// Предмет-«обманка», который пульсирует в конце игры.
+const DIARY_ID = 'dnevnik';
+const DIARY_PULSE = { scale: 1.15, duration: 600 };
+
+// Цвета реплики, как в сюжете: ещё не проговорённый и проговорённый текст.
+const OUTRO_TEXT_PENDING_COLOR = '#9A8D82';
+const OUTRO_TEXT_COLOR = '#1B1A19';
 import { Thing } from './models/Thing.js';
 import { Target } from './models/Target.js';
 import { Game2Matcher } from './systems/Game2Matcher.js';
@@ -52,8 +70,8 @@ export class GameScene2 extends Phaser.Scene {
         // Игра ещё не закончена.
         this.completed = false;
 
-        // Три состояния Game 2:
-        // rules → game → win
+        // Состояния Game 2:
+        // rules → game → outro (реплика про дневник) → win
         this.phase = 'rules';
 
         // Объекты, связанные с озвучкой правил.
@@ -71,7 +89,6 @@ export class GameScene2 extends Phaser.Scene {
         this.winPanel = null;
         this.winText = null;
         this.winNextButton = null;
-        this.winTimer = null;
     }
 
     init(data = {}) {
@@ -97,7 +114,7 @@ export class GameScene2 extends Phaser.Scene {
                 })),
                 {
                     key: 'game2-instruction-panel',
-                    url: `${uiPath}instruction_panel.png`
+                    url: `${uiPath}text_bg.png`
                 },
                 {
                     key: 'game2-next',
@@ -113,7 +130,10 @@ export class GameScene2 extends Phaser.Scene {
                 }
             ],
 
-            audio: [...THINGS.map((thing) => thing.sound).filter(Boolean),'voice_and_sound/gameplay_scene_2_rasskazchik_all.wav', 'voice_and_sound/gameplay2_neverniy_vybor.wav']
+            audio: [
+                ...THINGS.map((thing) => thing.sound).filter(Boolean),
+                RULES_VOICE, OUTRO_VOICE, WRONG_SOUND, PICK_SOUND
+            ]
         };
     }
 
@@ -143,6 +163,11 @@ export class GameScene2 extends Phaser.Scene {
     create() {
         this.layout =
             window.VN?.systems.Layout || null;
+        // Phaser переиспользует объект сцены при повторном запуске.
+        this.completed = false;
+        this.outroVoice = null;
+        this.outroReveal = null;
+        this.diaryPulse = null;
 
         window.VN?.systems.SceneAudio?.enter(this);
 
@@ -186,6 +211,28 @@ export class GameScene2 extends Phaser.Scene {
         }
     }
 
+    update() {
+        // Часы сцены: в меню паузы они стоят, как и проявление текста.
+        this.updateOutroReveal(this.time.now);
+    }
+
+    /**
+     * Проигрывает озвучку рассказчика. Возвращает звук или null,
+     * если аудио недоступно.
+     */
+    playNarrator(path) {
+        const audio = window.VN?.systems.AudioManager;
+        if (!audio) return null;
+        try {
+            const sound = audio.add(this, path);
+            sound.play();
+            return sound;
+        } catch (error) {
+            console.warn('[GameScene2]', error.message);
+            return null;
+        }
+    }
+
     /**
      * Плашка поверх игры: картинка-рамка, её содержимое (children — в
      * координатах относительно центра плашки) и стрелка «далее». Вся
@@ -221,9 +268,16 @@ export class GameScene2 extends Phaser.Scene {
 
         this.layout?.onLayout(this, (visible, ui) => {
             // Один масштаб для всей композиции сохраняет пропорции текста и картинок.
-            overlay.setPosition(ui.centerX, ui.centerY).setScale(Math.min(
-                1, ui.width / BASE_WIDTH, ui.height / BASE_HEIGHT
-            ));
+            const scale = Math.min(1, ui.width / BASE_WIDTH, ui.height / BASE_HEIGHT);
+            // По центру экрана, как плашки остальных игр.
+            overlay.setPosition(visible.centerX, visible.centerY).setScale(scale);
+            // Стрелка — общего для всех сцен размера и места, независимо
+            // от масштаба плашки (координаты переводим в систему контейнера).
+            const size = this.layout.buttonSize(this, 'next') / scale;
+            const center = this.layout.nextArrowCenter(visible);
+            nextButton
+                .setDisplaySize(size, size)
+                .setPosition((center.x - overlay.x) / scale, (center.y - overlay.y) / scale);
         });
 
         return { overlay, panel, nextButton };
@@ -245,7 +299,15 @@ export class GameScene2 extends Phaser.Scene {
             })
             .setOrigin(0.5);
 
-        const { overlay, panel, nextButton } = this.createMessageOverlay(config, [text]);
+        // Правила закрываются только нажатием: «далее» или сама плашка
+        // сразу запускают игру и обрывают озвучку рассказчика.
+        const skipRules = () => {
+            if (this.phase !== 'rules') return;
+            this.playClick();
+            this.startGameAfterRules();
+        };
+        const { overlay, panel, nextButton } = this.createMessageOverlay(config, [text], skipRules);
+        panel.setInteractive({ useHandCursor: true }).on('pointerup', skipRules);
         this.rulesOverlay = overlay;
         this.rulesPanel = panel;
         this.rulesText = text;
@@ -269,19 +331,42 @@ export class GameScene2 extends Phaser.Scene {
                 fontSize: '40px',
                 color: '#1B1A19',
                 align: 'center',
-                lineSpacing: 10,
+                lineSpacing: 2,
                 wordWrap: {
                     width: 1050
                 }
             })
             .setOrigin(0.5);
 
-        // Стрелка ведёт к реплике рассказчика внизу экрана.
+        // Плашка победы — последний экран игры: «далее» или нажатие на
+        // плашку ведут дальше по сюжету.
+        const finishFromWin = () => {
+            if (this.phase !== 'win' || this.completed) return;
+            this.playClick();
+            this.finishGame();
+        };
         const { overlay, panel, nextButton } = this.createMessageOverlay(
             MESSAGE_PANELS.win,
             [title, text],
-            () => this.showOutro()
+            finishFromWin
         );
+        panel.setInteractive({ useHandCursor: true }).on('pointerup', finishFromWin);
+
+        // Тёмный оверлей на весь экран, как на победных экранах остальных
+        // игр (чёрный, 60% непрозрачности): под плашкой, над картой и
+        // предметами; пауза (depth 2000) остаётся поверх. Нажатие на него —
+        // тоже переход дальше.
+        this.winDim = this.add
+            .rectangle(0, 0, BASE_WIDTH, BASE_HEIGHT, 0x000000, 0.6)
+            .setOrigin(0)
+            .setDepth(1500)
+            .setVisible(false)
+            .setInteractive({ useHandCursor: true });
+        this.winDim.on('pointerup', finishFromWin);
+        if (this.layout) {
+            this.layout.fill(this, this.winDim);
+        }
+
         this.winOverlay = overlay;
         this.winPanel = panel;
         this.winText = text;
@@ -294,7 +379,11 @@ export class GameScene2 extends Phaser.Scene {
                 this,
                 'game2-background',
                 // Карта и её зоны сохраняются целиком при любых пропорциях окна.
-                { keep: new Phaser.Geom.Rectangle(0, 0, BASE_WIDTH, BASE_HEIGHT) }
+                {
+                    keep: new Phaser.Geom.Rectangle(0, 0, BASE_WIDTH, BASE_HEIGHT),
+                    // Поля у края заполняет деревянная стена справа от карты — без зеркал.
+                    fillFrom: new Phaser.Geom.Rectangle(1150, 0, BASE_WIDTH - 1150, BASE_HEIGHT)
+                }
             );
             this.stage = this.background.stage;
             return;
@@ -364,8 +453,14 @@ export class GameScene2 extends Phaser.Scene {
 
         this.pauseButton.on(
             'pointerdown',
-            () => this.openPauseMenu()
+            () => {
+                this.playClick();
+                this.openPauseMenu();
+            }
         );
+
+        // Размер и привязка к левому верхнему углу — общие для всех сцен.
+        this.layout?.pinPauseButton(this, this.pauseButton);
     }
 
     createPanelLayout() {
@@ -380,15 +475,18 @@ export class GameScene2 extends Phaser.Scene {
                 thing.sprite.setDepth(1);
                 // Нажатие на иконку показывает её название и описание.
                 thing.sprite.on('pointerdown', () => {
-                    if (this.phase === 'game') this.showThingInfo(thing);
+                    if (this.phase !== 'game') return;
+                    window.VN?.systems.AudioManager?.play(this, PICK_SOUND);
+                    this.showThingInfo(thing);
                 });
             }
         });
 
+        // С общим Layout паузу ставит Layout.pinPauseButton (createPauseButton).
         this.panelLayout = new Game2PanelLayout(
             this,
             this.things,
-            this.pauseButton
+            this.layout ? null : this.pauseButton
         );
     }
 
@@ -398,48 +496,161 @@ export class GameScene2 extends Phaser.Scene {
      * вертикальной черты, описание справа. Скрыта до первого нажатия.
      */
     createInfoPanel() {
-        const { x, y, width, height } = INFO_PANEL;
-        // Вертикальная черта нарисована в картинке на x≈437 из 1589.
-        const dividerX = x + width * (437 / 1589);
-        const centerY = y + height / 2;
-
-        const background = this.add
-            .image(x, y, 'game2-info-panel')
-            .setOrigin(0)
-            .setDisplaySize(width, height);
-
+        // Позиции и размеры — в layoutInfoPanel() (компьютер / телефон).
+        this.infoBackground = this.add.image(0, 0, 'game2-info-panel').setOrigin(0);
         this.infoName = this.add
-            .text((x + 60 + dividerX - 30) / 2, centerY, '', {
+            .text(0, 0, '', {
                 fontFamily: 'Philosopher',
-                fontStyle: 'bold',
-                fontSize: '48px',
                 color: '#6E6056',
-                align: 'center',
-                wordWrap: { width: dividerX - x - 110 }
+                align: 'center'
             })
             .setOrigin(0.5);
 
-        const textX = dividerX + 65;
-        this.infoDescription = this.add
-            .text(textX, centerY, '', {
-                fontFamily: 'Ysabeau',
-                fontSize: '34px',
-                color: '#1B1A19',
-                lineSpacing: 12,
-                wordWrap: { width: x + width - textX - 90 }
-            })
-            .setOrigin(0, 0.5);
+        const textStyle = { fontFamily: 'Ysabeau', color: '#1B1A19', lineSpacing: 4 };
+        this.infoDescription = this.add.text(0, 0, '', textStyle).setOrigin(0, 0);
+        // Верхний слой реплики рассказчика: «проговорённая» часть текста
+        // растёт поверх светлого слоя по мере озвучки (как в сюжете).
+        this.infoDescriptionRevealed = this.add
+            .text(0, 0, '', { ...textStyle, color: OUTRO_TEXT_COLOR })
+            .setOrigin(0, 0)
+            .setVisible(false);
+        // «Далее» реплики рассказчика — появляется в конце игры.
+        this.outroNextButton = this.add.image(0, 0, 'game2-next')
+            .setInteractive({ useHandCursor: true })
+            .setVisible(false);
+        this.outroNextButton.on('pointerup', () => this.onOutroNext());
 
         this.infoPanel = this.add
-            .container(0, 0, [background, this.infoName, this.infoDescription])
+            .container(0, 0, [
+                this.infoBackground, this.infoName, this.infoDescription,
+                this.infoDescriptionRevealed, this.outroNextButton
+            ])
             .setDepth(5)
             .setVisible(false);
+
+        if (this.layout) {
+            this.layout.onLayout(this, (visible, ui) => this.layoutInfoPanel(ui));
+        } else {
+            this.layoutInfoPanel(null);
+        }
+    }
+
+    /**
+     * Раскладка плашки предмета / реплики рассказчика. На компьютере — по
+     * макету игры (INFO_PANEL), на телефоне — как диалоговая плашка сюжета
+     * (Layout.dialogueLayout): тот же размер, место и шрифты.
+     */
+    infoPanelLayout(ui) {
+        if (ui && this.layout?.isCompact(this)) {
+            const L = this.layout.dialogueLayout(this, ui);
+            // dialogueLayout считает от низа макета 1080 — переводим в координаты экрана.
+            const dy = ui.bottom - BASE_HEIGHT;
+            return {
+                panel: { ...L.panel, y: L.panel.y + dy },
+                name: { x: L.name.x, y: L.name.y + dy, originY: 0, wrap: L.name.wrap, size: L.name.size, minSize: L.name.minSize, style: 'normal' },
+                text: { x: L.text.x, top: L.text.y + dy, wrap: L.text.wrap, outroWrap: L.text.wrap, maxHeight: L.text.maxHeight, size: L.text.size, minSize: L.text.minSize },
+                next: { ...L.next, y: L.next.y + dy }
+            };
+        }
+        const { x, y, width, height } = INFO_PANEL;
+        const centerY = y + height / 2;
+        // Название — посередине между рамкой (x≈32 из 1592) и чертой (x≈400).
+        const nameLeft = x + width * (32 / 1592);
+        const nameRight = x + width * (400 / 1592);
+        // Вертикальная черта нарисована в картинке на x≈437 из 1589.
+        const textX = x + width * (437 / 1589) + 65;
+        // «Далее» — на правом краю плашки, как в сюжетной сцене.
+        const nextSize = this.layout?.buttonSize(this, 'next') ?? 150;
+        const next = { x: x + width - 30, y: centerY, size: nextSize };
+        return {
+            panel: { x, y, width, height },
+            name: { x: (nameLeft + nameRight) / 2, y: centerY, originY: 0.5, wrap: nameRight - nameLeft - 40, size: 48, minSize: 32, style: 'bold' },
+            text: {
+                x: textX, top: null, wrap: x + width - textX - 90,
+                outroWrap: next.x - next.size / 2 - 30 - textX,
+                maxHeight: height - 50, size: 34, minSize: 28
+            },
+            next
+        };
+    }
+
+    layoutInfoPanel(ui) {
+        const L = this.infoPanelLayout(ui);
+        this.infoLayout = L;
+        this.infoBackground.setPosition(L.panel.x, L.panel.y).setDisplaySize(L.panel.width, L.panel.height);
+        this.infoName
+            .setOrigin(0.5, L.name.originY)
+            .setPosition(L.name.x, L.name.y)
+            .setFontStyle(L.name.style)
+            .setWordWrapWidth(L.name.wrap);
+        this.outroNextButton.setPosition(L.next.x, L.next.y).setDisplaySize(L.next.size, L.next.size);
+        this.fitInfoText();
+    }
+
+    /**
+     * Подгоняет имя и текст под плашку (шрифт уменьшается, если не влезает)
+     * и ставит текст: на телефоне — от верхней точки, как в сюжете, на
+     * компьютере — по центру высоты плашки. Оба слоя реплики — с одной точки.
+     */
+    fitInfoText() {
+        const L = this.infoLayout;
+        if (!L) return;
+        const fit = (text, size, minSize, tooBig) => {
+            text.setFontSize(size);
+            while (size > minSize && tooBig()) {
+                size -= 2;
+                text.setFontSize(size);
+            }
+        };
+        fit(this.infoName, L.name.size, L.name.minSize, () => this.infoName.width > L.name.wrap);
+
+        const outro = this.phase === 'outro' || this.phase === 'win';
+        const layers = [this.infoDescription, this.infoDescriptionRevealed];
+        layers.forEach((text) => text.setWordWrapWidth(outro ? L.text.outroWrap : L.text.wrap));
+        fit(this.infoDescription, L.text.size, L.text.minSize, () => this.infoDescription.height > L.text.maxHeight);
+        this.infoDescriptionRevealed.setFontSize(this.infoDescription.style.fontSize);
+
+        const top = L.text.top ?? L.panel.y + (L.panel.height - this.infoDescription.height) / 2;
+        layers.forEach((text) => text.setPosition(L.text.x, top));
+
+        // Реплика переносится заново — проявленную часть пересчитываем.
+        if (outro && this.outroReveal) {
+            this.outroReveal.text = this.infoDescription.getWrappedText(OUTRO_TEXT).join('\n');
+        } else if (outro) {
+            this.infoDescriptionRevealed.setText(this.infoDescription.getWrappedText(OUTRO_TEXT).join('\n'));
+        }
     }
 
     showThingInfo(thing) {
         this.infoName.setText(thing.name || '');
         this.infoDescription.setText(thing.description || '');
+        this.fitInfoText();
         this.infoPanel.setVisible(true);
+    }
+
+    /**
+     * Места и размер иконок предметов. На компьютере — по макету (slot),
+     * на телефоне — примерно вдвое крупнее, той же сеткой (3 сверху,
+     * 2 снизу между ними) справа от карты и над плашкой предмета.
+     */
+    itemPlacement(ui) {
+        if (!ui || !this.layout?.isCompact(this)) return null;
+        const panelTop = this.infoPanelLayout(ui).panel.y;
+        // Правый край карты на фоне — x≈1120 из 1920.
+        const mapRight = this.stage.x + 1120 * this.stage.scaleX;
+        const left = mapRight + 30;
+        const right = ui.right - 30;
+        const top = ui.top + 40;
+        const bottom = panelTop - 30;
+        const cellW = (right - left) / 3;
+        const cellH = (bottom - top) / 2;
+        const size = Math.min(ITEM_SIZE * 2, cellW - 24, cellH - 24);
+        return {
+            size,
+            slots: this.things.map((thing, index) => (index < 3
+                ? { x: left + cellW * (index + 0.5), y: top + cellH * 0.5 }
+                : { x: left + cellW * (index - 2), y: top + cellH * 1.5 }))
+        };
     }
 
     setupDrag() {
@@ -592,7 +803,7 @@ export class GameScene2 extends Phaser.Scene {
     }
 
     returnThing(thing) {
-        window.VN?.systems.AudioManager?.play(this, 'voice_and_sound/gameplay2_neverniy_vybor.wav');
+        window.VN?.systems.AudioManager?.play(this, WRONG_SOUND);
 
         this.tweens.add({
             targets: thing.sprite,
@@ -621,9 +832,9 @@ export class GameScene2 extends Phaser.Scene {
             return;
         }
 
-        // Все предметы правильно размещены.
-        // Показываем экран победы.
-        this.showWinScreen();
+        // Все предметы правильно размещены: дневник пульсирует,
+        // рассказчик говорит о нём, затем — плашка победы.
+        this.showOutro();
     }
 
    openPauseMenu() {
@@ -636,6 +847,13 @@ export class GameScene2 extends Phaser.Scene {
         // перед паузой полностью останавливаем их озвучку.
         if (this.phase === 'rules') {
             this.pauseRulesVoice();
+        }
+
+        // Реплика рассказчика не должна звучать поверх меню паузы:
+        // обрываем её и сразу показываем текст целиком.
+        if (this.phase === 'outro' && this.outroReveal) {
+            this.stopOutroVoice();
+            this.finishOutroReveal();
         }
 
         this.scene.pause();
@@ -672,8 +890,9 @@ export class GameScene2 extends Phaser.Scene {
 
     shutdown() {
         this.stopRulesVoice();
-        this.winTimer?.remove();
-        this.winTimer = null;
+        this.stopOutroVoice();
+        this.outroReveal = null;
+        this.diaryPulse = null;
 
         this.events.off(
             Phaser.Scenes.Events.RESUME,
@@ -746,45 +965,10 @@ export class GameScene2 extends Phaser.Scene {
             return;
         }
 
-        // Получаем загруженный звук правил.
-        this.rulesVoice =
-            window.VN.systems.AudioManager.add(
-                this,
-                'voice_and_sound/gameplay_scene_2_rasskazchik_all.wav'
-            );
-
-        // Когда озвучка закончилась,
-        // автоматически запускаем игру.
-        const finishRules = () => {
-            this.startGameAfterRules();
-        };
-
-        this.rulesVoice.once(
-            'complete',
-            finishRules
-        );
-
-        // Запускаем озвучку.
-        this.rulesVoice.play();
-
-        /*
-        * Запасной таймер.
-        *
-        * Если браузер по какой-то причине
-        * не вызовет событие complete,
-        * игра всё равно продолжится.
-        */
-        const duration =
-            Math.max(
-                4000,
-                (this.rulesVoice.totalDuration || 0) * 1000 + 500
-            );
-
-        this.rulesTimer =
-            this.time.delayedCall(
-                duration,
-                finishRules
-            );
+        // Озвучка правил — только их часть общего файла рассказчика
+        // (реплика про дневник звучит в конце игры). Игра начнётся
+        // только по нажатию «далее».
+        this.rulesVoice = this.playNarrator(RULES_VOICE);
     }
 
     showWinScreen() {
@@ -798,46 +982,129 @@ export class GameScene2 extends Phaser.Scene {
         // в состоянии "win".
         this.phase = 'win';
 
-        // Запрещаем перетаскивание предметов.
-        this.things.forEach((thing) => {
-            if (thing.sprite) {
-                thing.sprite.disableInteractive();
-            }
-        });
+        // Реплика рассказчика закончилась — убираем её и пульсацию дневника.
+        this.stopOutroVoice();
+        this.stopDiaryPulse();
+        this.infoPanel.setVisible(false);
 
-        // Показываем экран победы.
+        // Показываем экран победы поверх тёмного оверлея. Он закрывается
+        // только нажатием («далее», плашка или оверлей) — дальше по сюжету.
+        this.winDim.setVisible(true);
         this.winOverlay.setVisible(true);
-        this.winTimer = this.time.delayedCall(7000, () => this.finishGame());
+        window.VN?.systems.AudioManager?.win?.(this);
+    }
+
+    playClick() {
+        window.VN?.systems.AudioManager?.click?.(this);
     }
 
     /**
-     * После факта игра не уходит с экрана: внизу, как реплика в сюжете,
-     * появляется плашка рассказчика со стрелкой «далее» — она и ведёт
-     * дальше по сюжету.
+     * Все предметы на местах: дневник начинает пульсировать, внизу — плашка
+     * рассказчика, текст которой проявляется под озвучку (как в сюжете).
+     * «Далее» во время озвучки сразу дописывает реплику, после неё —
+     * открывает плашку победы.
      */
     showOutro() {
-        if (this.phase === 'outro') {
+        if (this.phase === 'outro' || this.completed) {
             return;
         }
         this.phase = 'outro';
-        this.winOverlay.setVisible(false);
 
-        const { x, y, width, height } = INFO_PANEL;
-        // «Далее» — на правом краю плашки, как в сюжетной сцене.
-        const nextX = x + width - 30;
-        const nextSize = 150;
-        const nextButton = this.add
-            .image(nextX, y + height / 2, 'game2-next')
-            .setDisplaySize(nextSize, nextSize)
-            .setInteractive({ useHandCursor: true });
-        nextButton.once('pointerup', () => this.finishGame());
-        this.infoPanel.add(nextButton);
+        // Предметы больше не трогаются; заблокированные Game2PanelLayout
+        // не двигает при смене размера экрана, поэтому пульсация не сбивается.
+        this.things.forEach((thing) => {
+            thing.lock();
+            thing.sprite?.disableInteractive();
+        });
+        this.startDiaryPulse();
 
+        // Место «далее», переносы и шрифт — в layoutInfoPanel()/fitInfoText().
+        this.outroNextButton.setVisible(true);
         this.infoName.setText(OUTRO_SPEAKER);
-        this.infoDescription
-            .setWordWrapWidth(nextX - nextSize / 2 - 30 - this.infoDescription.x)
-            .setText(OUTRO_TEXT);
+        this.infoDescription.setColor(OUTRO_TEXT_PENDING_COLOR).setText(OUTRO_TEXT);
+        this.infoDescriptionRevealed.setText('').setVisible(true);
+        this.fitInfoText();
+        this.infoDescriptionRevealed.setText('');
         this.infoPanel.setVisible(true);
+
+        this.outroVoice = this.playNarrator(OUTRO_VOICE);
+        if (!this.outroVoice) {
+            this.finishOutroReveal();
+            return;
+        }
+        this.outroVoice.once('complete', () => this.finishOutroReveal());
+        this.outroReveal = {
+            text: this.infoDescription.getWrappedText(OUTRO_TEXT).join('\n'),
+            start: this.time.now,
+            // Текст дописывается чуть раньше конца записи — как в сюжете.
+            duration: Math.max(0.5, this.outroVoice.duration - 0.6) * 1000
+        };
+    }
+
+    /** Побуквенное проявление реплики рассказчика синхронно с озвучкой. */
+    updateOutroReveal(time) {
+        const reveal = this.outroReveal;
+        if (!reveal) return;
+        const ratio = Phaser.Math.Clamp((time - reveal.start) / reveal.duration, 0, 1);
+        const revealed = reveal.text.slice(0, Math.floor(ratio * reveal.text.length));
+        if (revealed !== this.infoDescriptionRevealed.text) {
+            this.infoDescriptionRevealed.setText(revealed);
+        }
+    }
+
+    /** Реплика показана целиком (озвучка закончилась, её пропустили или её нет). */
+    finishOutroReveal() {
+        this.outroReveal = null;
+        this.infoDescriptionRevealed.setText(this.infoDescription.getWrappedText(OUTRO_TEXT).join('\n'));
+    }
+
+    onOutroNext() {
+        if (this.phase !== 'outro') return;
+        this.playClick();
+        // Во время озвучки первое нажатие только дописывает реплику.
+        if (this.outroReveal) {
+            this.stopOutroVoice();
+            this.finishOutroReveal();
+            return;
+        }
+        this.showWinScreen();
+    }
+
+    stopOutroVoice() {
+        if (!this.outroVoice) return;
+        this.outroVoice.stop();
+        this.outroVoice.destroy();
+        this.outroVoice = null;
+    }
+
+    startDiaryPulse() {
+        const diary = this.things.find((thing) => thing.id === DIARY_ID)?.sprite;
+        if (!diary) return;
+        this.tweens.killTweensOf(diary);
+        diary.setAlpha(1);
+        this.diaryPulse = {
+            sprite: diary,
+            scaleX: diary.scaleX,
+            scaleY: diary.scaleY,
+            tween: this.tweens.add({
+                targets: diary,
+                scaleX: diary.scaleX * DIARY_PULSE.scale,
+                scaleY: diary.scaleY * DIARY_PULSE.scale,
+                duration: DIARY_PULSE.duration,
+                ease: 'Sine.easeInOut',
+                yoyo: true,
+                repeat: -1
+            })
+        };
+    }
+
+    stopDiaryPulse() {
+        const pulse = this.diaryPulse;
+        if (!pulse) return;
+        pulse.tween.remove();
+        // Возвращаем дневнику исходный размер.
+        if (pulse.sprite.scene) pulse.sprite.setScale(pulse.scaleX, pulse.scaleY);
+        this.diaryPulse = null;
     }
 
     finishGame() {
@@ -846,8 +1113,6 @@ export class GameScene2 extends Phaser.Scene {
         }
 
         this.completed = true;
-        this.winTimer?.remove();
-        this.winTimer = null;
 
         // Передаём управление общей системе
         // перехода между сценами.
@@ -870,6 +1135,7 @@ export class GameScene2 extends Phaser.Scene {
         // Фон + targets находятся внутри stage.
         if (this.stage) {
             this.stage.setAlpha(0.45);
+            this.background.backdrop?.setAlpha(0.45);
         }
 
 
@@ -899,6 +1165,7 @@ export class GameScene2 extends Phaser.Scene {
 
         if (this.stage) {
             this.stage.setAlpha(1);
+            this.background.backdrop?.setAlpha(1);
         }
 
 

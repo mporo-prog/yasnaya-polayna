@@ -57,10 +57,13 @@ const TIME_LIMIT = 30;
 // Пути относительно resource/sound.
 const SOUNDS = {
     // Запись длится ровно 10 секунд — до конца таймера.
-    timer: 'voice_and_sound/gameplay4_timer.wav',
-    correct: 'voice_and_sound/gameplay4_vernyi_vybor.wav',
-    grab: 'voice_and_sound/gameplay4_poyavlenie_new_object.wav',
-    wrong: 'voice_and_sound/gameplay2_neverniy_vybor.wav'
+    timer: 'voice_and_sound/scene4_gameplay4/GAMEPLAY4_NEW/gameplay_timer.wav',
+    correct: 'voice_and_sound/scene4_gameplay4/GAMEPLAY4_NEW/gameplay_vernyi_vybor.wav',
+    // Взяли письмо из стопки.
+    grab: 'voice_and_sound/scene4_gameplay4/GAMEPLAY4_NEW/gameplay3_nazhatie_na_object.wav',
+    // Сверху стопки появилось следующее письмо.
+    appear: 'voice_and_sound/scene4_gameplay4/GAMEPLAY4_NEW/gameplay_poyavlenie_new_object.wav',
+    wrong: 'voice_and_sound/scene4_gameplay4/GAMEPLAY4_NEW/gameplay2_neverniy_vybor.wav'
 };
 
 // За сколько секунд до конца включается звук таймера.
@@ -80,9 +83,7 @@ const CLOCK = {
 const CLOCK_TEXT_STYLE = {
     fontFamily: 'Philosopher',
     fontSize: '44px',
-    color: '#FFF0DD',
-    stroke: '#04151F',
-    strokeThickness: 6
+    color: '#FFF0DD'
 };
 
 // Экраны правил, победы и поражения — как в игре 1.
@@ -106,7 +107,7 @@ const INSTRUCTION_PANEL = {
     y: 251,
     width: 1300,
     height: 577.04,
-    texture: 'images/icon_UI/instruction_panel.png'
+    texture: 'images/icon_UI/text_bg.png'
 };
 
 const COLOR_OVERLAY = 0x000000;
@@ -130,7 +131,7 @@ const INSTRUCTION_TEXT_STYLE = {
 const TEXTS = {
     intro: 'Распредели корреспонденцию',
     winTitle: 'Игра пройдена!',
-    win: 'В последние годы жизни Толстому ежедневно приносили 20–30 писем. Это было связано с ростом его известности после «духовного переворота».',
+    win: 'Ежедневно Толстой получал по 20–30 писем и делил их на категории: «Б.О.» (без ответа), просительные, ругательные, «Б.С.» (без содержания).',
     lose: 'Попробуй снова'
 };
 
@@ -140,10 +141,10 @@ const TEXTS = {
 const INTRO_TITLE_Y = 150;
 const INTRO_ICON_BOX = { width: 135, height: 140 };
 const INTRO_LEGEND = [
-    { envelope: 'yellow', label: 'Софье Андреевне', icon: { x: 125, y: 291 }, labelX: 215 },
-    { envelope: 'pink', label: 'от Обожателей', icon: { x: 740, y: 291 }, labelX: 830 },
-    { envelope: 'black', label: 'от Редакторов', icon: { x: 125, y: 448 }, labelX: 215 },
-    { envelope: 'blue', label: 'от Переводчиков', icon: { x: 740, y: 448 }, labelX: 830 }
+    { envelope: 'yellow', label: 'Без содержания', icon: { x: 125, y: 291 }, labelX: 215 },
+    { envelope: 'pink', label: 'Просительные', icon: { x: 740, y: 291 }, labelX: 830 },
+    { envelope: 'black', label: 'Без ответа', icon: { x: 125, y: 448 }, labelX: 215 },
+    { envelope: 'blue', label: 'Ругательные', icon: { x: 740, y: 448 }, labelX: 830 }
 ];
 
 const INTRO_TITLE_TEXT_STYLE = {
@@ -171,7 +172,7 @@ const WIN_FACT_TEXT_STYLE = {
     fontSize: '40px',
     color: '#1B1A19',
     align: 'center',
-    lineSpacing: 10,
+    lineSpacing: 2,
     wordWrap: { width: INSTRUCTION_PANEL.width - 200 }
 };
 
@@ -260,6 +261,7 @@ export class GameScene4 extends Phaser.Scene {
         this.completed = false;
         this.timeLeft = undefined;
         this.timer = null;
+        this.timerStarted = false;
         this.activeHint = null;
         this.trayLetters = [];
         this.timerSound = null;
@@ -285,9 +287,9 @@ export class GameScene4 extends Phaser.Scene {
             this.winGame();
         } else {
             // Таймер и письма оживают только после экрана с правилами.
+            // Правила закрываются только нажатием (см. createOverlay).
             this.showHint(this.introOverlay, () => this.startGame(), null);
             this.sceneAudio = sceneAudio?.enter(this);
-            this.activeHint.waitForAudio = Boolean(this.sceneAudio?.hasActiveSounds);
             this.unlockAudio();
         }
 
@@ -335,10 +337,14 @@ export class GameScene4 extends Phaser.Scene {
             .setDisplaySize(PAUSE_BUTTON.size, PAUSE_BUTTON.size)
             .setDepth(PAUSE_DEPTH)
             .setInteractive({ useHandCursor: true });
-        button.on('pointerdown', () => this.openPauseMenu());
+        button.on('pointerdown', () => {
+            window.VN?.systems.AudioManager?.click?.(this);
+            this.openPauseMenu();
+        });
 
         // Размер и привязка к левому верхнему углу — как в сюжетной сцене.
-        this.layout.pin(this, button, { left: PAUSE_BUTTON.x, top: PAUSE_BUTTON.y });
+        // Размер и привязка к левому верхнему углу — общие для всех сцен.
+        this.layout.pinPauseButton(this, button);
     }
 
     openPauseMenu() {
@@ -540,7 +546,18 @@ export class GameScene4 extends Phaser.Scene {
     }
 
     startGame() {
+        // Письма оживают сразу, а таймер — только при первом нажатии на
+        // письмо (см. startTimerOnce): время не идёт, пока игрок осматривается.
+        this.timerStarted = false;
         this.activateTopLetter();
+    }
+
+    /** Запускает таймер при первом нажатии на письмо; повторно — ничего. */
+    startTimerOnce() {
+        if (this.timerStarted || this.completed || !this.timer) {
+            return;
+        }
+        this.timerStarted = true;
         this.timer.start(this.timeLeft);
     }
 
@@ -598,7 +615,7 @@ export class GameScene4 extends Phaser.Scene {
     update() {
         this.updateClock();
 
-        if (this.activeHint?.autoDismiss || this.activeHint?.waitForAudio) {
+        if (this.activeHint?.autoDismiss) {
             this.dismissHint();
         }
     }
@@ -698,6 +715,16 @@ export class GameScene4 extends Phaser.Scene {
 
     setupDrag() {
 
+        // Первое нажатие на доступное письмо запускает таймер.
+        this.input.on('gameobjectdown', (pointer, gameObject) => {
+            const letter = this.letterStack
+                ?.getAll()
+                .find(item => item.sprite === gameObject);
+            if (letter && !letter.isLocked()) {
+                this.startTimerOnce();
+            }
+        });
+
         this.input.on(
             'dragstart',
             (pointer, gameObject) => {
@@ -713,6 +740,7 @@ export class GameScene4 extends Phaser.Scene {
                     return;
                 }
 
+                this.startTimerOnce();
                 gameObject.setDepth(200);
 
                 this.playSound(SOUNDS.grab);
@@ -823,6 +851,7 @@ export class GameScene4 extends Phaser.Scene {
             }
 
             this.activateTopLetter();
+            if (!this.letterStack.isEmpty()) this.playSound(SOUNDS.appear);
         });
 
         this.saveGame4State();
@@ -937,8 +966,9 @@ export class GameScene4 extends Phaser.Scene {
                 this.storySceneIndex,
                 this.minigameId
             ),
-            7
+            null
         );
+        window.VN?.systems.AudioManager?.win?.(this);
     }
 
     loseGame() {
@@ -975,7 +1005,7 @@ export class GameScene4 extends Phaser.Scene {
     }
 
     // Затемнение на весь экран, панель с текстом и стрелка «далее».
-    // Клик закрывает экран после окончания озвучки, если она есть.
+    // Клик по экрану или стрелке сразу закрывает его и обрывает озвучку правил.
     createOverlay(text, { panel: panelConfig, textStyle }) {
 
         const background = this.add.rectangle(
@@ -987,11 +1017,14 @@ export class GameScene4 extends Phaser.Scene {
             OVERLAY_ALPHA
         ).setOrigin(0);
 
-        background.setInteractive({ useHandCursor: true });
-        background.on('pointerdown', () => {
+        const onClick = () => {
             this.unlockAudio();
+            window.VN?.systems.AudioManager?.click?.(this);
+            this.sceneAudio?.stopSounds?.();
             this.dismissHint();
-        });
+        };
+        background.setInteractive({ useHandCursor: true });
+        background.on('pointerdown', onClick);
 
         const panel = this.add.image(panelConfig.x, panelConfig.y, panelConfig.texture)
             .setOrigin(0)
@@ -1001,7 +1034,9 @@ export class GameScene4 extends Phaser.Scene {
 
         const nextArrow = this.add.image(HINT_NEXT_ARROW.x, HINT_NEXT_ARROW.y, HINT_NEXT_ARROW.texture)
             .setOrigin(0)
-            .setDisplaySize(HINT_NEXT_ARROW.size, HINT_NEXT_ARROW.size);
+            .setDisplaySize(HINT_NEXT_ARROW.size, HINT_NEXT_ARROW.size)
+            .setInteractive({ useHandCursor: true });
+        nextArrow.on('pointerdown', onClick);
 
         const overlay = this.add.container(0, 0, [background, panel, label, nextArrow])
             .setDepth(OVERLAY_DEPTH)
@@ -1009,14 +1044,11 @@ export class GameScene4 extends Phaser.Scene {
 
         // Панель и стрелка — в тех же долях видимой области, что и в игре 1.
         this.layout.onLayout(this, (visible) => {
-            const x = visible.x + visible.width * panelConfig.x / BASE_WIDTH;
-            const y = visible.y + visible.height * panelConfig.y / BASE_HEIGHT;
+            // Плашка — от центра экрана, как в макете (не от краёв).
+            const { x, y } = this.layout.fromCenter(visible, panelConfig.x, panelConfig.y);
             panel.setPosition(x, y);
             label.setPosition(x + panelConfig.width / 2, y + panelConfig.height / 2);
-            nextArrow.setPosition(
-                visible.x + visible.width * HINT_NEXT_ARROW.x / BASE_WIDTH,
-                visible.y + visible.height * HINT_NEXT_ARROW.y / BASE_HEIGHT
-            );
+            this.layout.placeNextArrow(this, nextArrow, visible);
         });
 
         this.layout.fill(this, background);

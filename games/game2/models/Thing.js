@@ -19,6 +19,8 @@ export class Thing {
     createSprite(scene, x, y, size) {
         this.startX = x;
         this.startY = y;
+        // Размер по макету — к нему возвращаемся, если экран перестал быть телефонным.
+        this.size = size;
 
         this.sprite = scene.add.image(
             x,

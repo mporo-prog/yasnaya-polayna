@@ -82,14 +82,17 @@ const INSTRUCTION_PANEL = {
     y: 251,
     width: 1300,
     height: 577.04,
-    texture: 'images/icon_UI/instruction_panel.png'
+    texture: 'images/icon_UI/text_bg.png'
 };
 
-// Та же плашка и положение в макете, что в GameScene3.
+// Та же плашка и положение в макете, что в GameScene3. Картинка — подложка
+// заголовков в настройках и «Авторах»; размер — прежний (477 × 136).
 const BIRD_NAME_PANEL = {
     x: 760,
     y: 880,
-    texture: 'images/game3/item_label_panel.png'
+    width: 477,
+    height: 136,
+    texture: 'images/icon_UI/result_message_panel.png'
 };
 
 const COLOR_BACKGROUND = 0xe5e5e5;
@@ -111,7 +114,7 @@ const RESULT_MESSAGE_TEXT_STYLE = {
 
 // Экран победы: небольшой заголовок и интересный факт.
 const WIN_TITLE = 'Игра пройдена!';
-const WIN_FACT = 'Самые ранние произведения Толстого – миниатюрные описания, которые посвящены птицам. Толстой написал их в возрасте 7 лет в Ясной Поляне.';
+const WIN_FACT = 'Самые ранние произведения Толстого – миниатюрные описания, которые посвящены птицам. Толстой написал их в возрасте 7 лет в Ясной Поляне';
 
 const WIN_TITLE_TEXT_STYLE = {
     fontFamily: 'Philosopher',
@@ -125,7 +128,7 @@ const WIN_FACT_TEXT_STYLE = {
     fontSize: '40px',
     color: '#1B1A19',
     align: 'center',
-    lineSpacing: 10,
+    lineSpacing: 2,
     wordWrap: { width: INSTRUCTION_PANEL.width - 200 }
 };
 
@@ -268,15 +271,16 @@ export class GameScene1 extends Phaser.Scene {
         this.singingBirdName = null;
         this.birdNamePaused = false;
 
-        const panel = this.add.image(0, 0, BIRD_NAME_PANEL.texture).setOrigin(0);
-        this.birdNameText = this.add.text(panel.width / 2, panel.height / 2, '', {
+        const { width, height } = BIRD_NAME_PANEL;
+        const panel = this.add.image(0, 0, BIRD_NAME_PANEL.texture).setOrigin(0).setDisplaySize(width, height);
+        this.birdNameText = this.add.text(width / 2, height / 2, '', {
             fontFamily: 'Ysabeau',
             fontStyle: 'normal',
             fontSize: '36px',
             color: '#04151F',
             align: 'center',
             letterSpacing: 0,
-            wordWrap: { width: panel.width * 0.86, useAdvancedWrap: true }
+            wordWrap: { width: width * 0.86, useAdvancedWrap: true }
         }).setOrigin(0.5);
 
         // UI остаётся в безопасной области экрана даже при увеличении фона с птицами.
@@ -517,7 +521,8 @@ export class GameScene1 extends Phaser.Scene {
         // Неудачные попытки не учитываем: все птицы должны войти в два пройденных раунда.
         this.sequence.forEach(index => this.playedBirds.add(index));
         if (this.round_number === 3) {
-            this.showHint(this.winOverlay, () => this.finishGame(), 7);
+            this.showHint(this.winOverlay, () => this.finishGame(), null);
+            window.VN?.systems.AudioManager?.win?.(this);
             return;
         }
         this.nextRound();
@@ -553,10 +558,13 @@ export class GameScene1 extends Phaser.Scene {
             .setDisplaySize(PAUSE_BUTTON.size, PAUSE_BUTTON.size)
             .setDepth(20)
             .setInteractive({ useHandCursor: true });
-        button.on('pointerdown', () => this.openPauseMenu());
+        button.on('pointerdown', () => {
+            window.VN?.systems.AudioManager?.click?.(this);
+            this.openPauseMenu();
+        });
 
-        // Размер и привязка к левому верхнему углу — как в сюжетной сцене.
-        this.layout.pin(this, button, { left: PAUSE_BUTTON.x, top: PAUSE_BUTTON.y });
+        // Размер и привязка к левому верхнему углу — общие для всех сцен.
+        this.layout.pinPauseButton(this, button);
     }
 
     showHint(overlay, onDismiss, durationSeconds = this.hintDurationSeconds) {
@@ -640,27 +648,28 @@ export class GameScene1 extends Phaser.Scene {
                 .setDisplaySize(panelConfig.width, panelConfig.height);
             elements.push(panel);
             this.layout.onLayout(this, (visible) => {
-                const x = visible.x + visible.width * panelConfig.x / BASE_WIDTH;
-                const y = visible.y + visible.height * panelConfig.y / BASE_HEIGHT;
+                // Плашка — от центра экрана, как в макете (не от краёв).
+                const { x, y } = this.layout.fromCenter(visible, panelConfig.x, panelConfig.y);
                 panel.setPosition(x, y);
                 label.setPosition(x + panelConfig.width / 2, y + panelConfig.height / 2);
             });
         }
         elements.push(label);
         if (onClick) {
-            background.on('pointerdown', onClick);
+            const onPress = () => {
+                window.VN?.systems.AudioManager?.click?.(this);
+                onClick();
+            };
+            background.on('pointerdown', onPress);
 
-            // Стрелка только обозначает переход: клик принимает вся подложка.
+            // Клик принимает вся подложка и сама стрелка «далее».
             const nextArrow = this.add.image(HINT_NEXT_ARROW.x, HINT_NEXT_ARROW.y, HINT_NEXT_ARROW.texture)
                 .setOrigin(0)
-                .setDisplaySize(HINT_NEXT_ARROW.size, HINT_NEXT_ARROW.size);
+                .setDisplaySize(HINT_NEXT_ARROW.size, HINT_NEXT_ARROW.size)
+                .setInteractive({ useHandCursor: true });
+            nextArrow.on('pointerdown', onPress);
             elements.push(nextArrow);
-            this.layout.onLayout(this, (visible) => {
-                nextArrow.setPosition(
-                    visible.x + visible.width * HINT_NEXT_ARROW.x / BASE_WIDTH,
-                    visible.y + visible.height * HINT_NEXT_ARROW.y / BASE_HEIGHT
-                );
-            });
+            this.layout.onLayout(this, (visible) => this.layout.placeNextArrow(this, nextArrow, visible));
         }
 
         const overlay = this.add.container(0, 0, elements).setDepth(10).setVisible(false);
@@ -721,19 +730,18 @@ export class GameScene1 extends Phaser.Scene {
 
     createIntroOverlay() {
         this.introOverlay = this.createOverlay(
-            'Запомни голоса птиц и верно распредели их.',
+            'Запомни голоса птиц и верно распредели их',
             () => {
-                // Если браузер запретил автозапуск, первый клик запускает голос,
-                // но не закрывает инструкцию до окончания записи.
+                // Правила закрываются только нажатием; «далее» обрывает озвучку рассказчика.
                 this.unlockAudio();
+                this.sceneAudio?.stopSounds?.();
                 this.dismissHint();
             },
             { panel: INSTRUCTION_PANEL, textStyle: INSTRUCTION_TEXT_STYLE, lineHeight: 64 }
         );
 
-        this.showHint(this.introOverlay, () => this.startRound(), 4);
-        // Только первый показ ждёт озвучку; повторные подсказки работают по таймеру.
-        this.activeHint.waitForAudio = true;
+        // Первый показ правил ждёт нажатия; напоминания между раундами — по таймеру.
+        this.showHint(this.introOverlay, () => this.startRound(), null);
         this.sceneAudio = window.VN?.systems.SceneAudio?.enter(this);
         this.unlockAudio();
     }

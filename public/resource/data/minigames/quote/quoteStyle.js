@@ -33,9 +33,11 @@ window.VN.data.quoteStyle = {
   colorWrong: 0xff3b30,
   overlayAlpha: 0.45,
 
-  // Кнопки-варианты (картинка images/icon_UI/rectangle_game5.png).
-  // Размер — родной размер картинки; ширина растягивается под длинный
+  // Кнопки-варианты — на плашке кнопок меню (images/icon_UI/main_button.png).
+  // Размер answerWidth × answerHeight; ширина растягивается под длинный
   // текст (answerPaddingX — отступ текста от краёв). Ниже — центры плашек.
+  answerWidth: 385,
+  answerHeight: 108,
   answerPaddingX: 40,
   slots: [
     { x: 1105, y: 568 },
@@ -52,8 +54,6 @@ window.VN.data.quoteStyle = {
   // Портрет героя: центр по x и нижний край, масштаб картинки 900×900
   hero: { x: 490, bottom: 995, scale: 0.95 },
 
-  // Диалоговая плашка — та же картинка, что в сюжетной сцене (1589×325)
-  panelBottomMargin: 35,
-  nameFontSize: 44,
-  replyFontSize: 30,
+  // Диалоговая плашка героя — та же, что в сюжетной сцене: размеры, шрифты
+  // и места задаёт общая раскладка Layout.dialogueLayout.
 };

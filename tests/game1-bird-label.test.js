@@ -51,7 +51,7 @@ function fixture(t, { coarse = false, audio = true } = {}) {
         add: {
             image(x, y, key) {
                 const image = new DisplayObject(x, y).setTexture(key);
-                if (key === 'images/game3/item_label_panel.png') {
+                if (key === 'images/icon_UI/result_message_panel.png') {
                     const png = readFileSync(new URL(`../public/${key}`, import.meta.url));
                     image.width = png.readUInt32BE(16);
                     image.height = png.readUInt32BE(20);

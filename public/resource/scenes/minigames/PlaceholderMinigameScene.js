@@ -29,7 +29,10 @@
         .rectangle(width / 2, height / 2 + 80, 300, 80, 0xd9d9d9)
         .setInteractive({ useHandCursor: true });
       this.add.text(width / 2, height / 2 + 80, 'Завершить', { fontSize: '28px', color: '#000000' }).setOrigin(0.5);
-      btn.on('pointerup', () => this.finishMinigame());
+      btn.on('pointerup', () => {
+        window.VN?.systems.AudioManager?.click?.(this);
+        this.finishMinigame();
+      });
       window.VN.systems.SceneAssets.prefetchNext(this);
     }
 

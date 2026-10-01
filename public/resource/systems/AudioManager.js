@@ -41,6 +41,12 @@
     return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 1;
   }
 
+  // Общие звуки интерфейса. SceneAssets загружает их вместе с аудио любой сцены.
+  const UI_SOUNDS = Object.freeze({
+    click: 'ui/interface_click.wav',
+    win: 'ui/ura_pobeda.mp3',
+  });
+
   let settings = loadSettings();
 
   function volumeFor(entry) {
@@ -125,6 +131,30 @@
       sound.once('complete', () => sound.destroy());
       sound.play();
       return sound;
+    },
+
+    UI_SOUNDS,
+
+    // Звук интерфейса не должен ломать кнопку: если файл ещё не загружен
+    // (например, на отдельной странице мини-игры), звук пропускается.
+    playUi(scene, path, config = {}) {
+      try {
+        if (!scene?.cache?.audio?.exists(resolve(path).key)) return null;
+        return this.play(scene, path, config);
+      } catch (error) {
+        console.warn('[AudioManager]', error.message);
+        return null;
+      }
+    },
+
+    // Нажатие любой кнопки интерфейса.
+    click(scene) {
+      return this.playUi(scene, UI_SOUNDS.click);
+    },
+
+    // Появление экрана «Игра пройдена!».
+    win(scene) {
+      return this.playUi(scene, UI_SOUNDS.win);
     },
 
     // Индивидуальная громкость 0–1 умножается на коэффициент и процент категории.

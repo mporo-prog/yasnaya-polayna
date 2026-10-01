@@ -28,13 +28,16 @@ const INSTRUCTION_PANEL = {
     yFrac: 251 / BASE_HEIGHT,
     width: 1300,
     height: 577.04,
-    texture: 'images/icon_UI/instruction_panel.png'
+    texture: 'images/icon_UI/text_bg.png'
 };
 
+// Картинка — подложка заголовков в настройках и «Авторах»; размер прежний.
 const ITEM_NAME_PANEL = {
     xFrac: 39.58333 / 100,
     yFrac: 81.48148 / 100,
-    texture: 'images/game3/item_label_panel.png'
+    width: 477,
+    height: 136,
+    texture: 'images/icon_UI/result_message_panel.png'
 };
 
 const COLOR_BACKGROUND = 0xffffff;
@@ -54,7 +57,7 @@ const INSTRUCTION_TEXT_STYLE = {
 
 // Экран победы: небольшой заголовок и интересный факт.
 const WIN_TITLE = 'Игра пройдена!';
-const WIN_FACT = 'Длинный обеденный стол в Большой гостиной называли «столом-сороконожкой». Все дело в конструкции: он раздвижной и имеет 16 ножек.';
+const WIN_FACT = 'В возрасте 55 лет граф Толстой стал вегетарианцем – он полностью отказался от мяса, но не от яиц и молочных продуктов. Завтрак писателя, как правило, состоял из одного яйца всмятку, которое он распускал в небольшом стаканчике, куда крошил несколько кусочков белого хлеба; потом съедал небольшую порцию гречневой каши.';
 
 const WIN_TITLE_TEXT_STYLE = {
     fontFamily: 'Philosopher',
@@ -68,12 +71,16 @@ const WIN_FACT_TEXT_STYLE = {
     fontSize: '40px',
     color: '#1B1A19',
     align: 'center',
-    lineSpacing: 10,
+    lineSpacing: 2,
     wordWrap: { width: INSTRUCTION_PANEL.width - 200 }
 };
 
 // Время показа подсказок; можно переопределить через hintDurationSeconds в данных сцены.
 const DEFAULT_HINT_DURATION_SECONDS = 2;
+// Сколько неправильный предмет остаётся на экране с нажатой подложкой.
+const WRONG_ITEM_REMOVE_DELAY = 2000;
+// Звучит после озвучки названия неправильного предмета.
+const WRONG_SOUND = 'voice_and_sound/scene3_gameplay3/GAMEPLAY3_NEW/gameplay3_nevernyi_vybor.wav';
 
 export class GameScene3 extends Phaser.Scene {
 
@@ -97,13 +104,14 @@ export class GameScene3 extends Phaser.Scene {
                     key: texture,
                     url: `${import.meta.env.BASE_URL}${texture}`
                 })),
-                ...[...new Set(READY_ITEMS.flatMap(({ panel, hoverPanel, image }) =>
-                    [panel, hoverPanel, image].filter(Boolean)
+                ...[...new Set(READY_ITEMS.flatMap(({ panel, hoverPanel, clickPanel, image }) =>
+                    [panel, hoverPanel, clickPanel, image].filter(Boolean)
                 ))].map(name => ({
                     key: `game3-${name}`,
                     url: `${import.meta.env.BASE_URL}images/game3/${name}.png`
                 }))
-            ]
+            ],
+            audio: [...READY_ITEMS.map(({ voice }) => voice).filter(Boolean), WRONG_SOUND]
         };
     }
 
@@ -112,8 +120,10 @@ export class GameScene3 extends Phaser.Scene {
             window.VN.systems.SceneAssets.preload(this);
             return;
         }
-        for (const { key, url } of this.getAssetManifest().images) this.load.image(key, url);
+        const assets = this.getAssetManifest();
+        for (const { key, url } of assets.images) this.load.image(key, url);
         window.VN?.systems.SceneAudio?.preload(this);
+        for (const path of assets.audio) window.VN?.systems.AudioManager?.load(this, path);
     }
 
     create() {
@@ -150,9 +160,11 @@ export class GameScene3 extends Phaser.Scene {
         this.items = READY_ITEMS.map(data => {
             const item = {
                 id: data.id,
+                voice: data.voice ?? null,
                 label: data.label,
                 panelTexture: `game3-${data.panel}`,
                 hoverPanelTexture: `game3-${data.hoverPanel ?? data.panel}`,
+                clickPanelTexture: data.clickPanel ? `game3-${data.clickPanel}` : null,
                 tablePosition: data.tablePosition,
                 correct: data.correct ?? null,
                 placed: false,
@@ -193,15 +205,16 @@ export class GameScene3 extends Phaser.Scene {
         this.itemNameTouchMode = Boolean(this.itemNameTouchQuery?.matches);
         this.hoveredItem = null;
 
-        const panel = this.add.image(0, 0, ITEM_NAME_PANEL.texture).setOrigin(0);
-        this.itemNameText = this.add.text(panel.width / 2, panel.height / 2, 'НАЖМИ НА ПРЕДМЕТ', {
+        const { width, height } = ITEM_NAME_PANEL;
+        const panel = this.add.image(0, 0, ITEM_NAME_PANEL.texture).setOrigin(0).setDisplaySize(width, height);
+        this.itemNameText = this.add.text(width / 2, height / 2, 'НАЖМИ НА ПРЕДМЕТ', {
             fontFamily: 'Ysabeau',
             fontStyle: 'normal',
             fontSize: '36px',
             color: '#04151F',
             align: 'center',
             letterSpacing: 0,
-            wordWrap: { width: panel.width * 0.86, useAdvancedWrap: true }
+            wordWrap: { width: width * 0.86, useAdvancedWrap: true }
         }).setOrigin(0.5);
 
         // Размер PNG остаётся исходным; координаты — от макета 1920×1080.
@@ -273,10 +286,46 @@ export class GameScene3 extends Phaser.Scene {
             return;
         }
 
+        this.playItemVoice(item);
+
         if (item.correct) {
             this.placeItem(item);
         } else {
             this.removeItem(item);
+        }
+    }
+
+    /** Озвучка названия; у неправильного предмета после неё — звук ошибки. */
+    playItemVoice(item) {
+        const audio = window.VN?.systems.AudioManager;
+        if (!audio) return;
+        // Новое нажатие обрывает предыдущую озвучку, чтобы реплики не накладывались.
+        this.itemVoice?.destroy();
+        this.itemVoice = null;
+        const playWrong = () => {
+            if (!item.correct) this.safeSound(() => audio.play(this, WRONG_SOUND));
+        };
+        const voice = item.voice ? this.safeSound(() => audio.play(this, item.voice)) : null;
+        if (!voice) {
+            playWrong();
+            return;
+        }
+        this.itemVoice = voice;
+        voice.once('complete', () => {
+            if (this.itemVoice === voice) this.itemVoice = null;
+            playWrong();
+        });
+        voice.once('destroy', () => {
+            if (this.itemVoice === voice) this.itemVoice = null;
+        });
+    }
+
+    safeSound(action) {
+        try {
+            return action();
+        } catch (error) {
+            console.warn('[GameScene3]', error.message);
+            return null;
         }
     }
 
@@ -313,14 +362,21 @@ export class GameScene3 extends Phaser.Scene {
         this.hideItemName(item);
         item.box.disableInteractive();
 
+        // Неправильный предмет: подложка в состоянии click, через 2 секунды предмет исчезает.
+        if (item.clickPanelTexture) {
+            item.box.setTexture(item.clickPanelTexture).setDisplaySize(item.panelWidth, item.panelHeight);
+        }
+
         this.tweens.killTweensOf(item.container);
 
-        this.tweens.add({
-            targets: item.container,
-            alpha: 0,
-            duration: 250,
-            ease: 'Power2',
-            onComplete: () => item.container.destroy()
+        this.time.delayedCall(WRONG_ITEM_REMOVE_DELAY, () => {
+            this.tweens.add({
+                targets: item.container,
+                alpha: 0,
+                duration: 250,
+                ease: 'Power2',
+                onComplete: () => item.container.destroy()
+            });
         });
     }
 
@@ -334,7 +390,8 @@ export class GameScene3 extends Phaser.Scene {
         }
 
         this.finished = true;
-        this.showHint(this.winOverlay, () => this.finishGame(), 7);
+        this.showHint(this.winOverlay, () => this.finishGame(), null);
+        window.VN?.systems.AudioManager?.win?.(this);
     }
 
     createPauseButton() {
@@ -344,9 +401,13 @@ export class GameScene3 extends Phaser.Scene {
             .setDisplaySize(PAUSE_BUTTON.size, PAUSE_BUTTON.size)
             .setDepth(20)
             .setInteractive({ useHandCursor: true });
-        button.on('pointerdown', () => this.openPauseMenu());
+        button.on('pointerdown', () => {
+            window.VN?.systems.AudioManager?.click?.(this);
+            this.openPauseMenu();
+        });
 
-        this.layout.pin(this, button, { left: x, top: y });
+        // Размер и привязка к левому верхнему углу — общие для всех сцен.
+        this.layout.pinPauseButton(this, button);
     }
 
     showHint(overlay, onDismiss, durationSeconds = this.hintDurationSeconds) {
@@ -427,8 +488,10 @@ export class GameScene3 extends Phaser.Scene {
                 .setDisplaySize(panelConfig.width, panelConfig.height);
             elements.push(panel);
             this.layout.onLayout(this, (visible) => {
-                const x = visible.x + visible.width * panelConfig.xFrac;
-                const y = visible.y + visible.height * panelConfig.yFrac;
+                // Плашка — от центра экрана, как в макете (не от краёв).
+                const { x, y } = this.layout.fromCenter(
+                    visible, BASE_WIDTH * panelConfig.xFrac, BASE_HEIGHT * panelConfig.yFrac
+                );
                 panel.setPosition(x, y);
                 label.setPosition(x + panelConfig.width / 2, y + panelConfig.height / 2);
             });
@@ -436,19 +499,20 @@ export class GameScene3 extends Phaser.Scene {
         elements.push(label);
 
         if (onClick) {
-            background.on('pointerdown', onClick);
+            const onPress = () => {
+                window.VN?.systems.AudioManager?.click?.(this);
+                onClick();
+            };
+            background.on('pointerdown', onPress);
 
             // Как в GameScene1: клик принимает вся подложка, стрелка обозначает переход.
             const nextArrow = this.add.image(0, 0, HINT_NEXT_ARROW.texture)
                 .setOrigin(0)
-                .setDisplaySize(HINT_NEXT_ARROW.size, HINT_NEXT_ARROW.size);
+                .setDisplaySize(HINT_NEXT_ARROW.size, HINT_NEXT_ARROW.size)
+                .setInteractive({ useHandCursor: true });
+            nextArrow.on('pointerdown', onPress);
             elements.push(nextArrow);
-            this.layout.onLayout(this, (visible) => {
-                nextArrow.setPosition(
-                    visible.x + visible.width * HINT_NEXT_ARROW.xFrac,
-                    visible.y + visible.height * HINT_NEXT_ARROW.yFrac
-                );
-            });
+            this.layout.onLayout(this, (visible) => this.layout.placeNextArrow(this, nextArrow, visible));
         }
 
         const overlay = this.add.container(0, 0, elements).setDepth(10).setVisible(false);
@@ -487,23 +551,18 @@ export class GameScene3 extends Phaser.Scene {
 
     createIntroOverlay() {
         this.introOverlay = this.createOverlay(
-            'Собери завтрак графа Толстого.',
+            'Собери завтрак графа Толстого',
             () => {
-                // Первый клик разблокирует звук, если браузер запретил автозапуск.
+                // Правила закрываются только нажатием; «далее» обрывает озвучку рассказчика.
                 this.unlockAudio();
+                this.sceneAudio?.stopSounds?.();
                 this.dismissHint();
             },
             { panel: INSTRUCTION_PANEL, textStyle: INSTRUCTION_TEXT_STYLE, lineHeight: 64 }
         );
 
-        this.showHint(this.introOverlay, () => this.startGame(), 4);
+        this.showHint(this.introOverlay, () => this.startGame(), null);
         this.sceneAudio = window.VN?.systems.SceneAudio?.enter(this);
-        if (this.sceneAudio?.hasActiveSounds) {
-            // Закрываем правила по окончании голоса; таймер нужен только при ошибке загрузки.
-            this.activeHint.timer.remove();
-            this.activeHint.timer = null;
-            this.activeHint.waitForAudio = true;
-        }
         this.unlockAudio();
     }
 

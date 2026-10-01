@@ -77,7 +77,7 @@ export function createSubscribeForm({ width, height, placeholder, subscribe = cr
         input.value = input.value.trim();
         input.setCustomValidity('');
         if (!input.checkValidity()) {
-            input.setCustomValidity('Введи корректный email.');
+            input.setCustomValidity('Введи корректный email');
             input.reportValidity();
             input.focus();
             return;

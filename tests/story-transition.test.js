@@ -45,6 +45,7 @@ function fixture() {
   f.window.VN.scenes = {};
   const savedScreens = [];
   const navigations = [];
+  const loadingScreens = [];
   f.window.location = { assign: (url) => navigations.push(url) };
   Object.assign(f.window.VN.systems, {
     GameState: {
@@ -52,6 +53,7 @@ function fixture() {
       goToScreen: (...screen) => savedScreens.push(screen),
     },
     SceneAssets: { prefetchNext() {}, prefetch: () => Promise.resolve() },
+    StartupScreen: { show: message => loadingScreens.push(message) },
     Layout: { onLayout() {}, pinPauseButton() {}, buttonSize: () => 150 },
   });
   const scope = vm.createContext({
@@ -114,10 +116,10 @@ function fixture() {
       },
     },
     background: { stage: displayObject() },
-    panelBg: displayObject(), speakerNameText: displayObject(),
+    characterImage: displayObject(), panelBg: displayObject(), speakerNameText: displayObject(),
     dialogueText: displayObject(), dialogueRevealedText: displayObject(),
     glossaryWordOverlays: [], glossaryWordReveals: [],
-    backBtn: { bg: displayObject() },
+    backBtn: { bg: displayObject() }, nextBtn: { bg: displayObject() },
     menuBtn: { bg: displayObject() }, historyBtn: { bg: displayObject() },
   });
   story.scene = { stop: () => story.events.emit('shutdown') };
@@ -175,7 +177,7 @@ function fixture() {
   }
   return { ...f, story, mini, starts, start, tick, beginMinigameExit, finishMinigame,
     finishPortraitReveal() { tick(now + 1000); tick(now + 1000); },
-    savedScreens, backgrounds, navigations, setNow: (time) => { now = time; } };
+    savedScreens, backgrounds, navigations, loadingScreens, setNow: (time) => { now = time; } };
 }
 
 test('story 2 opens with the visitor and advances after two seconds despite active audio', () => {
@@ -517,7 +519,7 @@ test('portrait video, voice and dialogue start together when the first frame is 
   assert.equal(f.story.portraitPhase, 'dialogue', 'Video completion alone cannot hide dialogue');
 });
 
-test('natural voice end enlarges the last frame, fades in frame/title, then holds for four seconds', () => {
+test('natural voice end reveals the portrait, then waits for a click and covers navigation with a loader', () => {
   const f = fixture();
   f.start(5);
   // Exercise the real button construction: the pause control is now menuBtn.
@@ -558,17 +560,27 @@ test('natural voice end enlarges the last frame, fades in frame/title, then hold
   assert.equal(f.story.portraitFrame.alpha, 1);
   assert.equal(f.story.portraitTitle.alpha, 1);
   assert.equal(f.story.portraitVideo, video);
-  f.tick(18015);
+  assert.equal(f.story.bottomGroup.visible, true);
+  assert.equal(f.story.nextBtn.bg.visible, true);
+  for (const object of [f.story.characterImage, f.story.panelBg, f.story.speakerNameText,
+    f.story.dialogueText, f.story.dialogueRevealedText, f.story.backBtn.bg]) {
+    assert.equal(object.visible, false, 'Only the next arrow returns');
+  }
+  f.tick(74016);
   assert.equal(f.navigations.length, 0);
-  f.tick(18016);
+  assert.equal(f.story.screenTimer, null, 'There is no automatic advance timer');
+  assert.deepEqual(f.loadingScreens, [], 'Do not cover the portrait before the click');
+  f.story.events.once('shutdown', () => {
+    assert.deepEqual(f.loadingScreens, ['Загрузка финального экрана…'], 'Cover the canvas before stopping it');
+  });
+  f.story.goNext();
   assert.deepEqual(f.navigations, ['games/finish/index.html']);
-  f.tick(20000);
+  f.tick(80000);
   assert.equal(f.navigations.length, 1);
 });
 
-test('skipping the portrait voice cannot skip the video; title duration remains configurable', () => {
+test('skipping the portrait voice cannot skip the video or the separate final click', () => {
   const f = fixture();
-  f.window.VN.data.storyLines[5][0].portraitReveal.holdDuration = 1500;
   f.start(5);
   f.story.portraitVideo.emit('created');
   f.tick(1016);
@@ -582,9 +594,9 @@ test('skipping the portrait voice cannot skip the video; title duration remains 
   f.tick(1032);
   f.finishPortraitReveal();
   assert.equal(f.story.portraitPhase, 'hold');
-  f.tick(4531);
+  f.tick(60000);
   assert.equal(f.navigations.length, 0);
-  f.tick(4532);
+  f.story.goNext();
   assert.equal(f.navigations.length, 1);
 });
 
@@ -602,9 +614,9 @@ test('a naturally ended voice waits for a slower video before starting the hold'
   f.tick(13016);
   f.finishPortraitReveal();
   assert.equal(f.story.portraitPhase, 'hold');
-  f.tick(19015);
+  f.tick(60000);
   assert.equal(f.navigations.length, 0);
-  f.tick(19016);
+  f.story.goNext();
   assert.equal(f.navigations.length, 1);
 });
 

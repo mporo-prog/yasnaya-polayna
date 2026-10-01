@@ -7,11 +7,21 @@ import vm from 'node:vm';
 function fixture(search = '') {
   const window = { VN: { systems: {}, scenes: {} }, location: { search } };
   const elements = {
-    'startup-loading': { remove() { delete elements['startup-loading']; } },
+    'startup-loading': { remove() {
+      for (const id of ['startup-loading', 'startup-label', 'startup-progress']) delete elements[id];
+    } },
     'startup-label': { textContent: 'Запускаем игру…' },
     'startup-progress': {},
   };
-  const document = { getElementById: (id) => elements[id] };
+  const element = () => ({
+    children: [],
+    setAttribute(key, value) { this[key] = value; },
+    removeAttribute(key) { delete this[key]; },
+    append(...children) { for (const child of children) { this.children.push(child); elements[child.id] = child; } },
+    remove() { this.children.forEach(child => child.remove()); delete elements[this.id]; },
+  });
+  elements['startup-progress'].removeAttribute = function (key) { delete this[key]; };
+  const document = { getElementById: (id) => elements[id], createElement: element, body: element() };
   const context = vm.createContext({
     window, URLSearchParams, Date,
     localStorage: { getItem: () => null, setItem() {}, removeItem() {} },
@@ -41,6 +51,28 @@ test('startup overlay stays through loading and creation until the first rendere
   assert.equal(f.scene.events.listenerCount('shutdown'), 0);
   assert.equal(f.scene.events.listenerCount('destroy'), 0);
   assert.equal(f.screen.track(f.scene), null, 'Later transitions use the scene loader');
+});
+
+test('page navigation restores the loader after startup and resets stale progress without duplicating it', () => {
+  const f = fixture();
+  f.screen.track(f.scene)(1);
+  f.scene.events.emit('create');
+  f.scene.game.events.emit('postrender');
+  const overlay = f.screen.show('Загрузка финального экрана…');
+  assert.equal(overlay.role, 'status');
+  assert.equal(f.elements['startup-label'].textContent, 'Загрузка финального экрана…');
+  assert.equal(f.elements['startup-progress'].value, undefined);
+  f.elements['startup-progress'].value = 80;
+  assert.equal(f.screen.show(), overlay);
+  assert.equal(f.elements['startup-progress'].value, undefined);
+  assert.equal(f.document.body.children.length, 1);
+  f.screen.track(f.scene)(1);
+  f.scene.game.events.emit('postrender');
+  assert.equal(f.elements['startup-loading'], overlay);
+  f.scene.events.emit('create');
+  assert.equal(f.elements['startup-loading'], overlay);
+  f.scene.game.events.emit('postrender');
+  assert.equal(f.elements['startup-loading'], undefined);
 });
 
 test('late stylesheet and fonts redraw canvas text, including containers, without leaking listeners', () => {

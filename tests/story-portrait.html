@@ -12,8 +12,8 @@
 <h1>Сюжетная сцена 6</h1>
 <label>Формат <select id="aspect"><option value="16 / 9">16:9</option><option value="4 / 3">4:3</option></select></label>
 <label><input id="skip" type="checkbox"> Пропустить реплику во время GIF</label>
-<button id="run">Проверить автоматический переход</button>
-<pre id="results">GIF + текст + звук → портрет с подписью → финальный экран</pre>
+<button id="run">Проверить переход по клику</button>
+<pre id="results">GIF + текст + звук → портрет с подписью → клик → загрузка → финальный экран</pre>
 <iframe id="site" title="Игра"></iframe>
 <div id="captures"></div>
 <script type="module">
@@ -115,26 +115,32 @@
         'Final portrait matches its original size and position');
       assert(story.portraitTitle.list[1].text === 'И. Е. Репин «Л. Н. Толстой босой» (1901)', 'Correct painter name');
       pass('208×612 без рамки → увеличение 1 с → рамка и подпись проявляются за 1 с; видео не перезапускается');
-      const holdAt = performance.now();
       assert(voice.ended, 'Wait for real audio end');
       assert(story.portraitVideo.video.ended, 'Wait for real video end too');
-      assert(!story.bottomGroup.visible && !story.menuBtn.bg.visible && !story.historyBtn.bg.visible,
-        'Only the painting and its title remain');
+      assert(story.bottomGroup.visible && story.nextBtn.bg.visible && !story.panelBg.visible
+        && !story.menuBtn.bg.visible && !story.historyBtn.bg.visible && !story.backBtn.bg.visible,
+        'Only the next arrow appears alongside the painting and title');
       const bounds = story.portraitTitle.getBounds();
       const camera = story.cameras.main;
       assert(bounds.left >= camera.scrollX && bounds.right <= camera.scrollX + camera.width,
         'The title must fit within the visible viewport');
       await capture('Портрет с названием');
-      story.goNext();
-      assert(story.portraitPhase === 'hold', 'Clicks cannot bypass the hold');
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      assert(story.portraitPhase === 'hold' && game.scene.isActive('StoryScene'), 'No automatic advance after the old four-second hold');
+      assert(!story.screenTimer, 'No automatic navigation timer');
+      const storyDocument = frame.contentDocument;
+      pass('Автоперехода нет. Нажмите стрелку «далее» на картине для проверки перехода');
+      await waitFor(() => storyDocument.getElementById('startup-loading'));
+      const loading = storyDocument.getElementById('startup-loading');
+      assert(loading.textContent.includes('Загрузка'), 'Show the loader before leaving the story');
+      pass('Картина ждёт клика; стрелка «далее» показывает загрузку перед переходом');
       await waitFor(() => frame.contentWindow.location.pathname.endsWith('/games/finish/index.html'));
-      const elapsed = performance.now() - holdAt;
-      assert(elapsed >= 3800 && elapsed < 6500, 'Configured four-second hold: ' + elapsed);
       const finishReady = () => frame.contentDocument.querySelector('.finish-replay-button')
         && frame.contentDocument.querySelectorAll('.finish-social-link').length === 2
-        && frame.contentDocument.querySelector('canvas')?.width === 1920;
+        && frame.contentDocument.querySelector('canvas')?.width === 1920
+        && !frame.contentDocument.getElementById('startup-loading');
       await waitFor(finishReady);
-      pass('Видео и звук завершились → подпись на 4 с → новый финальный экран загрузился');
+      pass('После клика финальный экран загрузился; заставка снята');
       const reloaded = new Promise(resolve => frame.addEventListener('load', resolve, { once: true }));
       frame.contentWindow.location.reload();
       await reloaded;

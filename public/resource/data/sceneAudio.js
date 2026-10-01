@@ -19,7 +19,12 @@ window.VN.data.sceneAudio = {
   },
   GameScene4: {
     music: { path: 'music/music_gameplay_4.mp3', loop: true },
-    sounds: [{ path: 'voice_and_sound/scene4_gameplay4/gameplay_scene_4_rasskazchik.wav', loop: false }]
+    sounds: [{ path: 'voice_and_sound/scene4_gameplay4/gameplay_scene_4_rasskazchik1.wav', loop: false }],
+    // Экран 0 — правила; экран 1 — победа.
+    screens: [
+      {},
+      { sounds: [{ path: 'voice_and_sound/scene4_gameplay4/gameplay_scene_4_rasskazchik.wav', loop: false }] }
+    ]
   },
   QuoteMinigameScene: {
     music: { path: 'music/music_gameplay_5.mp3', loop: true },

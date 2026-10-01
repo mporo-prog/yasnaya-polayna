@@ -55,11 +55,19 @@
     }
 
     create() {
-      // У финального портрета реплика запускается вместе с первым кадром видео.
-      this.sceneAudio = this.currentLines[this.screenIndex].portraitReveal
-        ? null : window.VN.systems.SceneAudio.enter(this);
-      if (!this.sceneAudio) {
-        window.VN.systems.SceneAudio.enter(this, { music: null, transition: { fadeOutDuration: 0 } });
+      // Музыка финального портрета играет при входе в сцену,
+      // а реплика запускается отдельно вместе с первым кадром видео.
+      if (this.currentLines[this.screenIndex].portraitReveal) {
+        const audioConfig = window.VN.systems.SceneAudio.getConfig(this);
+        this.sceneAudio = window.VN.systems.SceneAudio.enter(this, {
+          music: audioConfig.music ?? null,
+          transition: audioConfig.transition,
+          transitionSound: null,
+          sounds: [],
+          screens: [],
+        });
+      } else {
+        this.sceneAudio = window.VN.systems.SceneAudio.enter(this);
       }
       this.layout = window.VN.systems.Layout;
       this.buildBackgroundLayer();
@@ -921,16 +929,34 @@
       const { x, y, width, height } = config.frame;
       const small = config.dialogueFrame;
       const camera = this.cameras.main;
-      // У PNG рамы есть прозрачные поля: берём только внешние границы рамы.
+      // Четыре кромки PNG рисуем поверх портрета с нахлёстом в 3 px.
+      // Центр PNG не используем: в его прозрачной области есть лишние точки.
       const frameTexture = this.textures.get(config.frameImage);
-      if (!frameTexture.has('portrait-frame')) frameTexture.add('portrait-frame', 0, 124, 125, 904, 2492);
-      this.portraitFrame = this.add.image(783, 49, config.frameImage, 'portrait-frame')
-        .setOrigin(0).setDisplaySize(356, 972).setAlpha(0);
+      const overlap = 3;
+      const outer = { left: 783, top: 49, right: 1139, bottom: 1021 };
+      const inner = { left: x + overlap, top: y + overlap,
+        right: x + width - overlap, bottom: y + height - overlap };
+      const borders = [
+        { name: 'top', crop: [124, 125, 904, 61],
+          left: outer.left, top: outer.top, right: outer.right, bottom: inner.top },
+        { name: 'bottom', crop: [124, 2554, 904, 63],
+          left: outer.left, top: inner.bottom, right: outer.right, bottom: outer.bottom },
+        { name: 'left', crop: [124, 186, 60, 2368],
+          left: outer.left, top: inner.top, right: inner.left, bottom: inner.bottom },
+        { name: 'right', crop: [968, 186, 60, 2368],
+          left: inner.right, top: inner.top, right: outer.right, bottom: inner.bottom },
+      ];
+      this.portraitFrame = this.add.container(0, 0, borders.map(border => {
+        const key = 'portrait-frame-' + border.name;
+        if (!frameTexture.has(key)) frameTexture.add(key, 0, ...border.crop);
+        return this.add.image(border.left, border.top, config.frameImage, key)
+          .setOrigin(0).setDisplaySize(border.right - border.left, border.bottom - border.top);
+      })).setAlpha(0);
       const poster = this.add.image(0, 0, config.poster).setOrigin(0).setDisplaySize(width, height);
       const video = this.add.video(0, 0).setOrigin(0).setVisible(false);
       this.portraitArtwork = this.add.container(small.x, small.y, [poster, video])
         .setScale(small.width / width, small.height / height);
-      this.background.stage.add([this.portraitFrame, this.portraitArtwork]);
+      this.background.stage.add([this.portraitArtwork, this.portraitFrame]);
       this.portraitVideo = video;
 
       // Масштабируется контейнер: видео играет один раз и сохраняет последний кадр.
@@ -1008,7 +1034,27 @@
         fontFamily: 'Ysabeau', fontSize: '36px', color: '#04151F',
         align: 'center', wordWrap: { width: 550, useAdvancedWrap: true },
       }).setOrigin(0.5);
-      this.portraitTitle = this.add.container(1515, HEIGHT / 2, [panel, title]).setAlpha(0);
+      const titleObjects = [panel, title];
+      // Подпись открывает справку в том же окне, что и слова-ссылки в репликах.
+      if (config.popupText) {
+        title.setColor('#1B1A19').setStroke('#1B1A19', 1.5);
+        const openPopup = () => {
+          window.VN?.systems.AudioManager?.click?.(this);
+          this.openGlossaryPopup(config.popupText);
+        };
+        // Подчёркиваем каждую строку по ширине её текста, как ссылки в репликах.
+        const lines = title.getWrappedText(config.title);
+        const lineHeight = title.height / lines.length;
+        lines.forEach((line, index) => {
+          const width = Math.ceil(title.context.measureText(line).width + 1.5);
+          titleObjects.push(this.add.rectangle(
+            0, -title.height / 2 + (index + 1) * lineHeight - 4, width, 3, 0x1b1a19
+          ).setOrigin(0.5, 0));
+        });
+        titleObjects.forEach(object => object.setInteractive({ useHandCursor: true })
+          .on('pointerup', openPopup));
+      }
+      this.portraitTitle = this.add.container(1515, HEIGHT / 2, titleObjects).setAlpha(0);
       this.background.stage.add(this.portraitTitle);
       this.portraitTween = this.tweens.add({
         targets: this.portraitArtwork,

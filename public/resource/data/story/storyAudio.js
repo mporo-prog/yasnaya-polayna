@@ -139,7 +139,7 @@ window.VN.data.storyAudio = [
   },
   // Сюжетная сцена 6
   {
-    music: null, // { path: 'music/theme.mp3', volume: 0.8, loop: true }
+    music: { path: 'music/music_menu_2.wav', volume: 1, loop: true },
     transition: {
     type: 'crossfade',
     fadeOutDuration: 1,

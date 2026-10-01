@@ -95,6 +95,7 @@ window.VN.data.storyLines = [
         transitionDuration: 1000,
         title: 'И. Е. Репин «Л. Н. Толстой босой» (1901)',
         titlePanel: 'images/icon_UI/result_message_panel.png',
+        popupText: 'Источник: С оригиналом картины И. Е. Репина «Л. Н. Толстой босой» (1901) можно познакомиться в Русском музее (Михайловский дворец, Санкт-Петербург).',
       },
     },
   ],

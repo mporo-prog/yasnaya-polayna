@@ -25,7 +25,7 @@ function displayObject() {
   const object = new EventEmitter();
   object.text = '';
   Object.assign(object, { x: 0, y: 0, scaleX: 1, scaleY: 1, alpha: 1, list: [] });
-  for (const method of ['setInteractive', 'disableInteractive', 'setY']) {
+  for (const method of ['setInteractive', 'disableInteractive', 'setY', 'setColor', 'setStroke']) {
     object[method] = () => object;
   }
   object.setDisplaySize = (width, height) => { Object.assign(object, { displayWidth: width, displayHeight: height }); return object; };
@@ -108,7 +108,10 @@ function fixture() {
       return tween;
     } },
     add: { container: (x, y, children = []) => Object.assign(displayObject().add(children), { x, y }),
-      image: displayObject, text: displayObject,
+      image: displayObject, rectangle: displayObject,
+      text: (x, y, text) => Object.assign(displayObject().setText(text), {
+        x, y, height: 40, context: { measureText: line => ({ width: line.length * 18 }) },
+      }),
       video: () => {
         const video = displayObject();
         Object.assign(video, { width: 384, height: 1132 });
@@ -497,12 +500,14 @@ test('portrait video, voice and dialogue start together when the first frame is 
   const video = f.story.portraitVideo;
   assert.equal(video.loop, false);
   assert.equal(video.noAudio, true);
-  assert.equal(f.sources.length, 0);
+  assert.equal(f.controller.current.path, 'music/music_menu_2.wav');
+  assert.equal(f.controller.current.source.loop, true);
+  assert.equal(f.sources.length, 1, 'Only background music starts before the video is ready');
   assert.equal(f.story.bottomGroup.visible, false);
   for (const action of ['goNext', 'goBack', 'advanceScreen', 'startMinigame', 'toggleHistory']) f.story[action]();
   f.tick(20000);
   assert.equal(f.story.portraitPhase, 'loading', 'Wait for a real frame, not a fixed timer');
-  assert.equal(f.sources.length, 0);
+  assert.equal(f.sources.length, 1, 'Loading the portrait must not start the voice early');
   video.emit('created');
   f.tick(20016);
   assert.equal(f.story.portraitPhase, 'dialogue');
@@ -573,6 +578,16 @@ test('natural voice end reveals the portrait, then waits for a click and covers 
   assert.equal(f.navigations.length, 0);
   assert.equal(f.story.screenTimer, null, 'There is no automatic advance timer');
   assert.deepEqual(f.loadingScreens, [], 'Do not cover the portrait before the click');
+  f.story.glossaryContainer = displayObject().setVisible(false);
+  f.story.glossaryText = displayObject();
+  f.story.portraitTitle.list[0].emit('pointerup');
+  assert.equal(f.story.glossaryContainer.visible, true);
+  assert.equal(f.story.glossaryText.text, f.story.currentLines[0].portraitReveal.popupText);
+  assert.match(f.story.glossaryText.text, /Русском музее/);
+  f.tick(75016);
+  assert.equal(f.navigations.length, 0, 'Reading the painting source must not leave the scene');
+  f.story.closeGlossaryPopup();
+  assert.equal(f.story.glossaryContainer.visible, false);
   f.story.events.once('shutdown', () => {
     assert.deepEqual(f.loadingScreens, ['Загрузка финального экрана…'], 'Cover the canvas before stopping it');
   });

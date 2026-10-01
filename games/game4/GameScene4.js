@@ -968,7 +968,6 @@ export class GameScene4 extends Phaser.Scene {
             ),
             null
         );
-        window.VN?.systems.AudioManager?.win?.(this);
         this.sceneAudio?.stopSounds();
         this.sceneAudio?.showScreen(1);
     }

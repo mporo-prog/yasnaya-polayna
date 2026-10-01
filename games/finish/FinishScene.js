@@ -92,6 +92,8 @@ export class FinishScene extends Phaser.Scene {
     }
 
     createFrame() {
+        // HTML-кнопки и ссылки должны лежать выше холста с картой.
+        this.game.domContainer.style.zIndex = '1';
         this.frame = this.add.container(0, 0);
 
         // Clip content: содержимое не выходит за границы макета 1920×1080.

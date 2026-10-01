@@ -935,7 +935,13 @@
 
       // Масштабируется контейнер: видео играет один раз и сохраняет последний кадр.
       video.once('created', () => {
-        video.setDisplaySize(width, height).setVisible(true);
+        // В исходном видео сверху есть тёмная полоса в 4 px. Убираем её,
+        // заполняя прежнюю область портрета без смещения его видимого края.
+        const topInset = 4;
+        video.setCrop(0, topInset, video.width, video.height - topInset)
+          .setOrigin(0, topInset / video.height)
+          .setDisplaySize(width, height * video.height / (video.height - topInset))
+          .setVisible(true);
         this.portraitPlaybackReady = true;
       });
       video.once('complete', () => { this.portraitAnimationComplete = true; });

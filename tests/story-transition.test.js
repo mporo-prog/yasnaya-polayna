@@ -25,10 +25,12 @@ function displayObject() {
   const object = new EventEmitter();
   object.text = '';
   Object.assign(object, { x: 0, y: 0, scaleX: 1, scaleY: 1, alpha: 1, list: [] });
-  for (const method of ['setInteractive', 'disableInteractive', 'setY', 'setOrigin']) {
+  for (const method of ['setInteractive', 'disableInteractive', 'setY']) {
     object[method] = () => object;
   }
   object.setDisplaySize = (width, height) => { Object.assign(object, { displayWidth: width, displayHeight: height }); return object; };
+  object.setOrigin = (x, y = x) => { Object.assign(object, { originX: x, originY: y }); return object; };
+  object.setCrop = () => object;
   object.setScale = (x, y = x) => { Object.assign(object, { scaleX: x, scaleY: y }); return object; };
   object.setTexture = (key, frame) => { Object.assign(object, { textureKey: key, frame }); return object; };
   object.add = (children) => { object.list.push(...[children].flat()); return object; };
@@ -109,6 +111,7 @@ function fixture() {
       image: displayObject, text: displayObject,
       video: () => {
         const video = displayObject();
+        Object.assign(video, { width: 384, height: 1132 });
         video.loadURL = (url, noAudio) => { Object.assign(video, { url, noAudio }); return video; };
         video.play = (loop) => { Object.assign(video, { loop, playing: true }); return video; };
         video.setPaused = (paused) => { video.paused = paused; return video; };
@@ -509,7 +512,7 @@ test('portrait video, voice and dialogue start together when the first frame is 
   assert.equal(f.story.portraitArtwork.x, 1920 * 0.45);
   assert.equal(f.story.portraitArtwork.y, 1080 * 0.065);
   assert.equal(video.displayWidth * f.story.portraitArtwork.scaleX, 208);
-  assert.equal(video.displayHeight * f.story.portraitArtwork.scaleY, 612);
+  assert.ok(Math.abs(video.displayHeight * (1 - video.originY) * f.story.portraitArtwork.scaleY - 612) < 0.001);
   assert.equal(f.story.voiceActive, true);
   assert.equal(f.story.voiceStartTime, 20016);
   assert.equal(f.story.portraitAnimationComplete, false, 'Voice starts before video ends');

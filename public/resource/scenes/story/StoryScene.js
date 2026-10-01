@@ -919,22 +919,32 @@
       window.VN.systems.GameState.goToScreen(this.storySceneIndex, this.screenIndex);
 
       const { x, y, width, height } = config.frame;
+      const small = config.dialogueFrame;
       const camera = this.cameras.main;
-      const poster = this.add.image(x, y, config.poster).setOrigin(0).setDisplaySize(width, height);
-      const video = this.add.video(x, y).setOrigin(0).setVisible(false);
-      this.background.stage.add([poster, video]);
+      // У PNG рамы есть прозрачные поля: берём только внешние границы рамы.
+      const frameTexture = this.textures.get(config.frameImage);
+      if (!frameTexture.has('portrait-frame')) frameTexture.add('portrait-frame', 0, 124, 125, 904, 2492);
+      this.portraitFrame = this.add.image(783, 49, config.frameImage, 'portrait-frame')
+        .setOrigin(0).setDisplaySize(356, 972).setAlpha(0);
+      const poster = this.add.image(0, 0, config.poster).setOrigin(0).setDisplaySize(width, height);
+      const video = this.add.video(0, 0).setOrigin(0).setVisible(false);
+      this.portraitArtwork = this.add.container(small.x, small.y, [poster, video])
+        .setScale(small.width / width, small.height / height);
+      this.background.stage.add([this.portraitFrame, this.portraitArtwork]);
       this.portraitVideo = video;
 
-      // Последний кадр остаётся в раме до ухода со сцены.
+      // Масштабируется контейнер: видео играет один раз и сохраняет последний кадр.
       video.once('created', () => {
         video.setDisplaySize(width, height).setVisible(true);
         this.portraitPlaybackReady = true;
       });
       video.once('complete', () => { this.portraitAnimationComplete = true; });
       video.once('error', () => {
-        // При недоступном видео остаётся исходная картина; реплику можно прочитать.
+        // При недоступном видео показываем картину без рамы в том же контейнере.
         video.setVisible(false);
-        poster.setVisible(false);
+        const texture = this.textures.get(config.fallbackImage);
+        if (!texture.has('portrait')) texture.add('portrait', 0, x, y, width, height);
+        poster.setTexture(config.fallbackImage, 'portrait').setDisplaySize(width, height);
         this.portraitAnimationComplete = true;
         this.portraitPlaybackReady = true;
       });
@@ -957,9 +967,13 @@
         camera.off('camerafadeincomplete', play);
         this.events.off('pause', pause);
         this.events.off('resume', resume);
+        this.portraitTween?.remove();
+        this.portraitTween = null;
         video.removeAllListeners();
-        video.destroy();
-        poster.destroy();
+        this.portraitArtwork?.destroy();
+        this.portraitArtwork = null;
+        this.portraitFrame?.destroy();
+        this.portraitFrame = null;
         this.portraitTitle?.destroy();
         this.portraitTitle = null;
         this.portraitVideo = null;
@@ -974,7 +988,7 @@
     showPortraitTitle() {
       if (this.portraitPhase !== 'dialogue' || !this.portraitAnimationComplete
         || !this.portraitVoiceComplete || this.historyVisible || this._pendingVoiceResume) return;
-      this.portraitPhase = 'hold';
+      this.portraitPhase = 'enlarging';
       this.stopVoice();
       this._pendingVoiceResume = false;
       this.voiceInterruptedByOverlay = false;
@@ -988,11 +1002,27 @@
         fontFamily: 'Ysabeau', fontSize: '36px', color: '#04151F',
         align: 'center', wordWrap: { width: 550, useAdvancedWrap: true },
       }).setOrigin(0.5);
-      this.portraitTitle = this.add.container(1515, HEIGHT / 2, [panel, title]);
+      this.portraitTitle = this.add.container(1515, HEIGHT / 2, [panel, title]).setAlpha(0);
       this.background.stage.add(this.portraitTitle);
-      const duration = Number.isFinite(config.holdDuration) && config.holdDuration >= 0
-        ? config.holdDuration : 4000;
-      this.scheduleScreenTimer(duration, () => this.finishPortraitSequence());
+      this.portraitTween = this.tweens.add({
+        targets: this.portraitArtwork,
+        x: config.frame.x, y: config.frame.y, scaleX: 1, scaleY: 1,
+        duration: config.transitionDuration, ease: 'Sine.easeInOut',
+        onComplete: () => {
+          this.portraitPhase = 'revealing';
+          this.portraitTween = this.tweens.add({
+            targets: [this.portraitFrame, this.portraitTitle],
+            alpha: 1, duration: config.transitionDuration, ease: 'Sine.easeInOut',
+            onComplete: () => {
+              this.portraitTween = null;
+              this.portraitPhase = 'hold';
+              const duration = Number.isFinite(config.holdDuration) && config.holdDuration >= 0
+                ? config.holdDuration : 4000;
+              this.scheduleScreenTimer(duration, () => this.finishPortraitSequence());
+            },
+          });
+        },
+      });
     }
 
     finishPortraitSequence() {
@@ -1322,7 +1352,7 @@
     }
 
     openPauseMenu() {
-      if (this.portraitPhase === 'hold' || this.portraitPhase === 'finished') return;
+      if (this.portraitPhase && !['loading', 'dialogue'].includes(this.portraitPhase)) return;
       // Пока сцена на паузе, её update() не выполняется, но Web Audio
       // продолжил бы играть в фоне — останавливаем озвучку.
       this.voiceInterruptedByOverlay = this.voiceActive

@@ -61,6 +61,13 @@
       await waitFor(() => story.portraitVideo?.video?.currentTime > 0.2);
       assert(story.portraitPhase === 'dialogue' && story.voiceActive, 'Video and voice start together');
       assert(story.bottomGroup.visible && story.historyBtn.bg.visible, 'Dialogue accompanies the animation');
+      const artwork = story.portraitArtwork;
+      const video = story.portraitVideo;
+      assert(story.background.key.endsWith('/portrait-wallpaper.png'), 'Use the supplied empty wallpaper');
+      assert(artwork.x === 864 && Math.abs(artwork.y - 70.2) < 0.01, 'Dialogue position: 45% / 6.5%');
+      assert(Math.abs(video.displayWidth * artwork.scaleX - 208) < 0.01
+        && Math.abs(video.displayHeight * artwork.scaleY - 612) < 0.01, 'Dialogue size: 208 x 612');
+      assert(story.portraitFrame.alpha === 0 && !story.portraitTitle, 'No frame or title during dialogue');
       assert(Math.abs((game.getTime() - story.voiceStartTime) / 1000 - story.portraitVideo.video.currentTime) < 0.3,
         'Video and voice must share the same start');
       assert(!story.portraitVideo.video.loop && story.portraitVideo.video.muted, 'Silent, non-looping video');
@@ -86,7 +93,28 @@
         assert(story.portraitPhase === 'dialogue', 'Title must wait for video even after repeated clicks');
         pass('Пропуск реплики не обрывает GIF');
       }
+      await waitFor(() => story.portraitPhase === 'enlarging');
+      const enlargeAt = performance.now();
+      const finalVideoTime = video.video.currentTime;
+      assert(!story.bottomGroup.visible, 'Hide dialogue before enlargement');
+      await waitFor(() => artwork.scaleX > 0.8);
+      assert(artwork.scaleX < 1 && story.portraitFrame.alpha === 0 && story.portraitTitle.alpha === 0,
+        'Enlarge gradually before revealing the frame and title');
+      await capture('Увеличение последнего кадра');
+      await waitFor(() => story.portraitPhase === 'revealing');
+      assert(performance.now() - enlargeAt >= 900, 'Enlargement takes one second');
+      const revealAt = performance.now();
+      await waitFor(() => story.portraitFrame.alpha > 0.3);
+      assert(story.portraitFrame.alpha < 1 && story.portraitTitle.alpha === story.portraitFrame.alpha,
+        'Frame and title fade in together');
+      await capture('Появление рамки и подписи');
       await waitFor(() => story.portraitPhase === 'hold');
+      assert(performance.now() - revealAt >= 900, 'Frame and title fade takes one second');
+      assert(story.portraitVideo === video && video.video.currentTime === finalVideoTime, 'Keep the final video frame without restarting');
+      assert(artwork.x === 807 && artwork.y === 73 && artwork.scaleX === 1 && artwork.scaleY === 1,
+        'Final portrait matches its original size and position');
+      assert(story.portraitTitle.list[1].text === 'И. Е. Репин «Л. Н. Толстой босой» (1901)', 'Correct painter name');
+      pass('208×612 без рамки → увеличение 1 с → рамка и подпись проявляются за 1 с; видео не перезапускается');
       const holdAt = performance.now();
       assert(voice.ended, 'Wait for real audio end');
       assert(story.portraitVideo.video.ended, 'Wait for real video end too');

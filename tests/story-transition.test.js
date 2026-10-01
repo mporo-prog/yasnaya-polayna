@@ -24,14 +24,19 @@ function camera() {
 function displayObject() {
   const object = new EventEmitter();
   object.text = '';
-  for (const method of ['setInteractive', 'disableInteractive', 'setDisplaySize', 'setY', 'setOrigin', 'add']) {
+  Object.assign(object, { x: 0, y: 0, scaleX: 1, scaleY: 1, alpha: 1, list: [] });
+  for (const method of ['setInteractive', 'disableInteractive', 'setY', 'setOrigin']) {
     object[method] = () => object;
   }
+  object.setDisplaySize = (width, height) => { Object.assign(object, { displayWidth: width, displayHeight: height }); return object; };
+  object.setScale = (x, y = x) => { Object.assign(object, { scaleX: x, scaleY: y }); return object; };
+  object.setTexture = (key, frame) => { Object.assign(object, { textureKey: key, frame }); return object; };
+  object.add = (children) => { object.list.push(...[children].flat()); return object; };
   object.setAlpha = (alpha) => { object.alpha = alpha; return object; };
   object.setVisible = (visible) => { object.visible = visible; return object; };
   object.setText = (text) => { object.text = text; return object; };
   object.getWrappedText = (text) => [text];
-  object.destroy = () => { object.destroyed = true; };
+  object.destroy = () => { object.destroyed = true; object.list.forEach(child => child.destroy()); };
   return object;
 }
 
@@ -71,6 +76,7 @@ function fixture() {
 
   let now = 1000;
   const timers = new Set();
+  const tweens = new Set();
   f.game.getTime = () => now;
   const story = new f.window.VN.scenes.StoryScene();
   Object.assign(story, f.scene(), {
@@ -80,7 +86,25 @@ function fixture() {
       timers.add(timer);
       return timer;
     } },
-    add: { container: displayObject, image: displayObject, text: displayObject,
+    textures: { get: () => ({ has: () => false, add() {} }) },
+    tweens: { add(config) {
+      const targets = [config.targets].flat();
+      const keys = ['x', 'y', 'scaleX', 'scaleY', 'alpha'].filter(key => key in config);
+      const initial = targets.map(target => Object.fromEntries(keys.map(key => [key, target[key]])));
+      const tween = { elapsed: 0, remove() { tweens.delete(tween); }, update(delta) {
+        tween.elapsed += delta;
+        const progress = Math.min(1, tween.elapsed / config.duration);
+        const eased = (1 - Math.cos(Math.PI * progress)) / 2;
+        targets.forEach((target, i) => keys.forEach(key => {
+          target[key] = initial[i][key] + (config[key] - initial[i][key]) * eased;
+        }));
+        if (progress === 1) { tweens.delete(tween); config.onComplete?.(); }
+      } };
+      tweens.add(tween);
+      return tween;
+    } },
+    add: { container: (x, y, children = []) => Object.assign(displayObject().add(children), { x, y }),
+      image: displayObject, text: displayObject,
       video: () => {
         const video = displayObject();
         video.loadURL = (url, noAudio) => { Object.assign(video, { url, noAudio }); return video; };
@@ -116,6 +140,7 @@ function fixture() {
     story.time.now = time;
     const activeTimers = [...timers];
     story.cameras.main.fadeEffect.update(time, delta);
+    for (const tween of [...tweens]) tween.update(delta);
     for (const timer of activeTimers) {
       if (timer.paused || !timers.has(timer)) continue;
       timer.remaining -= delta;
@@ -149,6 +174,7 @@ function fixture() {
     fade.update(0, fade.duration);
   }
   return { ...f, story, mini, starts, start, tick, beginMinigameExit, finishMinigame,
+    finishPortraitReveal() { tick(now + 1000); tick(now + 1000); },
     savedScreens, backgrounds, navigations, setNow: (time) => { now = time; } };
 }
 
@@ -476,6 +502,12 @@ test('portrait video, voice and dialogue start together when the first frame is 
   f.tick(20016);
   assert.equal(f.story.portraitPhase, 'dialogue');
   assert.equal(f.story.bottomGroup.visible, true);
+  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/portrait-wallpaper.png');
+  assert.equal(f.story.portraitFrame.alpha, 0);
+  assert.equal(f.story.portraitArtwork.x, 1920 * 0.45);
+  assert.equal(f.story.portraitArtwork.y, 1080 * 0.065);
+  assert.equal(video.displayWidth * f.story.portraitArtwork.scaleX, 208);
+  assert.equal(video.displayHeight * f.story.portraitArtwork.scaleY, 612);
   assert.equal(f.story.voiceActive, true);
   assert.equal(f.story.voiceStartTime, 20016);
   assert.equal(f.story.portraitAnimationComplete, false, 'Voice starts before video ends');
@@ -485,7 +517,7 @@ test('portrait video, voice and dialogue start together when the first frame is 
   assert.equal(f.story.portraitPhase, 'dialogue', 'Video completion alone cannot hide dialogue');
 });
 
-test('natural voice end hides controls and shows the title for exactly four seconds', () => {
+test('natural voice end enlarges the last frame, fades in frame/title, then holds for four seconds', () => {
   const f = fixture();
   f.start(5);
   // Exercise the real button construction: the pause control is now menuBtn.
@@ -498,15 +530,37 @@ test('natural voice end hides controls and shows the title for exactly four seco
   assert.equal(f.story.portraitPhase, 'dialogue', 'Wait for audio, not just subtitle reveal');
   f.advance(10);
   f.tick(12016);
-  assert.equal(f.story.portraitPhase, 'hold');
+  assert.equal(f.story.portraitPhase, 'enlarging');
   assert.equal(f.story.bottomGroup.visible, false);
   assert.equal(f.story.menuBtn.bg.visible, false);
   assert.equal(f.story.historyBtn.bg.visible, false);
   assert.ok(f.story.portraitTitle);
+  assert.equal(f.story.portraitTitle.alpha, 0);
+  const video = f.story.portraitVideo;
+  video.play = () => assert.fail('Enlarging the final frame must not restart playback');
   for (const action of ['goNext', 'goBack', 'advanceScreen', 'openPauseMenu', 'toggleHistory']) f.story[action]();
-  f.tick(16015);
+  f.tick(12516);
+  assert.ok(f.story.portraitArtwork.scaleX > 208 / 308 && f.story.portraitArtwork.scaleX < 1);
+  assert.equal(f.story.portraitFrame.alpha, 0);
+  assert.equal(f.story.portraitTitle.alpha, 0);
+  f.tick(13016);
+  assert.equal(f.story.portraitPhase, 'revealing');
+  assert.equal(f.story.portraitArtwork.x, 807);
+  assert.equal(f.story.portraitArtwork.y, 73);
+  assert.equal(f.story.portraitArtwork.scaleX, 1);
+  assert.equal(f.story.portraitArtwork.scaleY, 1);
+  f.tick(13516);
+  assert.ok(Math.abs(f.story.portraitFrame.alpha - 0.5) < 0.001);
+  assert.equal(f.story.portraitFrame.alpha, f.story.portraitTitle.alpha);
+  assert.equal(f.story.screenTimer, null);
+  f.tick(14016);
+  assert.equal(f.story.portraitPhase, 'hold');
+  assert.equal(f.story.portraitFrame.alpha, 1);
+  assert.equal(f.story.portraitTitle.alpha, 1);
+  assert.equal(f.story.portraitVideo, video);
+  f.tick(18015);
   assert.equal(f.navigations.length, 0);
-  f.tick(16016);
+  f.tick(18016);
   assert.deepEqual(f.navigations, ['games/finish/index.html']);
   f.tick(20000);
   assert.equal(f.navigations.length, 1);
@@ -526,10 +580,11 @@ test('skipping the portrait voice cannot skip the video; title duration remains 
   assert.equal(f.story.portraitPhase, 'dialogue', 'Even repeated clicks cannot bypass the video');
   f.story.portraitVideo.emit('complete');
   f.tick(1032);
+  f.finishPortraitReveal();
   assert.equal(f.story.portraitPhase, 'hold');
-  f.tick(2531);
+  f.tick(4531);
   assert.equal(f.navigations.length, 0);
-  f.tick(2532);
+  f.tick(4532);
   assert.equal(f.navigations.length, 1);
 });
 
@@ -545,10 +600,11 @@ test('a naturally ended voice waits for a slower video before starting the hold'
   assert.equal(f.story.screenTimer, null);
   f.story.portraitVideo.emit('complete');
   f.tick(13016);
+  f.finishPortraitReveal();
   assert.equal(f.story.portraitPhase, 'hold');
-  f.tick(17015);
+  f.tick(19015);
   assert.equal(f.navigations.length, 0);
-  f.tick(17016);
+  f.tick(19016);
   assert.equal(f.navigations.length, 1);
 });
 
@@ -559,6 +615,8 @@ test('skipping after the video ends starts the title hold without an extra click
   f.tick(1016);
   f.story.portraitVideo.emit('complete');
   f.story.goNext();
+  assert.equal(f.story.portraitPhase, 'enlarging');
+  f.finishPortraitReveal();
   assert.equal(f.story.portraitPhase, 'hold');
 });
 
@@ -584,6 +642,7 @@ test('history pauses the portrait and restarting the voice still waits for its a
   assert.equal(f.story.portraitPhase, 'dialogue');
   f.advance(10);
   f.tick(30016);
+  f.finishPortraitReveal();
   assert.equal(f.story.portraitPhase, 'hold');
 });
 
@@ -610,7 +669,8 @@ test('portrait video pauses with the scene and shutdown removes media and pendin
   assert.equal(f.story.voiceActive, true);
 });
 
-test('leaving during the portrait hold cancels final navigation', () => {
+for (const phase of ['enlarging', 'revealing', 'hold']) {
+test(`leaving during portrait ${phase} cancels animations and final navigation`, () => {
   const f = fixture();
   f.start(5);
   f.story.portraitVideo.emit('created');
@@ -618,10 +678,16 @@ test('leaving during the portrait hold cancels final navigation', () => {
   f.story.portraitVideo.emit('complete');
   f.story.goNext();
   f.story.goNext();
+  if (phase !== 'enlarging') f.tick(2016);
+  if (phase === 'hold') f.tick(3016);
+  assert.equal(f.story.portraitPhase, phase);
   f.story.events.emit('shutdown');
   f.tick(20000);
+  assert.equal(f.story.portraitPhase, null);
+  assert.equal(f.story.portraitTween, null);
   assert.equal(f.navigations.length, 0);
 });
+}
 
 test('portrait waits until the minigame fade ends before playing', async () => {
   const f = fixture();
@@ -644,10 +710,13 @@ test('video failure falls back to the existing painting and a missing voice rema
   f.tick(1016);
   assert.equal(f.story.portraitPhase, 'dialogue');
   assert.equal(f.story.portraitVideo.visible, false);
+  assert.equal(f.story.portraitArtwork.list[0].textureKey, 'images/backgrounds/tolstoy.png');
+  assert.equal(f.story.portraitArtwork.list[0].frame, 'portrait');
   assert.equal(f.story.dialogueRevealedText.text, f.story.currentLines[0].text);
   f.tick(20000);
   assert.equal(f.story.portraitPhase, 'dialogue');
   f.story.goNext();
+  f.finishPortraitReveal();
   assert.equal(f.story.portraitPhase, 'hold');
 });
 

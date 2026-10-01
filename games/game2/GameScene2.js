@@ -23,9 +23,8 @@ const OUTRO_SPEAKER = 'РАССКАЗЧИК';
 const OUTRO_TEXT = 'Дневник графа Толстого мог оказаться в любом месте, но свой самый важный последний дневник Лев Николаевич никому не показывал, даже жене, и хранил в сапоге.';
 
 // Озвучка рассказчика: правила и реплика про дневник — отдельные файлы.
-// Распределены по длительности (12.7 с и 7.8 с); если перепутаны — поменять местами.
-const RULES_VOICE = 'voice_and_sound/scene2_gameplay2/gameplay_scene_2_rasskazchik2.wav';
-const OUTRO_VOICE = 'voice_and_sound/scene2_gameplay2/gameplay_scene_2_rasskazchik.wav';
+const RULES_VOICE = 'voice_and_sound/scene2_gameplay2/gameplay_scene_2_rasskazchik.wav';
+const OUTRO_VOICE = 'voice_and_sound/scene2_gameplay2/gameplay_scene_2_rasskazchik2.wav';
 const WRONG_SOUND = 'voice_and_sound/scene2_gameplay2/GAMEPLAY2_NEW/gameplay2_neverniy_vybor.wav';
 // Нажатие на предмет на панели.
 const PICK_SOUND = 'voice_and_sound/scene2_gameplay2/GAMEPLAY2_NEW/gameplay3_nazhatie_na_object.wav';
@@ -965,9 +964,8 @@ export class GameScene2 extends Phaser.Scene {
             return;
         }
 
-        // Озвучка правил — только их часть общего файла рассказчика
-        // (реплика про дневник звучит в конце игры). Игра начнётся
-        // только по нажатию «далее».
+        // Озвучка правил — отдельный файл рассказчика.
+        // Игра начнётся только по нажатию «далее».
         this.rulesVoice = this.playNarrator(RULES_VOICE);
     }
 

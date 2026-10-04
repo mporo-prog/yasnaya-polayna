@@ -99,15 +99,20 @@
   }
 
   /**
-   * Телефон: холст ниже COMPACT_MAX_CSS_HEIGHT CSS-пикселей. На таком экране
-   * сцены включают «компактную» раскладку по мобильным макетам — крупный
-   * текст и кнопки под палец.
+   * Телефон: сенсорное устройство и холст ниже COMPACT_MAX_CSS_HEIGHT
+   * CSS-пикселей. На таком экране сцены включают «компактную» раскладку по
+   * мобильным макетам — крупный текст и кнопки под палец.
+   * На компьютере с мышью окно тоже бывает ниже 600 px (масштаб Windows 150%
+   * на экране 1920×1080, зум браузера) — там остаётся обычная раскладка.
    */
   const COMPACT_MAX_CSS_HEIGHT = 600;
+  const TOUCH_QUERY = '(pointer: coarse)';
 
   function isCompact(scene) {
     const cssHeight = scene.scale.displaySize.height || window.innerHeight;
-    return cssHeight < COMPACT_MAX_CSS_HEIGHT;
+    if (cssHeight >= COMPACT_MAX_CSS_HEIGHT) return false;
+    // Без matchMedia (старые браузеры) — прежнее правило только по высоте.
+    return typeof window.matchMedia !== 'function' || window.matchMedia(TOUCH_QUERY).matches;
   }
 
   // ---- кнопки-иконки ------------------------------------------------------

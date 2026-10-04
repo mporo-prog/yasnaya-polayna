@@ -39,7 +39,7 @@ window.VN.data.storyLines = [
     { speaker: 'ПОСЕТИТЕЛЬ ', text: 'О! Это же шляпа графа! Надо немедленно её поймать!'},
     {
       speaker: '', text: '', character: 'РЕПИН_3',
-      backgroundChange: { path: 'images/backgrounds/house.png', delay: 2000 },
+      backgroundChange: { path: 'images/backgrounds/house.webp', delay: 2000 },
       autoAdvanceDelay: 2000,
       autoAdvanceAfterVoice: true,
     },
@@ -69,7 +69,7 @@ window.VN.data.storyLines = [
     {
       speaker: 'ИЛЬЯ\nЕФИМОВИЧ', character: 'ПОСЕТИТЕЛЬ', text: 'Ну наконец-то увижу Льва Николаевича. Веди!',
       backgroundChange: {
-        path: 'images/backgrounds/prud.png', afterVoice: true, fadeDuration: 750, hideDialogue: true,
+        path: 'images/backgrounds/prud.webp', afterVoice: true, fadeDuration: 750, hideDialogue: true,
       },
       autoAdvanceDelay: 2000,
     },
@@ -85,14 +85,21 @@ window.VN.data.storyLines = [
       speaker: 'ТОЛСТОЙ  ',
       text: 'Завтра будет неделя, как у нас живет Репин и работает над моим портретом, отнимая отведенное мне время, но я рад.',
       portraitReveal: {
-        video: 'video/tolstoy-portrait-e1ebd194.mp4',
-        poster: 'images/backgrounds/tolstoy-portrait-start-e1ebd194.png',
+        // Phaser берёт первый поддерживаемый источник: WebM (VP9), иначе MP4 (Safari/iOS).
+        video: [
+          { type: 'vp9', url: 'video/tolstoy-portrait-e1ebd194.webm' },
+          { type: 'mp4', url: 'video/tolstoy-portrait-e1ebd194.mp4' },
+        ],
+        poster: 'images/backgrounds/tolstoy-portrait-start-e1ebd194.webp',
         dialogueFrame: { x: 1920 * 0.45, y: 1080 * 0.065, width: 208, height: 612 },
         // Финальная область портрета совпадает с прежней картиной.
         frame: { x: 807, y: 73, width: 308, height: 924 },
-        title: '«Л. Н. Толстой босой», И. Е. Репина (1901)',
-        titlePanel: 'images/game3/item_label_panel.png',
-        holdDuration: 4000, // Время показа портрета с названием, в миллисекундах.
+        frameImage: 'images/backgrounds/portrait-frame.webp',
+        fallbackImage: 'images/backgrounds/tolstoy.webp',
+        transitionDuration: 1000,
+        title: '«Л. Н. Толстой босой», И. Е. Репин (1901)',
+        titlePanel: 'images/icon_UI/result_message_panel.webp',
+        popupText: 'Источник: С оригиналом картины И. Е. Репина «Л. Н. Толстой босой» (1901) можно познакомиться в Русском музее (Михайловский дворец, Санкт-Петербург)',
       },
     },
   ],

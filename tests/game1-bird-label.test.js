@@ -9,6 +9,17 @@ globalThis.Phaser = {
 };
 const { GameScene1 } = await import('../games/game1/GameScene1.js');
 
+// Размер из заголовка WebP: VP8X хранит холст, VP8L и VP8 — кадр.
+function webpSize(data) {
+    const chunk = data.toString('ascii', 12, 16);
+    if (chunk === 'VP8X') return { width: 1 + data.readUIntLE(24, 3), height: 1 + data.readUIntLE(27, 3) };
+    if (chunk === 'VP8L') {
+        const bits = data.readUInt32LE(21);
+        return { width: 1 + (bits & 0x3fff), height: 1 + ((bits >>> 14) & 0x3fff) };
+    }
+    return { width: data.readUInt16LE(26) & 0x3fff, height: data.readUInt16LE(28) & 0x3fff };
+}
+
 class DisplayObject extends EventEmitter {
     constructor(x, y) { super(); Object.assign(this, { x, y, visible: true }); }
     setOrigin() { return this; }
@@ -51,10 +62,8 @@ function fixture(t, { coarse = false, audio = true } = {}) {
         add: {
             image(x, y, key) {
                 const image = new DisplayObject(x, y).setTexture(key);
-                if (key === 'images/icon_UI/result_message_panel.png') {
-                    const png = readFileSync(new URL(`../public/${key}`, import.meta.url));
-                    image.width = png.readUInt32BE(16);
-                    image.height = png.readUInt32BE(20);
+                if (key === 'images/icon_UI/result_message_panel.webp') {
+                    Object.assign(image, webpSize(readFileSync(new URL(`../public/${key}`, import.meta.url))));
                 }
                 return image;
             },

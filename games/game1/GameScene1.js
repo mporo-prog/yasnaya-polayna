@@ -16,14 +16,14 @@ const BIRDS = [
         y: 75,
         image: 'Zyablik',
         label: 'Зяблик',
-        voice: 'voice_and_sound/zyablik_2.wav'
+        voice: 'voice_and_sound/zyablik_2.mp3'
     },
     {
         x: 400,
         y: 0,
         image: 'Zaryanka',
         label: 'Зарянка',
-        voice: 'voice_and_sound/zaryanka_2.wav'
+        voice: 'voice_and_sound/zaryanka_2.mp3'
     },
     {
         // Увеличение в 1,3 раза относительно точки опоры между лапками.
@@ -33,7 +33,7 @@ const BIRDS = [
         height: 429,
         image: 'Korostel',
         label: 'Коростель',
-        voice: 'voice_and_sound/korostel_2.wav'
+        voice: 'voice_and_sound/korostel_2.mp3'
     },
     {
         // Увеличение в 1,1 раза относительно точки опоры между лапками.
@@ -43,7 +43,7 @@ const BIRDS = [
         height: 363,
         image: 'Drozd',
         label: 'Дрозд',
-        voice: 'voice_and_sound/drozd_2.wav'
+        voice: 'voice_and_sound/drozd_2.mp3'
     }
 ];
 
@@ -56,7 +56,7 @@ const PAUSE_BUTTON = {
     x: 100,
     y: 90,
     size: 148,
-    texture: 'images/icon_UI/pause_button.png'
+    texture: 'images/icon_UI/pause_button.webp'
 };
 
 const HINT_NEXT_ARROW = {
@@ -64,7 +64,7 @@ const HINT_NEXT_ARROW = {
     x: 1600,
     y: 825,
     size: 150,
-    texture: 'images/icon_UI/next_button.png'
+    texture: 'images/icon_UI/next_button.webp'
 };
 
 const RESULT_MESSAGE_PANEL = {
@@ -73,7 +73,7 @@ const RESULT_MESSAGE_PANEL = {
     y: 430,
     width: 776.03,
     height: 220,
-    texture: 'images/icon_UI/result_message_panel.png'
+    texture: 'images/icon_UI/result_message_panel.webp'
 };
 
 const INSTRUCTION_PANEL = {
@@ -82,7 +82,7 @@ const INSTRUCTION_PANEL = {
     y: 251,
     width: 1300,
     height: 577.04,
-    texture: 'images/icon_UI/text_bg.png'
+    texture: 'images/icon_UI/text_bg.webp'
 };
 
 // Та же плашка и положение в макете, что в GameScene3. Картинка — подложка
@@ -92,7 +92,7 @@ const BIRD_NAME_PANEL = {
     y: 880,
     width: 477,
     height: 136,
-    texture: 'images/icon_UI/result_message_panel.png'
+    texture: 'images/icon_UI/result_message_panel.webp'
 };
 
 const COLOR_BACKGROUND = 0xe5e5e5;
@@ -166,15 +166,15 @@ export class GameScene1 extends Phaser.Scene {
         const imagesPath = `${import.meta.env.BASE_URL}images/game1/`;
         return {
             images: [
-                { key: 'game1-background', url: `${imagesPath}bacground_game1.png` },
+                { key: 'game1-background', url: `${imagesPath}bacground_game1.webp` },
                 { key: PAUSE_BUTTON.texture, url: `${import.meta.env.BASE_URL}${PAUSE_BUTTON.texture}` },
                 { key: HINT_NEXT_ARROW.texture, url: `${import.meta.env.BASE_URL}${HINT_NEXT_ARROW.texture}` },
                 { key: RESULT_MESSAGE_PANEL.texture, url: `${import.meta.env.BASE_URL}${RESULT_MESSAGE_PANEL.texture}` },
                 { key: INSTRUCTION_PANEL.texture, url: `${import.meta.env.BASE_URL}${INSTRUCTION_PANEL.texture}` },
                 { key: BIRD_NAME_PANEL.texture, url: `${import.meta.env.BASE_URL}${BIRD_NAME_PANEL.texture}` },
                 ...BIRDS.flatMap((bird) => [
-                    { key: `${bird.image}_idle`, url: `${imagesPath}${bird.image}_1.png` },
-                    { key: `${bird.image}_sing`, url: `${imagesPath}${bird.image}_2.png` },
+                    { key: `${bird.image}_idle`, url: `${imagesPath}${bird.image}_1.webp` },
+                    { key: `${bird.image}_sing`, url: `${imagesPath}${bird.image}_2.webp` },
                 ]),
             ],
             audio: BIRDS.map((bird) => bird.voice),

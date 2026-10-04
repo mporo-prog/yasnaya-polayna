@@ -34,14 +34,14 @@
     getAssetManifest() {
       return {
         images: [
-          { key: 'menuBackground', url: 'images/backgrounds/menu_screen.png' },
-          { key: 'settingsHeaderBg', url: 'images/icon_UI/result_message_panel.png' },
-          { key: 'settingsPanelBg', url: 'images/icon_UI/text_bg.png' },
-          { key: 'settingsSliderBar', url: 'images/icon_UI/slider_bar.png' },
-          { key: 'settingsSlider', url: 'images/icon_UI/slider.png' },
+          { key: 'menuBackground', url: 'images/backgrounds/menu_screen.webp' },
+          { key: 'settingsHeaderBg', url: 'images/icon_UI/result_message_panel.webp' },
+          { key: 'settingsPanelBg', url: 'images/icon_UI/text_bg.webp' },
+          { key: 'settingsSliderBar', url: 'images/icon_UI/slider_bar.webp' },
+          { key: 'settingsSlider', url: 'images/icon_UI/slider.webp' },
           // «Сохранить» — та же плашка, что у кнопок меню.
-          { key: 'saveButtonBg', url: 'images/icon_UI/main_button.png' },
-          { key: 'settingsBackButton', url: 'images/icon_UI/back_button.png' },
+          { key: 'saveButtonBg', url: 'images/icon_UI/main_button.webp' },
+          { key: 'settingsBackButton', url: 'images/icon_UI/back_button.webp' },
         ],
       };
     }

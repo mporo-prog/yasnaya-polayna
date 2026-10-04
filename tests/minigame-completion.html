@@ -66,7 +66,7 @@
         await click(quote.replyPanelParts.at(-1), quote);
       }
       assert(quote.winShown && overlay(), 'Victory panel appears after the fourth reply');
-      assert(overlay().list[1].texture.key === 'images/icon_UI/finish_stats_panel.png', 'Use the new finish panel');
+      assert(overlay().list[1].texture.key === 'images/icon_UI/finish_stats_panel.webp', 'Use the new finish panel');
       await new Promise(resolve => game.renderer.snapshot(image => {
         image.alt = 'Новая финальная плашка игры 5';
         image.style.width = 'min(960px, 100%)';

@@ -39,12 +39,20 @@
         <progress id="startup-progress" max="100" aria-labelledby="startup-label"></progress>
     </div>
     <div id="app"></div>
+
+    <!-- Показывается только на телефоне/планшете в вертикальной ориентации (стили — в screen.css) -->
+    <div id="rotate-device" role="alert">
+        <div class="rotate-device__phone"></div>
+        <p>Поверни устройство горизонтально</p>
+    </div>
+
     <script src="../../resource/lib/phaser.min.js"></script>
     <script src="../../resource/core/namespace.js"></script>
     <script src="../../resource/systems/StartupScreen.js"></script>
     <script src="../../resource/systems/SaveManager.js"></script>
     <script src="../../resource/systems/GameState.js"></script>
     <script src="../../resource/systems/Layout.js"></script>
+    <script src="../../resource/systems/MobileScreen.js"></script>
     <script type="module" src="./main.js"></script>
 </body>
 </html>

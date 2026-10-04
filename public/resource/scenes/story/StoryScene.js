@@ -25,10 +25,10 @@
     getAssetManifest() {
       return {
         images: [
-          { key: 'dialogTextBg', url: 'images/icon_UI/dialog_text_bg.png' },
-          { key: 'historyModalBg', url: 'images/icon_UI/history_modal_bg.png' },
-          { key: 'closeButton', url: 'images/icon_UI/close_button.png' },
-          { key: 'glossaryPopupBg', url: 'images/icon_UI/text_bg.png' },
+          { key: 'dialogTextBg', url: 'images/icon_UI/dialog_text_bg.webp' },
+          { key: 'historyModalBg', url: 'images/icon_UI/history_modal_bg.webp' },
+          { key: 'closeButton', url: 'images/icon_UI/close_button.webp' },
+          { key: 'glossaryPopupBg', url: 'images/icon_UI/text_bg.webp' },
         ],
       };
     }
@@ -310,8 +310,8 @@
 
     buildNavButtons() {
       // Позиции и размеры — в layoutBottomBar().
-      this.nextBtn = this.makeIconButton(0, 0, 'images/icon_UI/next_button.png', () => this.goNext());
-      this.backBtn = this.makeIconButton(0, 0, 'images/icon_UI/back_button.png', () => this.goBack());
+      this.nextBtn = this.makeIconButton(0, 0, 'images/icon_UI/next_button.webp', () => this.goNext());
+      this.backBtn = this.makeIconButton(0, 0, 'images/icon_UI/back_button.webp', () => this.goBack());
       this.bottomGroup.add([this.nextBtn.bg, this.backBtn.bg]);
     }
 
@@ -326,17 +326,17 @@
       const menuBtnSize = 150;
       const menuBtnLeft = WIDTH * 0.015 + menuBtnSize / 2; // ≈ 104
       const menuBtnTop = HEIGHT * 0.023 + menuBtnSize / 2; // ≈ 100
-      // const menuBtn = this.makeIconButton(menuBtnLeft, menuBtnTop, 'images/icon_UI/pause_button.png', () => this.openPauseMenu(), menuBtnSize);
+      // const menuBtn = this.makeIconButton(menuBtnLeft, menuBtnTop, 'images/icon_UI/pause_button.webp', () => this.openPauseMenu(), menuBtnSize);
       // this.pauseBtn = menuBtn;
       // menuBtn.bg.setDepth(20);
 
-      this.historyBtn = this.makeIconButton(100, 220, 'images/icon_UI/history_button.png', () => this.toggleHistory(), 70);
+      this.historyBtn = this.makeIconButton(100, 220, 'images/icon_UI/history_button.webp', () => this.toggleHistory(), 70);
 //       // Позиции и размеры — в layoutTopButtons().
-      this.menuBtn = this.makeIconButton(0, 0, 'images/icon_UI/pause_button.png', () => this.openPauseMenu());
+      this.menuBtn = this.makeIconButton(0, 0, 'images/icon_UI/pause_button.webp', () => this.openPauseMenu());
       this.layout.pinPauseButton(this, this.menuBtn.bg);
 //       this.menuBtn.bg.setDepth(20);
 
-//       this.historyBtn = this.makeIconButton(0, 0, 'images/icon_UI/history_button.png', () => this.toggleHistory());
+//       this.historyBtn = this.makeIconButton(0, 0, 'images/icon_UI/history_button.webp', () => this.toggleHistory());
       // this.historyBtn.bg.setDepth(20);
     }
 

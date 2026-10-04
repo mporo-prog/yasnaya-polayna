@@ -23,11 +23,11 @@ const OUTRO_SPEAKER = 'РАССКАЗЧИК';
 const OUTRO_TEXT = 'Дневник графа Толстого мог оказаться в любом месте, но свой самый важный последний дневник Лев Николаевич никому не показывал, даже жене, и хранил в сапоге';
 
 // Озвучка рассказчика: правила и реплика про дневник — отдельные файлы.
-const RULES_VOICE = 'voice_and_sound/scene2_gameplay2/gameplay_scene_2_rasskazchik.wav';
-const OUTRO_VOICE = 'voice_and_sound/scene2_gameplay2/gameplay_scene_2_rasskazchik2.wav';
-const WRONG_SOUND = 'voice_and_sound/scene2_gameplay2/GAMEPLAY2_NEW/gameplay2_neverniy_vybor.wav';
+const RULES_VOICE = 'voice_and_sound/scene2_gameplay2/gameplay_scene_2_rasskazchik.mp3';
+const OUTRO_VOICE = 'voice_and_sound/scene2_gameplay2/gameplay_scene_2_rasskazchik2.mp3';
+const WRONG_SOUND = 'voice_and_sound/scene2_gameplay2/GAMEPLAY2_NEW/gameplay2_neverniy_vybor.mp3';
 // Нажатие на предмет на панели.
-const PICK_SOUND = 'voice_and_sound/scene2_gameplay2/GAMEPLAY2_NEW/gameplay3_nazhatie_na_object.wav';
+const PICK_SOUND = 'voice_and_sound/scene2_gameplay2/GAMEPLAY2_NEW/gameplay3_nazhatie_na_object.mp3';
 
 // Предмет-«обманка», который пульсирует в конце игры.
 const DIARY_ID = 'dnevnik';
@@ -105,27 +105,27 @@ export class GameScene2 extends Phaser.Scene {
             images: [
                 {
                     key: 'game2-background',
-                    url: `${imagesPath}background.png`
+                    url: `${imagesPath}background.webp`
                 },
                 ...THINGS.map((thing) => ({
                     key: `game2-${thing.image}`,
-                    url: `${imagesPath}${thing.image}.png`
+                    url: `${imagesPath}${thing.image}.webp`
                 })),
                 {
                     key: 'game2-instruction-panel',
-                    url: `${uiPath}text_bg.png`
+                    url: `${uiPath}text_bg.webp`
                 },
                 {
                     key: 'game2-next',
-                    url: `${uiPath}next_button.png`
+                    url: `${uiPath}next_button.webp`
                 },
                 {
                     key: 'game2-info-panel',
-                    url: `${uiPath}dialog_text_bg.png`
+                    url: `${uiPath}dialog_text_bg.webp`
                 },
                 {
                     key: 'game2-pause',
-                    url: `${uiPath}pause_button.png`
+                    url: `${uiPath}pause_button.webp`
                 }
             ],
 

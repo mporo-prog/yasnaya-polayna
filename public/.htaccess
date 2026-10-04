@@ -2,6 +2,12 @@ AddDefaultCharset UTF-8
 Options -Indexes
 DirectoryIndex index.html
 
+# Older Apache mime.types lack these formats used by the game assets.
+<IfModule mod_mime.c>
+    AddType image/webp .webp
+    AddType video/webm .webm
+</IfModule>
+
 # Compress text assets when the hosting supports Apache gzip filters.
 <IfModule mod_deflate.c>
     <IfModule mod_filter.c>

@@ -210,11 +210,11 @@ test('story 2 screen 12 changes road2 to house after two seconds without restart
   const f = fixture();
   f.start(1, 11);
   const voice = f.story.voiceTrack;
-  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/road2.png');
+  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/road2.webp');
   f.tick(2999);
   assert.equal(f.backgrounds.length, 1);
   f.tick(3000);
-  assert.deepEqual(f.backgrounds, ['images/backgrounds/road2.png', 'images/backgrounds/house.png']);
+  assert.deepEqual(f.backgrounds, ['images/backgrounds/road2.webp', 'images/backgrounds/house.webp']);
   assert.equal(f.story.screenIndex, 11);
   assert.equal(f.savedScreens.length, 1);
   assert.equal(f.story.voiceTrack, voice, 'Changing the background preserves the current audio');
@@ -227,25 +227,25 @@ test('an early click on screen 12 changes the background; the second advances an
   f.start(1, 11);
   f.tick(1500);
   f.story.goNext();
-  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/house.png');
+  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/house.webp');
   assert.equal(f.story.screenIndex, 11);
   f.story.goNext();
   assert.equal(f.story.screenIndex, 12);
   f.tick(4000);
   assert.equal(f.story.screenIndex, 12);
   assert.deepEqual(f.backgrounds, [
-    'images/backgrounds/road2.png', 'images/backgrounds/house.png', 'images/backgrounds/hat.png',
+    'images/backgrounds/road2.webp', 'images/backgrounds/house.webp', 'images/backgrounds/hat.webp',
   ]);
 });
 
 test('screen 12 preserves the full 17-second wind after changing the background', () => {
   const f = fixture();
-  f.buffers.get(f.audio.getUrl('voice_and_sound/scene2_gameplay2/screen_3_scene_2_veter_beg.wav')).duration = 17;
+  f.buffers.get(f.audio.getUrl('voice_and_sound/scene2_gameplay2/screen_3_scene_2_veter_beg.mp3')).duration = 17;
   f.start(1, 11);
   const wind = f.story.voiceTrack;
   f.tick(3000);
   assert.equal(f.story.screenIndex, 11);
-  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/house.png');
+  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/house.webp');
   f.tick(4999);
   assert.equal(f.story.screenIndex, 11);
   f.tick(5000);
@@ -259,7 +259,7 @@ test('screen 12 preserves the full 17-second wind after changing the background'
   f.tick(18000);
   assert.equal(f.story.screenIndex, 12);
   assert.deepEqual(f.savedScreens.at(-1), [1, 12]);
-  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/hat.png');
+  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/hat.webp');
   f.tick(20000);
   assert.equal(f.story.screenIndex, 12, 'The timer must only advance once');
 });
@@ -284,7 +284,7 @@ test('an early background change still waits for the wind after the two-second c
 test('short or unavailable wind does not skip the background hold or block auto-advance', () => {
   for (const missing of [false, true]) {
     const f = fixture();
-    const key = f.audio.getUrl('voice_and_sound/scene2_gameplay2/screen_3_scene_2_veter_beg.wav');
+    const key = f.audio.getUrl('voice_and_sound/scene2_gameplay2/screen_3_scene_2_veter_beg.mp3');
     if (missing) f.buffers.delete(key);
     else f.buffers.get(key).duration = 1;
     f.start(1, 11);
@@ -303,20 +303,20 @@ test('story 5 waits for the voice to end, fades to the pond, then advances after
   const fade = f.story.cameras.main.fadeEffect;
   f.tick(10999);
   assert.equal(fade.isRunning, false);
-  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/cafetary.png');
+  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/cafetary.webp');
   f.advance(10);
   f.tick(11000);
   assert.equal(fade.isRunning, true);
   assert.equal(f.story.input.enabled, false);
   f.tick(11187.5);
   assert.equal(fade.alpha, 0.5);
-  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/cafetary.png');
+  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/cafetary.webp');
   assert.equal(f.story.characterName, 'ПОСЕТИТЕЛЬ');
   assert.equal(f.story.panelBg.alpha, 1);
   assert.equal(f.story.dialogueText.text, f.story.currentLines[1].text);
   f.tick(11375);
   assert.equal(fade.alpha, 1);
-  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/prud.png');
+  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/prud.webp');
   assert.equal(f.story.screenIndex, 1);
   assert.equal(f.story.screenTimer, null);
   assert.equal(f.story.characterName, '');
@@ -353,7 +353,7 @@ test('skipping story 5 must finish the background fade before another click can 
   f.tick(1375);
   f.story.goNext();
   assert.equal(f.story.screenIndex, 1);
-  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/prud.png');
+  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/prud.webp');
   f.tick(1750);
   assert.equal(f.story.characterName, '');
   assert.equal(f.story.panelBg.alpha, 0);
@@ -416,16 +416,16 @@ test('leaving story 5 cancels fade callbacks and restores input in either fade p
 
 test('going back from the pond cancels its timer; unavailable voice still allows the transition', () => {
   const f = fixture();
-  f.buffers.delete(f.audio.getUrl('voice_and_sound/scene5_gameplay5/plot/screen1_scene5_posetitel.wav'));
+  f.buffers.delete(f.audio.getUrl('voice_and_sound/scene5_gameplay5/plot/screen1_scene5_posetitel.mp3'));
   f.start(4, 1);
   f.tick(1016);
   f.tick(1391);
   f.tick(1766);
-  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/prud.png');
+  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/prud.webp');
   f.story.goBack();
   f.tick(10000);
   assert.equal(f.story.screenIndex, 0);
-  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/cafetary.png');
+  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/cafetary.webp');
   assert.equal(f.story.characterName, 'ПАЦАН ');
   assert.equal(f.story.panelBg.alpha, 1);
   assert.equal(f.story.dialogueText.text, f.story.currentLines[0].text);
@@ -457,14 +457,14 @@ test('back cancels the background timer and returning to screen 12 starts again 
   f.story.goBack();
   f.tick(4000);
   assert.equal(f.story.screenIndex, 10);
-  assert.ok(!f.backgrounds.includes('images/backgrounds/house.png'));
+  assert.ok(!f.backgrounds.includes('images/backgrounds/house.webp'));
   f.story.goNext();
   assert.equal(f.story.screenIndex, 11);
-  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/road2.png');
+  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/road2.webp');
   f.tick(5999);
-  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/road2.png');
+  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/road2.webp');
   f.tick(6000);
-  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/house.png');
+  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/house.webp');
 });
 
 test('leaving the scene cancels both kinds of screen timer', () => {
@@ -540,7 +540,7 @@ test('portrait video, voice and dialogue start together when the first frame is 
   const video = f.story.portraitVideo;
   assert.equal(video.loop, false);
   assert.equal(video.noAudio, true);
-  assert.equal(f.controller.current.path, 'music/music_menu_2.wav');
+  assert.equal(f.controller.current.path, 'music/music_menu_2.mp3');
   assert.equal(f.controller.current.source.loop, true);
   assert.equal(f.sources.length, 1, 'Only background music starts before the video is ready');
   assert.equal(f.story.bottomGroup.visible, false);
@@ -552,7 +552,7 @@ test('portrait video, voice and dialogue start together when the first frame is 
   f.tick(14016);
   assert.equal(f.story.portraitPhase, 'dialogue');
   assert.equal(f.story.bottomGroup.visible, true);
-  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/portrait-wallpaper.png');
+  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/portrait-wallpaper.webp');
   assert.equal(f.story.portraitFrame.alpha, 0);
   assert.equal(f.story.portraitArtwork.x, 1920 * 0.45);
   assert.equal(f.story.portraitArtwork.y, 1080 * 0.065);
@@ -774,13 +774,13 @@ test('portrait waits until the minigame fade ends before playing', async () => {
 
 test('video failure falls back to the existing painting and a missing voice remains readable', () => {
   const f = fixture();
-  f.buffers.delete(f.audio.getUrl('voice_and_sound/screen6_gameplay6/screen1_scene6_tolstoy.wav'));
+  f.buffers.delete(f.audio.getUrl('voice_and_sound/screen6_gameplay6/screen1_scene6_tolstoy.mp3'));
   f.start(5);
   f.story.portraitVideo.emit('error');
   f.tick(1016);
   assert.equal(f.story.portraitPhase, 'dialogue');
   assert.equal(f.story.portraitVideo.visible, false);
-  assert.equal(f.story.portraitArtwork.list[0].textureKey, 'images/backgrounds/tolstoy.png');
+  assert.equal(f.story.portraitArtwork.list[0].textureKey, 'images/backgrounds/tolstoy.webp');
   assert.equal(f.story.portraitArtwork.list[0].frame, 'portrait');
   assert.equal(f.story.dialogueRevealedText.text, f.story.currentLines[0].text);
   f.tick(20000);
@@ -969,7 +969,7 @@ test('a portrait video that never produces a frame falls back and permits comple
   assert.equal(f.story.portraitPhase, 'loading');
   f.tick(16000);
   assert.equal(f.story.portraitPhase, 'dialogue');
-  assert.equal(f.story.portraitArtwork.list[0].textureKey, 'images/backgrounds/tolstoy.png');
+  assert.equal(f.story.portraitArtwork.list[0].textureKey, 'images/backgrounds/tolstoy.webp');
   assert.equal(video.playing, false);
   assert.equal(video.visible, false);
   video.emit('created'); // A late video callback must not replace the fallback.

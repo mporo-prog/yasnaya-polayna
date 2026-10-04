@@ -43,7 +43,7 @@
 
   // Общие звуки интерфейса. SceneAssets загружает их вместе с аудио любой сцены.
   const UI_SOUNDS = Object.freeze({
-    click: 'ui/interface_click.wav',
+    click: 'ui/interface_click.mp3',
     win: 'ui/ura_pobeda.mp3',
   });
 

@@ -95,7 +95,7 @@ function narratedIntroFixture(t, { blocked = false, sounds = ['voice_and_sound/l
     allowResume() { resumeAllowed = true; } };
 }
 
-test('first instruction starts narration immediately and waits for its actual end before starting birds', (t) => {
+test('first instruction starts narration immediately and closes only on a click, not by timer or narration end', (t) => {
   const f = narratedIntroFixture(t);
   const { scene, audio, advance } = f;
   assert.equal(f.resumeCalls, 1, 'Unlock audio on the first instruction, not on startRound');
@@ -103,17 +103,14 @@ test('first instruction starts narration immediately and waits for its actual en
   assert.equal(audio.sources[0].startAt, 0);
   assert.equal(audio.context.state, 'running');
 
-  scene.introOverlay.onClick();
-  advance(4000);
-  assert.equal(scene.introOverlay.visible, true, 'Clicks and the old four-second timeout cannot skip narration');
+  advance(30000);
+  audio.advance(10);
+  scene.update();
+  assert.equal(scene.introOverlay.visible, true, 'Neither a timer nor the end of narration closes the rules');
   assert.equal(scene.phase, 'intro');
   assert.ok(scene.birds.every((bird) => bird.voice.plays === 0));
 
-  audio.advance(9.99);
-  scene.update();
-  assert.equal(scene.introOverlay.visible, true);
-  audio.advance(10);
-  scene.update();
+  scene.introOverlay.onClick();
   assert.equal(scene.introOverlay.visible, false);
   assert.equal(scene.phase, 'demo');
   advance(699);
@@ -130,7 +127,17 @@ test('first instruction starts narration immediately and waits for its actual en
   assert.equal(audio.sources.length, 1, 'Later instruction displays never replay narration');
 });
 
-test('autoplay-blocked narration keeps the first instruction open until a click unlocks audio and it finishes', (t) => {
+test('the "next" click during narration closes the rules at once and stops the narrator', (t) => {
+  const { scene, audio } = narratedIntroFixture(t);
+  audio.advance(2);
+  assert.equal(audio.controller.effects.size, 1, 'Narration is playing');
+  scene.introOverlay.onClick();
+  assert.equal(scene.introOverlay.visible, false);
+  assert.equal(scene.phase, 'demo');
+  assert.equal(audio.controller.effects.size, 0, 'Narration is stopped');
+});
+
+test('autoplay-blocked narration keeps the first instruction open; a click unlocks audio and closes it', (t) => {
   const f = narratedIntroFixture(t, { blocked: true });
   const { scene, audio, advance } = f;
   advance(30000);
@@ -141,22 +148,7 @@ test('autoplay-blocked narration keeps the first instruction open until a click 
   f.allowResume();
   scene.introOverlay.onClick();
   assert.equal(audio.context.state, 'running');
-  assert.equal(scene.introOverlay.visible, true, 'The unlocking click cannot also dismiss the instruction');
-  assert.equal(audio.sources.length, 1);
-  audio.advance(10);
-  scene.update();
-  assert.equal(scene.phase, 'demo');
-});
-
-test('finishing narration while paused defers the instruction transition until the scene resumes', (t) => {
-  const { scene, audio, advance } = narratedIntroFixture(t);
-  advance(4000);
-  scene.paused = true;
-  audio.advance(10);
-  scene.update();
-  assert.equal(scene.introOverlay.visible, true);
-  scene.paused = false;
-  scene.update();
+  assert.equal(scene.introOverlay.visible, false);
   assert.equal(scene.phase, 'demo');
 });
 
@@ -164,6 +156,8 @@ test('missing narration does not trap the player on the first instruction', (t) 
   const { scene, audio, advance } = narratedIntroFixture(t, { sounds: ['voice_and_sound/missing.mp3'] });
   assert.equal(audio.warnings.length, 1);
   advance(4000);
+  assert.equal(scene.introOverlay.visible, true, 'The rules wait for a click');
+  scene.introOverlay.onClick();
   assert.equal(scene.introOverlay.visible, false);
   assert.equal(scene.phase, 'demo');
 });

@@ -2,9 +2,12 @@
 // PNG отображаются в исходном размере; предмет расположен по центру подложки.
 // tablePosition — левый верхний угол PNG предмета после перемещения на поднос.
 // panel/image: null — координаты получены, ждём соответствующие PNG.
+// clickPanel — подложка неправильного предмета после нажатия.
+// voice — озвучка названия при нажатии (относительно resource/sound).
 export const ITEMS = [
     {
         id: 'egg',
+        voice: 'voice_and_sound/scene3_gameplay3/GAMEPLAY3_NEW/gameplay3_egg.wav',
         label: 'Яйцо всмятку',
         panel: 'egg_panel',
         hoverPanel: 'egg_panel_hover',
@@ -16,9 +19,11 @@ export const ITEMS = [
     },
     {
         id: 'sandwich',
+        voice: 'voice_and_sound/scene3_gameplay3/GAMEPLAY3_NEW/gameplay3_buterbrod.wav',
         label: 'Бутерброд с бужениной',
-        panel: 'sandwich_panel',
+        panel: 'wide_panel',
         hoverPanel: 'wide_panel_hover',
+        clickPanel: 'wide_panel_click',
         image: 'sandwich',
         xFrac: 19.16667 / 100,
         yFrac: 13.05556 / 100,
@@ -26,9 +31,11 @@ export const ITEMS = [
     },
     {
         id: 'macaroni-cheese',
+        voice: 'voice_and_sound/scene3_gameplay3/GAMEPLAY3_NEW/gameplay3_makarony.wav',
         label: 'Макароны с сыром',
-        panel: 'macaroni_cheese_panel',
+        panel: 'wide_panel',
         hoverPanel: 'wide_panel_hover',
+        clickPanel: 'wide_panel_click',
         image: 'macaroni_cheese',
         xFrac: 50.83333 / 100,
         yFrac: 13.05556 / 100,
@@ -36,8 +43,9 @@ export const ITEMS = [
     },
     {
         id: 'porridge',
+        voice: 'voice_and_sound/scene3_gameplay3/GAMEPLAY3_NEW/gameplay3_grechka5!.wav',
         label: 'Гречневая каша',
-        panel: 'porridge_panel',
+        panel: 'wide_panel',
         hoverPanel: 'wide_panel_hover',
         image: 'porridge',
         xFrac: 31.66667 / 100,
@@ -47,9 +55,11 @@ export const ITEMS = [
     },
     {
         id: 'sparkling-water',
+        voice: 'voice_and_sound/scene3_gameplay3/GAMEPLAY3_NEW/gameplay3_mineral_voda.wav',
         label: 'Минеральная вода',
         panel: 'sparkling_water_panel',
         hoverPanel: 'sparkling_water_panel_hover',
+        clickPanel: 'sparkling_water_panel_click',
         image: 'sparkling_water',
         xFrac: 84.6875 / 100,
         yFrac: 9.074074 / 100,
@@ -57,6 +67,7 @@ export const ITEMS = [
     },
     {
         id: 'cup',
+        voice: 'voice_and_sound/scene3_gameplay3/GAMEPLAY3_NEW/gameplay3_chai.wav',
         label: 'Чёрный чай',
         panel: 'cup_panel',
         hoverPanel: 'cup_panel_hover',

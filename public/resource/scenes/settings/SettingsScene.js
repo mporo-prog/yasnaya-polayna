@@ -35,11 +35,12 @@
       return {
         images: [
           { key: 'menuBackground', url: 'images/backgrounds/menu_screen.png' },
-          { key: 'settingsHeaderBg', url: 'images/icon_UI/settings_header_bg.png' },
-          { key: 'settingsPanelBg', url: 'images/icon_UI/settings_text_bg.png' },
+          { key: 'settingsHeaderBg', url: 'images/icon_UI/result_message_panel.png' },
+          { key: 'settingsPanelBg', url: 'images/icon_UI/text_bg.png' },
           { key: 'settingsSliderBar', url: 'images/icon_UI/slider_bar.png' },
           { key: 'settingsSlider', url: 'images/icon_UI/slider.png' },
-          { key: 'saveButtonBg', url: 'images/icon_UI/save_button.png' },
+          // «Сохранить» — та же плашка, что у кнопок меню.
+          { key: 'saveButtonBg', url: 'images/icon_UI/main_button.png' },
           { key: 'settingsBackButton', url: 'images/icon_UI/back_button.png' },
         ],
       };
@@ -66,7 +67,10 @@
       this.layout.fill(this, this.dim);
 
       this.backButton = this.add.image(0, 0, 'settingsBackButton').setInteractive({ useHandCursor: true });
-      this.backButton.on('pointerup', () => this.goBack());
+      this.backButton.on('pointerup', () => {
+        this.audio.click?.(this);
+        this.goBack();
+      });
 
       this.headerBg = this.add.image(0, 0, 'settingsHeaderBg').setOrigin(0, 0);
       this.headerText = this.add.text(0, 0, this.settingsTitle || 'НАСТРОЙКИ', {
@@ -86,10 +90,22 @@
         this.saveLabel = this.add.text(0, 0, 'Сохранить', {
           fontFamily: 'Philosopher', fontSize: '60px', color: BUTTON_TEXT_COLOR,
         }).setOrigin(0.5);
-        this.saveButton.on('pointerup', () => this.save());
+        this.saveButton.on('pointerup', () => {
+          this.audio.click?.(this);
+          this.save();
+        });
       }
 
-      this.layout.onLayout(this, (visible, ui) => this.applyLayout(ui));
+      this.layout.onLayout(this, (visible, ui) => {
+        this.lastUi = ui;
+        this.applyLayout(ui);
+      });
+      // Ширина подписей на телефоне измеряется по шрифту — пересчитываем
+      // раскладку, когда веб-шрифты догрузятся.
+      const fonts = globalThis.document?.fonts;
+      const relayout = () => { if (this.lastUi) this.applyLayout(this.lastUi); };
+      fonts?.addEventListener('loadingdone', relayout);
+      this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => fonts?.removeEventListener('loadingdone', relayout));
 
       this.onKeyDown = (event) => {
         if (event.ctrlKey || event.metaKey || event.altKey) return;
@@ -120,21 +136,43 @@
       });
     }
 
-    /** Мобильный макет: x — доли ширины экрана, y — пиксели макета 1080. */
+    /**
+     * Мобильный макет: x — доли ширины экрана, y — пиксели макета 1080.
+     * Подписи — в одну строку, с одинаковым отступом от левой грани плашки;
+     * подпись, дорожка и процент стоят на одной линии по центру строки,
+     * строки равномерно распределены по высоте плашки.
+     */
     compactLayout(ui) {
       const x = (px) => ui.x + ui.width * px / 917;
       const w = (px) => ui.width * px / 917;
+      const panel = { x: x(110), y: 52, width: w(695), height: 800 };
+      const labelX = panel.x + panel.width * 0.08;
+      const valueRight = panel.x + panel.width * 0.93;
+      const valueWidth = 150;
+      const gap = 60;
+      const minTrack = panel.width * 0.25;
+      // Самая длинная подпись в одну строку; если не хватает места под
+      // дорожку — шрифт подписей и процентов немного уменьшается.
+      const widestLabel = (size) => Math.max(...this.sliders.map(({ label }) =>
+        label.setFontSize(size).setFontStyle('600').setWordWrapWidth(null).width));
+      let fontSize = 58;
+      while (fontSize > 40 && labelX + widestLabel(fontSize) + gap * 2 + minTrack + valueWidth > valueRight) {
+        fontSize -= 2;
+      }
+      const trackX = labelX + widestLabel(fontSize) + gap;
+      const trackRight = valueRight - valueWidth - gap;
       return {
         back: { x: x(50), y: 197, size: 157 },
         header: null,
-        panel: { x: x(110), y: 52, width: w(695), height: 800 },
-        rows: [283, 459, 642],
-        label: { x: x(150), fontSize: 58, fontStyle: '600', wrap: w(150) },
-        track: { x: x(420), width: w(265), height: 16, dy: -29 },
-        thumb: { width: 52, height: 73, dy: -52 },
-        value: { right: x(755), fontSize: 58, dy: -29 },
+        panel,
+        rows: [0.28, 0.5, 0.72].map((f) => panel.y + panel.height * f),
+        label: { x: labelX, fontSize, fontStyle: '600', wrap: 0 },
+        track: { x: trackX, width: trackRight - trackX, height: 16, dy: 0 },
+        // Ползунок относительно дорожки — как в исходном макете (на 23 выше).
+        thumb: { width: 52, height: 73, dy: -23 },
+        value: { right: valueRight, fontSize, dy: 0 },
         save: { x: x(568), y: 891, width: w(232), height: 157, fontSize: 89 },
-        status: { x: x(110), y: 905, fontSize: 40, wrap: w(440) },
+        status: { x: x(110), y: 900, fontSize: 48, wrap: w(440) },
         dim: 0,
       };
     }
@@ -148,7 +186,9 @@
       this.rowLayout = L;
 
       this.dim.setAlpha(L.dim);
-      this.backButton.setPosition(backX, backY).setDisplaySize(L.back.size, L.back.size);
+      // Размер «назад» — общий для всех сцен (Layout.UI_BUTTONS).
+      const backSize = this.layout.buttonSize(this, 'back');
+      this.backButton.setPosition(backX, backY).setDisplaySize(backSize, backSize);
 
       const header = L.header;
       this.headerBg.setVisible(Boolean(header));
@@ -239,8 +279,12 @@
       if (this.draft[slider.category] === next) return;
       this.draft[slider.category] = next;
       this.renderValue(slider);
-      this.statusText.setText('');
-      if (this.autoSave) this.save();
+      if (this.autoSave) {
+        this.save();
+      } else {
+        // Громкость меняется только после сохранения — подсказываем это.
+        this.statusText.setText('Чтобы применить изменения, нажмите «Сохранить»');
+      }
     }
 
     renderValue(slider) {
@@ -253,7 +297,7 @@
 
     save() {
       const persisted = this.audio.saveSettings(this.draft);
-      this.statusText.setText(persisted ? 'Настройки сохранены' : 'Настройки применены. Браузер не разрешил сохранить их после закрытия игры.');
+      this.statusText.setText(persisted ? 'Настройки сохранены' : 'Настройки применены. Браузер не разрешил сохранить их после закрытия игры');
     }
 
     goBack() {

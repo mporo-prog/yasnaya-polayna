@@ -93,8 +93,11 @@
       };
       source.onended = release;
       collection.add(track);
+      // duration — проиграть только начало файла (в секундах).
+      const duration = Number.isFinite(config.duration) && config.duration > 0 ? config.duration : null;
       try {
-        source.start(startAt);
+        if (duration && !source.loop) source.start(startAt, 0, duration);
+        else source.start(startAt);
       } catch (error) {
         release();
         throw error;

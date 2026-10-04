@@ -2,8 +2,9 @@ import { PAUSE_BUTTON } from '../constants/Game2Constants.js';
 
 /**
  * Расставляет предметы по их местам справа от карты (slot в макете
- * 1920×1080 — там же, где фон, поэтому от размера экрана не зависит)
- * и прижимает кнопку паузы к левому верхнему углу видимой области.
+ * 1920×1080 — там же, где фон; на телефоне места и размер задаёт
+ * scene.itemPlacement) и прижимает кнопку паузы к левому верхнему углу
+ * видимой области.
  */
 export class Game2PanelLayout {
 
@@ -22,12 +23,22 @@ export class Game2PanelLayout {
     }
 
     update(ui) {
-        this.things.forEach((thing) => {
-            thing.startX = thing.slot.x;
-            thing.startY = thing.slot.y;
+        // На телефоне сцена задаёт свои места и размер иконок (крупнее);
+        // иначе — места из макета (slot) и прежний размер.
+        const placement = this.scene.itemPlacement?.(ui) ?? null;
+
+        this.things.forEach((thing, index) => {
+            const slot = placement ? placement.slots[index] : thing.slot;
+            thing.startX = slot.x;
+            thing.startY = slot.y;
 
             if (!thing.sprite || !thing.sprite.scene || thing.isLocked()) {
                 return;
+            }
+
+            const size = placement ? placement.size : thing.size;
+            if (size && thing.sprite.setDisplaySize) {
+                thing.sprite.setDisplaySize(size, size);
             }
 
             // Resize во время перетаскивания не вырывает предмет из-под указателя.

@@ -32,7 +32,7 @@ export class SoundTestScene extends window.VN.scenes.SettingsScene {
     this.loadingText.destroy();
     super.create();
     this.testSounds = [];
-    this.add.text(313, 835, 'Громкость сохраняется автоматически.\nПовторное нажатие на кнопку останавливает звук.', {
+    this.add.text(313, 835, 'Громкость сохраняется автоматически\nПовторное нажатие на кнопку останавливает звук', {
       fontSize: '28px', color: '#FFF1DE', lineSpacing: 8, stroke: '#3f2f22', strokeThickness: 6,
     });
 
@@ -76,7 +76,7 @@ export class SoundTestScene extends window.VN.scenes.SettingsScene {
     button.setInteractive({ useHandCursor: true });
     button.on('pointerup', () => {
       if (sound.isPlaying || sound.isPaused) sound.stop();
-      else if (!sound.play()) this.statusText.setText('Не удалось запустить звук. Попробуй нажать ещё раз.');
+      else if (!sound.play()) this.statusText.setText('Не удалось запустить звук. Попробуй нажать ещё раз');
     });
   }
 

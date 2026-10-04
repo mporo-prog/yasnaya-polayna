@@ -9,32 +9,26 @@
     dialog: 'dialogTextBg', // тот же ключ и файл, что в StoryScene
     next: 'images/icon_UI/next_button.png',
     pause: 'images/icon_UI/pause_button.png',
-    instruction: 'images/icon_UI/instruction_panel.png',
+    instruction: 'images/icon_UI/text_bg.png',
+    finish: 'images/icon_UI/finish_stats_panel.png',
   };
 
   // Плашка с правилами в начале — как в остальных мини-играх (игра 1).
-  const INTRO_TEXT = 'Отгадайте, ребятки, пропущенные слова.';
+  const INTRO_TEXT = 'Отгадай пропущенные слова';
   // Экран победы: небольшой заголовок и интересный факт.
   const WIN_TITLE = 'Игра пройдена!';
-  const WIN_FACT = 'Река Воронка, ранее именовавшаяся Вороньей, была любимым местом купания Толстого. Ведущая к ней дорога так и называлась — «Купальной».';
+  const WIN_FACT = '';
   const INSTRUCTION_PANEL = { x: 310, y: 251, width: 1300, height: 577.04 };
   const INTRO_NEXT_ARROW = { x: 1600, y: 825, size: 150 };
     // Плашка экрана правил и финального экрана — тот же файл и тот же
-    // размер, что в GameScene1-3 (public/images/icon_UI/instruction_panel.png).
-    // instructionPanel: 'images/icon_UI/instruction_panel.png',
+    // размер, что в GameScene1-3 (public/images/icon_UI/text_bg.png).
+    // instructionPanel: 'images/icon_UI/text_bg.png',
 
-  // Короткие звуки-реакции на ответ (папка ui/ — как остальные интерфейсные
-  // звуки, громкость общая с настройками «Громкость звуков»). Файлов пока
-  // нет — фоновая музыка сцены задана в data/sceneAudio.js, а эти два нужно
-  // положить в public/resource/sound/ui/ под именами ниже (или поменять
-  // пути тут), когда они появятся — код уже готов их проиграть.
+  // Короткие звуки-реакции на ответ. Фоновая музыка и озвучка правил
+  // заданы в data/sceneAudio.js (QuoteMinigameScene).
   const SND = {
-    correct: 'ui/quote_answer_correct.mp3',
-    wrong: 'ui/quote_answer_wrong.mp3',
-    // Озвучка экрана правил — как gameplay_scene_2_rasskazchik_all.wav
-    // в GameScene2: пока рассказчик озвучивает правила, экран не даёт
-    // играть и закрывается сам (см. showRulesScreen). Файла тоже пока нет.
-    rules: 'voice_and_sound/quote_game_rules.mp3',
+    correct: 'voice_and_sound/scene5_gameplay5/gameplay/gameplay5_vernyi_vybor.wav',
+    wrong: 'voice_and_sound/scene5_gameplay5/gameplay/gameplay5_nevernyi_vybor.wav',
   };
 
   // Панель правил/финала — тот же размер, что в GameScene1-3.
@@ -62,17 +56,16 @@
    * data/minigames/quote/quoteData.js, внешний вид —
    * data/minigames/quote/quoteStyle.js.
    *
-   * Раунд: цитата с пустой рамкой и три плашки-варианта. Неправильный
+   * Раунд: цитата с подчёркиваниями и три плашки-варианта. Неправильный
    * вариант закрывается красной накладкой. После правильного цитата
    * собирается целиком, варианты исчезают, снизу появляется диалоговая
    * плашка героя (как в сюжетной сцене) со своей репликой; стрелка на
    * плашке ведёт к следующему раунду, после последнего — дальше по сюжету.
    *
    * У раунда есть mode:
-   *   'prefix' — рамка-пропуск сверху, известный текст (prompt) под ней;
-   *   'suffix' — известный текст (prompt) сверху, рамка-пропуск под ним;
-   *   'middle' — рамка-пропуск ПОСЕРЕДИНЕ: текст до неё (prefix) сверху,
-   *              текст после (suffix) снизу — три строки друг под другом.
+   *   'prefix' — пропуск перед известным текстом (prompt);
+   *   'suffix' — пропуск после известного текста (prompt);
+   *   'middle' — пропуск между prefix и suffix внутри общего текста.
    */
   class QuoteMinigameScene extends Phaser.Scene {
     constructor() {
@@ -84,7 +77,7 @@
     getAssetManifest() {
       return {
         images: [
-          { key: IMG.background, url: 'images/backgrounds/game5.png' },
+          { key: IMG.background, url: 'images/backgrounds/withoutTolstoy.png' },
           // ВАЖНО: путь без "public/" (как и у остальных ассетов — Vite
           // сам отдаёт содержимое public/ с корня сайта, "public/" в самом
           // пути даёт 404). А "й" здесь — специально через ̆
@@ -93,11 +86,13 @@
           // git/файловая система), и просто набранная "й" (NFC, слитная)
           // с этим именем побайтово не совпадает — картинка не находится.
           { key: IMG.hero, url: 'images/hero/Толсто_1.png'},
-          { key: IMG.plazka, url: 'images/icon_UI/rectangle_game5.png' },
+          // Варианты ответа — на той же плашке, что кнопки меню.
+          { key: IMG.plazka, url: 'images/icon_UI/main_button.png' },
           { key: IMG.dialog, url: 'images/icon_UI/dialog_text_bg.png' },
           { key: IMG.next, url: IMG.next },
           { key: IMG.pause, url: IMG.pause },
           { key: IMG.instruction, url: IMG.instruction },
+          { key: IMG.finish, url: IMG.finish },
         ],
       };
     }
@@ -114,7 +109,8 @@
       this.roundSolved = false;
       this.gameFinished = false;
       this.winShown = false;
-      this.quoteParts = [];
+      this.quoteImage = null;
+      this.quoteTexture = null;
       this.answerButtons = null;
 
       // Три состояния, как в GameScene2: rules → game → win.
@@ -127,17 +123,14 @@
 
     preload() {
       window.VN.systems.SceneAssets.preload(this);
-      // Фоновую музыку из data/sceneAudio.js уже загружает SceneAssets, а
-      // звуки правильного/неправильного ответа и озвучка правил —
-      // событийные, не «фоновые» (не привязаны к входу в сцену/экран),
-      // поэтому грузим их отдельно.
+      // Музыку и озвучку правил из data/sceneAudio.js уже загружает SceneAssets,
+      // а звуки правильного/неправильного ответа — событийные, грузим их отдельно.
       window.VN.systems.AudioManager.load(this, SND.correct);
       window.VN.systems.AudioManager.load(this, SND.wrong);
-      window.VN.systems.AudioManager.load(this, SND.rules);
     }
 
     create() {
-      window.VN.systems.SceneAudio.enter(this);
+      this.sceneAudio = window.VN.systems.SceneAudio.enter(this);
       this.layout = window.VN.systems.Layout;
 
       // Под фоном — сплошная подложка на весь экран, включая поля (холст
@@ -158,8 +151,22 @@
 
       this.buildPauseButton();
       this.startRound(this.currentRoundIndex);
-      // Правила игры поверх первого раунда.
-      this.showPanelOverlay(null, INTRO_TEXT);
+      // Canvas-текстуру нужно пересчитать, если веб-шрифт пришёл позже сцены.
+      const refreshQuote = () => {
+        this.buildQuote();
+        this.positionAnswerButtons();
+      };
+      document.fonts?.addEventListener('loadingdone', refreshQuote);
+      this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+        document.fonts?.removeEventListener('loadingdone', refreshQuote);
+        this.clearQuote();
+      });
+      // Правила игры поверх первого раунда; «далее» обрывает озвучку рассказчика.
+      this.showPanelOverlay(null, INTRO_TEXT, () => {
+        this.phase = 'game';
+        this.sceneAudio?.stopSounds?.();
+      });
+      window.VN.systems.SceneAssets.prefetchNext(this);
     }
 
       // Сначала создаём оба overlay (правила/финал) — как в GameScene2 —
@@ -202,7 +209,7 @@
           fontSize: '36px',
           color: '#1B1A19',
           align: 'center',
-          lineSpacing: 12,
+          lineSpacing: 4,
           wordWrap: { width: 1100 },
         })
         .setOrigin(0.5);
@@ -319,18 +326,21 @@
      * и стрелка «далее» — как в остальных мини-играх. Закрывается нажатием
      * в любом месте экрана, после чего вызывается onClose.
      */
-    showPanelOverlay(title, text, onClose) {
+    showPanelOverlay(title, text, onClose, texture = IMG.instruction) {
       const dim = this.add.rectangle(0, 0, WIDTH, HEIGHT, 0x000000, 0.6)
         .setOrigin(0)
         .setInteractive({ useHandCursor: true });
       this.layout.fill(this, dim);
 
-      const p = INSTRUCTION_PANEL;
+      const isFinish = texture === IMG.finish;
+      // Сохраняем пропорции новой плашки (855 × 328), заголовок — по центру.
+      const height = isFinish ? INSTRUCTION_PANEL.width * 328 / 855 : INSTRUCTION_PANEL.height;
+      const p = { ...INSTRUCTION_PANEL, y: (HEIGHT - height) / 2, height };
       const centerX = p.x + p.width / 2;
-      const panel = this.add.image(p.x, p.y, IMG.instruction).setOrigin(0).setDisplaySize(p.width, p.height);
+      const panel = this.add.image(p.x, p.y, texture).setOrigin(0).setDisplaySize(p.width, p.height);
       const parts = [dim, panel];
       if (title) {
-        parts.push(this.add.text(centerX, p.y + 120, title, {
+        parts.push(this.add.text(centerX, p.y + (text ? 120 : p.height / 2), title, {
           fontFamily: 'Philosopher',
           fontSize: '48px',
           color: '#6E6056',
@@ -342,7 +352,7 @@
           fontSize: '40px',
           color: '#1B1A19',
           align: 'center',
-          lineSpacing: 10,
+          lineSpacing: 2,
           wordWrap: { width: p.width - 200 },
         }).setOrigin(0.5));
       } else {
@@ -354,16 +364,24 @@
           wordWrap: { width: p.width - 160 },
         }).setOrigin(0.5));
       }
-      // Стрелка только обозначает переход: нажатие принимает вся подложка.
+      // Нажатие принимает вся подложка и сама стрелка «далее».
       const a = INTRO_NEXT_ARROW;
-      parts.push(this.add.image(a.x, a.y, IMG.next).setOrigin(0).setDisplaySize(a.size, a.size));
+      const arrow = this.add.image(a.x, a.y, IMG.next).setOrigin(0).setInteractive({ useHandCursor: true });
+      parts.push(arrow);
+      this.layout.onLayout(this, (visible) => this.layout.placeNextArrow(this, arrow, visible));
 
       // Под паузой (depth 20), но над раундом и диалоговой плашкой.
       const overlay = this.add.container(0, 0, parts).setDepth(15);
-      dim.once('pointerup', () => {
+      let closed = false;
+      const close = () => {
+        if (closed) return;
+        closed = true;
+        window.VN?.systems.AudioManager?.click?.(this);
         overlay.destroy();
         if (onClose) onClose();
-      });
+      };
+      dim.on('pointerup', close);
+      arrow.on('pointerup', close);
     }
 
     // ---- статичные части экрана ------------------------------------------
@@ -377,62 +395,63 @@
     buildPauseButton() {
       const button = this.makeIconButton(105, 100, IMG.pause, () => this.openPauseMenu(), 150);
       button.setDepth(20);
-      // Левый верхний угол экрана с учётом выреза телефона — как в StoryScene.
-      this.layout.pin(this, button, { left: 105, top: 100 });
+      // Размер и левый верхний угол (с учётом выреза) — общие для всех сцен.
+      this.layout.pinPauseButton(this, button);
     }
 
     /**
-     * Диалоговая плашка после правильного ответа — та же картинка и тот же
-     * макет, что в сюжетной сцене: имя слева, вертикальная черта (часть
-     * картинки), реплика справа, стрелка «далее» на правом краю.
+     * Диалоговая плашка после правильного ответа — та же картинка, те же
+     * размеры, шрифты и места имени, реплики и стрелки «далее», что в
+     * сюжетной сцене (общая раскладка Layout.dialogueLayout).
      * Строится один раз, между раундами меняется только текст.
      */
     buildReplyPanel() {
-      const style = this.style;
-      const tex = this.textures.get(IMG.dialog).getSourceImage();
-      const panelWidth = tex.width;
-      const panelHeight = tex.height;
-      const panelLeft = WIDTH / 2 - panelWidth / 2;
-      const panelY = HEIGHT - panelHeight - style.panelBottomMargin;
-      const panelCenterY = panelY + panelHeight / 2;
-      // Вертикальная черта нарисована в картинке на x≈437 из 1589.
-      const dividerX = panelLeft + panelWidth * (437 / 1589);
-
-      const panelBg = this.add.image(WIDTH / 2, panelY, IMG.dialog).setOrigin(0.5, 0);
-
-      this.replyNameText = this.add
-        .text(panelLeft + 95, panelCenterY, '', {
-          fontFamily: 'Philosopher',
-          fontStyle: 'bold',
-          fontSize: style.nameFontSize + 'px',
-          color: style.textColor,
-          lineSpacing: 4,
-          wordWrap: { width: dividerX - panelLeft - 130 },
-        })
-        .setOrigin(0, 0.5);
-
-      const textX = dividerX + 68;
-      this.replyBodyText = this.add
-        .text(textX, panelCenterY, '', {
-          fontFamily: 'Ysabeau',
-          fontSize: style.replyFontSize + 'px',
-          color: '#1B1A19',
-          lineSpacing: 12,
-          wordWrap: { width: panelLeft + panelWidth - textX - 150 },
-        })
-        .setOrigin(0, 0.5);
-
-      const nextBtn = this.makeIconButton(panelLeft + panelWidth - 28, panelCenterY, IMG.next, () => this.onContinueClicked());
+      const panelBg = this.add.image(0, 0, IMG.dialog).setOrigin(0, 0);
+      this.replyNameText = this.add.text(0, 0, '', {
+        fontFamily: 'Philosopher',
+        fontSize: '40px',
+        color: this.style.textColor,
+        align: 'center',
+      }).setOrigin(0.5, 0);
+      this.replyBodyText = this.add.text(0, 0, '', {
+        fontFamily: 'Ysabeau',
+        fontSize: '32px',
+        color: '#1B1A19',
+        align: 'left',
+      }).setOrigin(0, 0);
+      const nextBtn = this.makeIconButton(0, 0, IMG.next, () => this.onContinueClicked());
 
       this.replyPanelParts = [panelBg, this.replyNameText, this.replyBodyText, nextBtn];
       this.bottomGroup.add(this.replyPanelParts);
+      this.layout.onLayout(this, (visible, ui) => {
+        const L = this.layout.dialogueLayout(this, ui);
+        this.replyLayout = L;
+        panelBg.setPosition(L.panel.x, L.panel.y).setDisplaySize(L.panel.width, L.panel.height);
+        this.replyNameText.setPosition(L.name.x, L.name.y).setWordWrapWidth(L.name.wrap);
+        this.replyBodyText
+          .setPosition(L.text.x, L.text.y)
+          .setLineSpacing(L.text.lineSpacing)
+          .setWordWrapWidth(L.text.wrap);
+        nextBtn.setPosition(L.next.x, L.next.y).setDisplaySize(L.next.size, L.next.size);
+        this.fitReplyText();
+      });
       this.hideReplyPanel();
     }
 
     showReplyPanel(round) {
       this.replyNameText.setText(this.quoteData.characterName || '');
       this.replyBodyText.setText(round.replyText || '');
+      this.fitReplyText();
       this.replyPanelParts.forEach((part) => part.setVisible(true));
+    }
+
+    /** Как в сюжетной сцене: имя и реплика уменьшаются, если не влезают в плашку. */
+    fitReplyText() {
+      const L = this.replyLayout;
+      if (!L) return;
+      const fit = this.layout.fitFontSize;
+      fit(this.replyNameText, L.name.size, L.name.minSize, () => this.replyNameText.width > L.name.wrap);
+      fit(this.replyBodyText, L.text.size, L.text.minSize, () => this.replyBodyText.height > L.text.maxHeight);
     }
 
     hideReplyPanel() {
@@ -449,8 +468,7 @@
     }
 
     clearRound() {
-      this.quoteParts.forEach((part) => part.destroy());
-      this.quoteParts = [];
+      this.clearQuote();
       if (this.answerButtons) {
         this.answerButtons.forEach((b) => { b.bg.destroy(); b.overlay.destroy(); b.text.destroy(); });
         this.answerButtons = null;
@@ -458,104 +476,85 @@
       this.hideReplyPanel();
     }
 
-    quoteTextStyle() {
-      const style = this.style;
-      return {
-        fontFamily: style.quoteFontFamily,
-        fontStyle: 'bold',
-        fontSize: style.quoteFontSize + 'px',
-        color: style.textColor,
-        wordWrap: { width: style.quoteWrapWidth },
-      };
+    clearQuote() {
+      this.quoteImage?.destroy();
+      this.quoteImage = null;
+      if (this.quoteTexture) this.textures.remove(this.quoteTexture.key);
+      this.quoteTexture = null;
     }
 
-    /** Кавычка, «висящая» слева от первой строки цитаты. */
-    addOpeningMark(y) {
-      const mark = this.add.text(this.style.quoteX - 2, y, '«', this.quoteTextStyle()).setOrigin(1, 0);
-      this.quoteParts.push(mark);
+    /** Части одного абзаца: курсив относится только к угаданной фразе. */
+    quoteSegments() {
+      const round = this.currentRound;
+      const before = (round.mode === 'middle' ? round.prefix : round.mode === 'prefix' ? '' : round.prompt).trim();
+      const after = (round.mode === 'middle' ? round.suffix : round.mode === 'prefix' ? round.prompt : '').trim();
+      return [
+        { text: '«' + (before ? before + ' ' : ''), italic: false },
+        { text: this.roundSolved ? round.answer : '___', italic: this.roundSolved },
+        { text: (after && !/^[,.;:!?…]/u.test(after) ? ' ' : '') + after + '»', italic: false },
+      ];
     }
 
-    /**
-     * Цитата с пустой рамкой:
-     *   'suffix' — текст (prompt), под ним рамка;
-     *   'prefix' — рамка, под ней текст (prompt);
-     *   'middle' — текст (prefix), под ним рамка, под ней текст (suffix).
-     * Закрывающая кавычка — после последней части.
-     */
+    /** Одна текстура абзаца: общий перенос слов с учётом ширины курсива. */
     buildQuote() {
       const style = this.style;
-      const x = style.quoteX;
-      let y = style.quoteY;
-      this.addOpeningMark(y);
-
-      const addLine = (str) => {
-        const text = this.add.text(x, y, str, this.quoteTextStyle());
-        this.quoteParts.push(text);
-        y += text.height + 20;
-        return text;
-      };
-      const addBlank = () => {
-        const blank = this.add
-          .rectangle(x, y, style.blankWidth, style.blankHeight)
-          .setOrigin(0, 0)
-          .setStrokeStyle(style.blankStrokeWidth, style.blankStrokeColor);
-        this.quoteParts.push(blank);
-        y += style.blankHeight + 20;
-        return blank;
-      };
-
-      const mode = this.currentRound.mode;
-      let last;
-      if (mode === 'prefix') {
-        addBlank();
-        last = addLine(this.currentRound.prompt);
-      } else if (mode === 'middle') {
-        addLine(this.currentRound.prefix);
-        addBlank();
-        last = addLine(this.currentRound.suffix);
-      } else {
-        addLine(this.currentRound.prompt);
-        last = addBlank();
+      const padding = 8; // Запас для выступающих краёв курсивных букв.
+      const lineHeight = Math.ceil(style.quoteFontSize * 1.25);
+      const width = style.quoteWrapWidth + padding * 2;
+      if (!this.quoteTexture) {
+        this.quoteTexture = this.textures.createCanvas('quoteParagraph', width, 1);
       }
-      // Ёлочка встаёт вплотную к тексту, но с отступом от пустой рамки.
-      const closeX = last.x + (last.displayWidth || last.width) + (mode === 'suffix' ? 18 : 2);
-      // Точка — после закрывающей кавычки.
-      this.quoteParts.push(this.add.text(closeX, last.y, '».', this.quoteTextStyle()));
-
-      // Запоминаем, где на самом деле закончилась цитата в ЭТОМ раунде —
-      // addLine()/addBlank() уже учли перенос строк (wordWrap) и число строк
-      // (у 'middle' их на одну больше). buildAnswerButtons() использует это,
-      // чтобы не дать плашкам-вариантам наехать на длинную цитату.
-      this.quoteBottomY = y;
-    }
-
-    /** После правильного ответа: цитата целиком, в две строки, ниже. */
-    buildSolvedQuote() {
-      const style = this.style;
-      this.quoteParts.forEach((part) => part.destroy());
-      this.quoteParts = [];
-
-      const round = this.currentRound;
-      let lines;
-      if (round.mode === 'prefix') {
-        lines = [round.answer, round.prompt];
-      } else if (round.mode === 'middle') {
-        // "Надо жить, надо" / "        любить, надо верить." — вторая
-        // строка начинается с ответа и продолжается известным суффиксом.
-        lines = [round.prefix, round.answer + round.suffix];
-      } else {
-        lines = [round.prompt, round.answer];
-      }
-
-      let y = style.solvedQuoteY;
-      this.addOpeningMark(y);
-      const first = this.add.text(style.quoteX, y, lines[0], this.quoteTextStyle());
-      y += first.height + 4;
-      const second = this.add.text(style.quoteX + style.solvedSecondLineIndent, y, lines[1] + '».', {
-        ...this.quoteTextStyle(),
-        wordWrap: { width: style.quoteWrapWidth - style.solvedSecondLineIndent },
+      const texture = this.quoteTexture;
+      const context = texture.context;
+      const font = (italic) => `${italic ? 'italic ' : ''}bold ${style.quoteFontSize}px "${style.quoteFontFamily}"`;
+      let offset = 0;
+      const segments = this.quoteSegments().map((segment) => {
+        const start = offset;
+        offset += segment.text.length;
+        return { ...segment, start, end: offset };
       });
-      this.quoteParts.push(first, second);
+      const text = segments.map((segment) => segment.text).join('');
+      context.font = font(false);
+      const spaceWidth = context.measureText(' ').width;
+      const runs = [];
+      let x = 0;
+      let line = 0;
+      // Пунктуация остаётся с соседним словом, даже на границе курсива.
+      for (const match of text.matchAll(/\S+/gu)) {
+        const start = match.index;
+        const end = start + match[0].length;
+        const word = segments.filter((segment) => segment.end > start && segment.start < end).map((segment) => {
+          const part = segment.text.slice(Math.max(start - segment.start, 0), Math.min(end, segment.end) - segment.start);
+          context.font = font(segment.italic);
+          return { text: part, italic: segment.italic, width: context.measureText(part).width };
+        });
+        const wordWidth = word.reduce((sum, run) => sum + run.width, 0);
+        if (x && x + spaceWidth + wordWidth > style.quoteWrapWidth) {
+          x = 0;
+          line++;
+        }
+        if (x) x += spaceWidth;
+        for (const run of word) {
+          runs.push({ ...run, x, y: line * lineHeight });
+          x += run.width;
+        }
+      }
+      const height = (line + 1) * lineHeight;
+      texture.setSize(width, height + padding * 2);
+      context.clearRect(0, 0, texture.width, texture.height);
+      context.fillStyle = style.textColor;
+      context.textBaseline = 'alphabetic';
+      for (const run of runs) {
+        context.font = font(run.italic);
+        context.fillText(run.text, padding + run.x, padding + style.quoteFontSize + run.y);
+      }
+      texture.refresh();
+      if (!this.quoteImage) {
+        this.quoteImage = this.add.image(style.quoteX - padding, style.quoteY - padding, texture.key).setOrigin(0);
+      } else {
+        this.quoteImage.setTexture(texture.key);
+      }
+      this.quoteBottomY = style.quoteY + height + 20;
     }
 
     // ---- варианты ответа ---------------------------------------------------
@@ -567,21 +566,21 @@
         )
       );
 
-      // style.slots подобраны под "обычную" короткую цитату
-      // (answerAreaDesignedTopY). Если в ЭТОМ раунде цитата длиннее —
-      // из-за переноса строк или режима 'middle' (три строки вместо
-      // двух) — сдвигаем все три плашки вниз на одну и ту же величину,
-      // чтобы они не наезжали на текст, но остались друг относительно
-      // друга в том же треугольном расположении.
-      const overflow = this.quoteBottomY - this.style.answerAreaDesignedTopY;
-      this.answerAreaShiftY = Math.max(0, overflow);
-
       this.answerButtons = options.map((option, i) => this.buildOneAnswerButton(option, this.style.slots[i]));
+      this.positionAnswerButtons();
     }
 
-    buildOneAnswerButton(option, slotDef) {
+    positionAnswerButtons() {
+      // Длинная цитата сдвигает варианты вниз, сохраняя промежуток до текста.
+      const shift = Math.max(0, this.quoteBottomY - this.style.answerAreaDesignedTopY);
+      this.answerButtons?.forEach((button, index) => {
+        const slot = this.style.slots[index];
+        [button.bg, button.overlay, button.text].forEach((part) => part.setPosition(slot.x, slot.y + shift));
+      });
+    }
+
+    buildOneAnswerButton(option, slot) {
       const style = this.style;
-      const slot = { x: slotDef.x, y: slotDef.y + this.answerAreaShiftY };
       const text = this.add
         .text(slot.x, slot.y, option.text, {
           fontFamily: style.quoteFontFamily,
@@ -591,11 +590,10 @@
           align: 'center',
         })
         .setOrigin(0.5);
-      // Высота плашки — родная высота картинки; ширина — не меньше родной
-      // и растягивается под длинный текст.
-      const tex = this.textures.get(IMG.plazka).getSourceImage();
-      const height = tex.height;
-      const width = Math.max(tex.width, text.width + style.answerPaddingX * 2);
+      // Плашка кнопки меню, растянутая до размера варианта (answerWidth ×
+      // answerHeight); под длинный текст ширина растёт.
+      const height = style.answerHeight;
+      const width = Math.max(style.answerWidth, text.width + style.answerPaddingX * 2);
 
       const bg = this.add
         .image(slot.x, slot.y, IMG.plazka)
@@ -631,7 +629,7 @@
       if (this.isLastRound()) this.gameFinished = true;
       this.answerButtons.forEach((b) => { b.bg.destroy(); b.overlay.destroy(); b.text.destroy(); });
       this.answerButtons = null;
-      this.buildSolvedQuote();
+      this.buildQuote();
       this.showReplyPanel(this.currentRound);
     }
 
@@ -647,7 +645,9 @@
         // Перед переходом дальше по сюжету — интересный факт.
         if (this.winShown) return;
         this.winShown = true;
-        this.showPanelOverlay(WIN_TITLE, WIN_FACT, () => this.finishMinigame());
+        this.phase = 'win';
+        this.hideReplyPanel();
+        this.showPanelOverlay(WIN_TITLE, WIN_FACT, () => this.finishMinigame(), IMG.finish);
         return;
       }
       this.clearRound();
@@ -681,7 +681,10 @@
     makeIconButton(x, y, texture, onClick, displaySize) {
       const img = this.add.image(x, y, texture).setInteractive({ useHandCursor: true });
       if (displaySize) img.setDisplaySize(displaySize, displaySize);
-      img.on('pointerup', onClick);
+      img.on('pointerup', () => {
+        window.VN?.systems.AudioManager?.click?.(this);
+        onClick();
+      });
       return img;
     }
 

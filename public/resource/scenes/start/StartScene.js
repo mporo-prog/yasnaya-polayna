@@ -1,10 +1,5 @@
 (function () {
-  const WIDTH = 1920;
-  const HEIGHT = 1080;
-  // const WIDTH = window.innerWidth;
-  // const HEIGHT = window.innerHeight;
-
-  
+  /** Главное меню: вывеска и кнопки «Начать», «Настройки», «Авторы». */
   class StartScene extends Phaser.Scene {
     constructor() {
       super('MainMenuScene');
@@ -33,6 +28,9 @@
       this.buildBackground();
       this.buildTitle();
       this.buildButtons();
+      // Раскладка — общая с меню паузы (Layout.menuLayout): на компьютере по
+      // startStyle, на телефоне — крупные кнопки слева и вывеска справа.
+      this.layout.onLayout(this, (visible, ui) => this.applyLayout(ui));
       window.VN.systems.SceneAssets.enterMenu(this);
     }
 
@@ -42,34 +40,36 @@
     }
 
     buildTitle() {
-      const t = this.style.title;
-      const x = WIDTH * t.xFrac;
-      const y = HEIGHT * t.yFrac;
-      this.add.image(x, y, 'gameLogo')
-        .setOrigin(0, 0)
-        .setDisplaySize(t.width, t.height);
+      this.logo = this.add.image(0, 0, 'gameLogo').setOrigin(0, 0);
     }
 
     buildButtons() {
-      this.menuData.buttons.forEach((buttonData, i) => {
-        const slot = this.style.buttons[i];
-        if (!slot) return; // если кнопок в данных больше, чем слотов в стиле
-
-        const x = WIDTH * slot.xFrac;
-        const y = HEIGHT * slot.yFrac;
-        const w = slot.width;
-        const h = slot.height;
-
-        const texture = 'mainButtonBg';
-        const bg = this.add.image(x, y, texture)
+      this.buttons = this.menuData.buttons.map((buttonData) => {
+        const bg = this.add.image(0, 0, 'mainButtonBg')
           .setOrigin(0, 0)
-          .setDisplaySize(w, h)
           .setInteractive({ useHandCursor: true });
-        this.add
-          .text(x + w / 2, y + h / 2, buttonData.label, { fontFamily: 'Philosopher', fontSize: this.style.buttonFontSize, color: this.style.textColor })
+        const label = this.add
+          .text(0, 0, buttonData.label, { fontFamily: 'Philosopher', fontSize: this.style.buttonFontSize, color: this.style.textColor })
           .setOrigin(0.5);
+        bg.on('pointerup', () => {
+          window.VN?.systems.AudioManager?.click?.(this);
+          this.onButtonClick(buttonData.action);
+        });
+        return { bg, label };
+      });
+    }
 
-        bg.on('pointerup', () => this.onButtonClick(buttonData.action));
+    applyLayout(ui) {
+      const { slots, logo, fontSize } = this.layout.menuLayout(this, ui);
+      this.logo.setPosition(logo.x, logo.y).setDisplaySize(logo.width, logo.height);
+      this.buttons.forEach(({ bg, label }, i) => {
+        const slot = slots[i];
+        // Если кнопок в данных больше, чем мест в макете, лишние скрыты.
+        bg.setVisible(Boolean(slot));
+        label.setVisible(Boolean(slot));
+        if (!slot) return;
+        bg.setPosition(slot.x, slot.y).setDisplaySize(slot.width, slot.height);
+        label.setPosition(slot.x + slot.width / 2, slot.y + slot.height / 2).setFontSize(fontSize);
       });
     }
 

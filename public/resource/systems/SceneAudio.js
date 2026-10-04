@@ -91,6 +91,11 @@
           play(screen.sounds, screenSounds);
           lastScreen = index;
         },
+        // Обрывает звуки сцены и экрана (например, озвучку правил), музыку не трогает.
+        stopSounds() {
+          stop(sceneSounds);
+          stop(screenSounds);
+        },
         destroy() {
           if (destroyed) return;
           destroyed = true;

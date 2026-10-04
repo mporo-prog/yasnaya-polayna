@@ -32,11 +32,16 @@
       scene.input.enabled = false;
       if (scene.input.keyboard) scene.input.keyboard.enabled = false;
       let cancelled = false;
+      // При медленной загрузке показываем её явно, вместо неподвижной игры без ввода.
+      const loadingTimer = scene.time.delayedCall(300, () => {
+        window.VN.systems.StartupScreen?.show('Загрузка продолжения…');
+      });
       const startStory = () => scene.scene.start('StoryScene', {
         ...data, minigameFadeInMs: duration * 500,
       });
       scene.events.once('shutdown', () => {
         cancelled = true;
+        loadingTimer.remove(false);
         pending.delete(scene);
         camera.off('camerafadeoutcomplete', startStory);
         scene.input.enabled = inputEnabled;
@@ -44,10 +49,18 @@
       });
 
       // Дожидаемся ресурсов до затемнения, чтобы загрузка не разрывала анимацию.
-      window.VN.systems.SceneAssets.prefetch(scene, 'StoryScene', data).then(() => {
+      Promise.resolve().then(() => window.VN.systems.SceneAssets.prefetch(scene, 'StoryScene', data)).then(() => {
         if (cancelled) return;
+        loadingTimer.remove(false);
         camera.once('camerafadeoutcomplete', startStory);
         camera.fadeOut(duration * 500, 0, 0, 0);
+      }, (error) => {
+        if (cancelled) return;
+        console.warn('[minigameFlow] Предзагрузка не удалась, повторяем в сюжетной сцене:', error);
+        // Обычный preload повторит загрузку с видимым индикатором.
+        // Ошибка фоновой подготовки не должна оставлять мини-игру без управления.
+        window.VN.systems.StartupScreen?.show('Загрузка продолжения…');
+        startStory();
       });
     } else {
     

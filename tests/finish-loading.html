@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<title>Проверка загрузки финального экрана</title>
+<style>
+  body { background: #efe8dc; color: #302820; font: 16px system-ui; }
+  iframe { width: min(960px, 100%); aspect-ratio: 16 / 9; border: 0; }
+</style>
+<h1>Финальный экран при медленной сети</h1>
+<p>Запускать через <code>node tests/serve-slow-startup.mjs</code> после <code>npm run build</code>.</p>
+<pre id="results">Проверка…</pre>
+<iframe id="site" title="Финальный экран"></iframe>
+<script type="module">
+  const frame = document.querySelector('#site');
+  const output = document.querySelector('#results');
+  const assert = (condition, message) => { if (!condition) throw new Error(message); };
+  const waitFor = async condition => {
+    const deadline = performance.now() + 15000;
+    while (!condition()) {
+      if (performance.now() > deadline) throw new Error('Превышено время ожидания: ' + condition);
+      await new Promise(resolve => setTimeout(resolve, 20));
+    }
+  };
+  const pass = text => { output.textContent += '\nPASS ' + text; };
+  try {
+    frame.src = '../games/finish/index.html';
+    await waitFor(() => frame.contentDocument.getElementById('startup-loading'));
+    const win = frame.contentWindow;
+    const doc = frame.contentDocument;
+    const screen = doc.getElementById('startup-loading');
+    assert(!win.Phaser, 'Заставка должна появиться до загрузки движка');
+    const style = win.getComputedStyle(screen);
+    assert(style.display === 'flex' && style.backgroundColor === 'rgb(232, 220, 192)', 'Видна бежевая заставка');
+    assert(screen.getBoundingClientRect().height === frame.clientHeight, 'Заставка закрывает всё окно');
+    assert(!doc.getElementById('startup-progress').hasAttribute('value'), 'До загрузки изображений процент не выдумывается');
+    pass('Заставка видна до запуска Phaser');
+    await waitFor(() => doc.getElementById('startup-progress')?.value > 0);
+    assert(doc.getElementById('startup-progress').value < 100, 'Медленные ресурсы ещё загружаются');
+    assert(!doc.querySelector('.finish-replay-button'), 'Финальная сцена ещё не создана');
+    pass('Во время загрузки изображений виден реальный прогресс');
+    await waitFor(() => !doc.getElementById('startup-loading'));
+    assert(doc.querySelector('.finish-replay-button'), 'Кнопка финала готова');
+    const icons = [...doc.querySelectorAll('.finish-social-link img')];
+    assert(icons.length === 2 && icons.every(icon => icon.complete && icon.naturalWidth > 0), 'Загружены обе DOM-иконки');
+    assert(doc.querySelector('canvas')?.width === 1920, 'Финальный холст готов');
+    for (const selector of ['.finish-background', '.finish-replay-button img']) {
+      const image = doc.querySelector(selector);
+      assert(image?.complete && image.naturalWidth > 0, 'Загружено изображение: ' + selector);
+    }
+    assert(doc.getElementById('game-fonts').media === 'print', 'Медленный CSS шрифтов не блокирует заставку или финал');
+    pass('Заставка скрылась после отрисовки финала с загруженными изображениями');
+    output.textContent += '\nDONE';
+  } catch (error) {
+    output.textContent += '\nFAIL ' + error.stack;
+  }
+</script>
+</html>

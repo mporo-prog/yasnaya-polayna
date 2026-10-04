@@ -24,14 +24,21 @@ function camera() {
 function displayObject() {
   const object = new EventEmitter();
   object.text = '';
-  for (const method of ['setInteractive', 'disableInteractive', 'setDisplaySize', 'setY', 'setOrigin', 'add']) {
+  Object.assign(object, { x: 0, y: 0, scaleX: 1, scaleY: 1, alpha: 1, list: [] });
+  for (const method of ['setInteractive', 'disableInteractive', 'setY', 'setColor', 'setStroke']) {
     object[method] = () => object;
   }
+  object.setDisplaySize = (width, height) => { Object.assign(object, { displayWidth: width, displayHeight: height }); return object; };
+  object.setOrigin = (x, y = x) => { Object.assign(object, { originX: x, originY: y }); return object; };
+  object.setCrop = () => object;
+  object.setScale = (x, y = x) => { Object.assign(object, { scaleX: x, scaleY: y }); return object; };
+  object.setTexture = (key, frame) => { Object.assign(object, { textureKey: key, frame }); return object; };
+  object.add = (children) => { object.list.push(...[children].flat()); return object; };
   object.setAlpha = (alpha) => { object.alpha = alpha; return object; };
   object.setVisible = (visible) => { object.visible = visible; return object; };
   object.setText = (text) => { object.text = text; return object; };
   object.getWrappedText = (text) => [text];
-  object.destroy = () => { object.destroyed = true; };
+  object.destroy = () => { object.destroyed = true; object.list.forEach(child => child.destroy()); };
   return object;
 }
 
@@ -40,6 +47,7 @@ function fixture() {
   f.window.VN.scenes = {};
   const savedScreens = [];
   const navigations = [];
+  const loadingScreens = [];
   f.window.location = { assign: (url) => navigations.push(url) };
   Object.assign(f.window.VN.systems, {
     GameState: {
@@ -47,7 +55,8 @@ function fixture() {
       goToScreen: (...screen) => savedScreens.push(screen),
     },
     SceneAssets: { prefetchNext() {}, prefetch: () => Promise.resolve() },
-    Layout: { onLayout() {} },
+    StartupScreen: { show: message => loadingScreens.push(message) },
+    Layout: { onLayout() {}, pinPauseButton() {}, buttonSize: () => 150 },
   });
   const scope = vm.createContext({
     window: f.window,
@@ -71,29 +80,53 @@ function fixture() {
 
   let now = 1000;
   const timers = new Set();
+  const tweens = new Set();
   f.game.getTime = () => now;
   const story = new f.window.VN.scenes.StoryScene();
   Object.assign(story, f.scene(), {
-    cameras: { main: camera() }, input: { enabled: true, keyboard: { enabled: true } },
+    cameras: { main: camera() }, input: { enabled: true, keyboard: { enabled: true, on() {}, off() {} } },
     time: { now, delayedCall(delay, callback) {
       const timer = { remaining: delay, paused: false, callback, remove() { timers.delete(timer); } };
       timers.add(timer);
       return timer;
     } },
-    add: { container: displayObject, image: displayObject, text: displayObject,
+    textures: { get: () => ({ has: () => false, add() {} }) },
+    tweens: { add(config) {
+      const targets = [config.targets].flat();
+      const keys = ['x', 'y', 'scaleX', 'scaleY', 'alpha'].filter(key => key in config);
+      const initial = targets.map(target => Object.fromEntries(keys.map(key => [key, target[key]])));
+      const tween = { elapsed: 0, remove() { tweens.delete(tween); }, update(delta) {
+        tween.elapsed += delta;
+        const progress = Math.min(1, tween.elapsed / config.duration);
+        const eased = (1 - Math.cos(Math.PI * progress)) / 2;
+        targets.forEach((target, i) => keys.forEach(key => {
+          target[key] = initial[i][key] + (config[key] - initial[i][key]) * eased;
+        }));
+        if (progress === 1) { tweens.delete(tween); config.onComplete?.(); }
+      } };
+      tweens.add(tween);
+      return tween;
+    } },
+    add: { container: (x, y, children = []) => Object.assign(displayObject().add(children), { x, y }),
+      image: displayObject, rectangle: displayObject,
+      text: (x, y, text) => Object.assign(displayObject().setText(text), {
+        x, y, height: 40, context: { measureText: line => ({ width: line.length * 18 }) },
+      }),
       video: () => {
         const video = displayObject();
+        Object.assign(video, { width: 384, height: 1132 });
         video.loadURL = (url, noAudio) => { Object.assign(video, { url, noAudio }); return video; };
         video.play = (loop) => { Object.assign(video, { loop, playing: true }); return video; };
+        video.stop = () => { video.playing = false; return video; };
         video.setPaused = (paused) => { video.paused = paused; return video; };
         return video;
       },
     },
     background: { stage: displayObject() },
-    panelBg: displayObject(), speakerNameText: displayObject(),
+    characterImage: displayObject(), panelBg: displayObject(), speakerNameText: displayObject(),
     dialogueText: displayObject(), dialogueRevealedText: displayObject(),
     glossaryWordOverlays: [], glossaryWordReveals: [],
-    backBtn: { bg: displayObject() },
+    backBtn: { bg: displayObject() }, nextBtn: { bg: displayObject() },
     menuBtn: { bg: displayObject() }, historyBtn: { bg: displayObject() },
   });
   story.scene = { stop: () => story.events.emit('shutdown') };
@@ -116,6 +149,7 @@ function fixture() {
     story.time.now = time;
     const activeTimers = [...timers];
     story.cameras.main.fadeEffect.update(time, delta);
+    for (const tween of [...tweens]) tween.update(delta);
     for (const timer of activeTimers) {
       if (timer.paused || !timers.has(timer)) continue;
       timer.remaining -= delta;
@@ -130,6 +164,7 @@ function fixture() {
   const mini = {
     cameras: { main: camera() }, input: { enabled: true, keyboard: { enabled: true } },
     events: new EventEmitter(),
+    time: story.time,
     scene: { start(key, data) {
       starts.push({ key, data });
       mini.events.emit('shutdown');
@@ -149,7 +184,8 @@ function fixture() {
     fade.update(0, fade.duration);
   }
   return { ...f, story, mini, starts, start, tick, beginMinigameExit, finishMinigame,
-    savedScreens, backgrounds, navigations, setNow: (time) => { now = time; } };
+    finishPortraitReveal() { tick(now + 1000); tick(now + 1000); },
+    savedScreens, backgrounds, navigations, loadingScreens, setNow: (time) => { now = time; } };
 }
 
 test('story 2 opens with the visitor and advances after two seconds despite active audio', () => {
@@ -202,23 +238,33 @@ test('an early click on screen 12 changes the background; the second advances an
   ]);
 });
 
-test('screen 12 advances automatically two seconds after the timed background change', () => {
+test('screen 12 preserves the full 17-second wind after changing the background', () => {
   const f = fixture();
+  f.buffers.get(f.audio.getUrl('voice_and_sound/scene2_gameplay2/screen_3_scene_2_veter_beg.wav')).duration = 17;
   f.start(1, 11);
+  const wind = f.story.voiceTrack;
   f.tick(3000);
   assert.equal(f.story.screenIndex, 11);
   assert.equal(f.backgrounds.at(-1), 'images/backgrounds/house.png');
   f.tick(4999);
   assert.equal(f.story.screenIndex, 11);
   f.tick(5000);
+  assert.equal(f.story.screenIndex, 11, 'The timer must not cut the wind short');
+  assert.equal(f.story.voiceTrack, wind);
+  assert.equal(wind.ended, false);
+  f.advance(16.999);
+  f.tick(17999);
+  assert.equal(f.story.screenIndex, 11);
+  f.advance(17);
+  f.tick(18000);
   assert.equal(f.story.screenIndex, 12);
   assert.deepEqual(f.savedScreens.at(-1), [1, 12]);
   assert.equal(f.backgrounds.at(-1), 'images/backgrounds/hat.png');
-  f.tick(9000);
+  f.tick(20000);
   assert.equal(f.story.screenIndex, 12, 'The timer must only advance once');
 });
 
-test('an early background change starts a fresh two-second countdown to the next screen', () => {
+test('an early background change still waits for the wind after the two-second countdown', () => {
   const f = fixture();
   f.start(1, 11);
   f.tick(1500);
@@ -229,7 +275,26 @@ test('an early background change starts a fresh two-second countdown to the next
   f.tick(3499);
   assert.equal(f.story.screenIndex, 11);
   f.tick(3500);
+  assert.equal(f.story.screenIndex, 11);
+  f.advance(10);
+  f.tick(11000);
   assert.equal(f.story.screenIndex, 12);
+});
+
+test('short or unavailable wind does not skip the background hold or block auto-advance', () => {
+  for (const missing of [false, true]) {
+    const f = fixture();
+    const key = f.audio.getUrl('voice_and_sound/scene2_gameplay2/screen_3_scene_2_veter_beg.wav');
+    if (missing) f.buffers.delete(key);
+    else f.buffers.get(key).duration = 1;
+    f.start(1, 11);
+    f.advance(1);
+    f.tick(3000);
+    f.tick(4999);
+    assert.equal(f.story.screenIndex, 11);
+    f.tick(5000);
+    assert.equal(f.story.screenIndex, 12);
+  }
 });
 
 test('story 5 waits for the voice to end, fades to the pond, then advances after two visible seconds', () => {
@@ -351,7 +416,7 @@ test('leaving story 5 cancels fade callbacks and restores input in either fade p
 
 test('going back from the pond cancels its timer; unavailable voice still allows the transition', () => {
   const f = fixture();
-  f.buffers.delete(f.audio.getUrl('voice_and_sound/screen1_scene5_posetitel.wav'));
+  f.buffers.delete(f.audio.getUrl('voice_and_sound/scene5_gameplay5/plot/screen1_scene5_posetitel.wav'));
   f.start(4, 1);
   f.tick(1016);
   f.tick(1391);
@@ -371,11 +436,15 @@ test('back and shutdown cancel the auto-advance after the background has changed
     const f = fixture();
     f.start(1, 11);
     f.tick(3000);
+    f.tick(5000);
+    assert.equal(f.story.pendingAutoAdvance, true);
     if (exit === 'back') f.story.goBack();
     else f.story.events.emit('shutdown');
     const screen = f.story.screenIndex;
     const backgroundCount = f.backgrounds.length;
     f.tick(6000);
+    f.advance(20);
+    f.tick(21000);
     assert.equal(f.story.screenIndex, screen);
     assert.equal(f.backgrounds.length, backgroundCount);
   }
@@ -410,7 +479,7 @@ test('leaving the scene cancels both kinds of screen timer', () => {
 });
 
 for (const screenIndex of [0, 11]) {
-  test(`history suspends auto-advance on screen ${screenIndex + 1} and closing it continues the remaining delay`, () => {
+  test(`history suspends auto-advance on screen ${screenIndex + 1} and respects restarted audio`, () => {
     const f = fixture();
     f.start(1, screenIndex);
     if (screenIndex === 11) f.story.goNext();
@@ -427,6 +496,11 @@ for (const screenIndex of [0, 11]) {
     f.tick(10999);
     assert.equal(f.story.screenIndex, screenIndex);
     f.tick(11000);
+    if (screenIndex === 11) {
+      assert.equal(f.story.screenIndex, screenIndex, 'Restarted wind must also finish');
+      f.advance(10);
+      f.tick(21000);
+    }
     assert.equal(f.story.screenIndex, screenIndex + 1);
   });
 }
@@ -450,7 +524,7 @@ for (const game of [2, 3, 4, 5]) {
     f.tick(120016);
     assert.equal(story.voiceActive, true);
     assert.notEqual(story.dialogueRevealedText.text, story.voiceFullText);
-    f.tick(game === 5 ? 125016 : 125000);
+    f.tick(game === 5 ? 124016 : 125000); // Final narration uses an 8-second reveal (10s audio minus its 2s margin).
     assert.equal(story.dialogueRevealedText.text, story.voiceRevealText.slice(0, Math.floor(story.voiceRevealText.length / 2)));
     f.tick(game === 5 ? 130016 : 130000);
     assert.equal(story.dialogueRevealedText.text, story.voiceFullText);
@@ -466,26 +540,34 @@ test('portrait video, voice and dialogue start together when the first frame is 
   const video = f.story.portraitVideo;
   assert.equal(video.loop, false);
   assert.equal(video.noAudio, true);
-  assert.equal(f.sources.length, 0);
+  assert.equal(f.controller.current.path, 'music/music_menu_2.wav');
+  assert.equal(f.controller.current.source.loop, true);
+  assert.equal(f.sources.length, 1, 'Only background music starts before the video is ready');
   assert.equal(f.story.bottomGroup.visible, false);
   for (const action of ['goNext', 'goBack', 'advanceScreen', 'startMinigame', 'toggleHistory']) f.story[action]();
-  f.tick(20000);
+  f.tick(14000);
   assert.equal(f.story.portraitPhase, 'loading', 'Wait for a real frame, not a fixed timer');
-  assert.equal(f.sources.length, 0);
+  assert.equal(f.sources.length, 1, 'Loading the portrait must not start the voice early');
   video.emit('created');
-  f.tick(20016);
+  f.tick(14016);
   assert.equal(f.story.portraitPhase, 'dialogue');
   assert.equal(f.story.bottomGroup.visible, true);
+  assert.equal(f.backgrounds.at(-1), 'images/backgrounds/portrait-wallpaper.png');
+  assert.equal(f.story.portraitFrame.alpha, 0);
+  assert.equal(f.story.portraitArtwork.x, 1920 * 0.45);
+  assert.equal(f.story.portraitArtwork.y, 1080 * 0.065);
+  assert.equal(video.displayWidth * f.story.portraitArtwork.scaleX, 208);
+  assert.ok(Math.abs(video.displayHeight * (1 - video.originY) * f.story.portraitArtwork.scaleY - 612) < 0.001);
   assert.equal(f.story.voiceActive, true);
-  assert.equal(f.story.voiceStartTime, 20016);
+  assert.equal(f.story.voiceStartTime, 14016);
   assert.equal(f.story.portraitAnimationComplete, false, 'Voice starts before video ends');
   video.emit('complete');
-  f.tick(21016);
-  assert.equal(f.story.voiceStartTime, 20016, 'Completion cannot restart the phrase');
+  f.tick(15016);
+  assert.equal(f.story.voiceStartTime, 14016, 'Completion cannot restart the phrase');
   assert.equal(f.story.portraitPhase, 'dialogue', 'Video completion alone cannot hide dialogue');
 });
 
-test('natural voice end hides controls and shows the title for exactly four seconds', () => {
+test('natural voice end reveals the portrait, then waits for a click and covers navigation with a loader', () => {
   const f = fixture();
   f.start(5);
   // Exercise the real button construction: the pause control is now menuBtn.
@@ -498,23 +580,65 @@ test('natural voice end hides controls and shows the title for exactly four seco
   assert.equal(f.story.portraitPhase, 'dialogue', 'Wait for audio, not just subtitle reveal');
   f.advance(10);
   f.tick(12016);
-  assert.equal(f.story.portraitPhase, 'hold');
+  assert.equal(f.story.portraitPhase, 'enlarging');
   assert.equal(f.story.bottomGroup.visible, false);
   assert.equal(f.story.menuBtn.bg.visible, false);
   assert.equal(f.story.historyBtn.bg.visible, false);
   assert.ok(f.story.portraitTitle);
+  assert.equal(f.story.portraitTitle.alpha, 0);
+  const video = f.story.portraitVideo;
+  video.play = () => assert.fail('Enlarging the final frame must not restart playback');
   for (const action of ['goNext', 'goBack', 'advanceScreen', 'openPauseMenu', 'toggleHistory']) f.story[action]();
-  f.tick(16015);
+  f.tick(12516);
+  assert.ok(f.story.portraitArtwork.scaleX > 208 / 308 && f.story.portraitArtwork.scaleX < 1);
+  assert.equal(f.story.portraitFrame.alpha, 0);
+  assert.equal(f.story.portraitTitle.alpha, 0);
+  f.tick(13016);
+  assert.equal(f.story.portraitPhase, 'revealing');
+  assert.equal(f.story.portraitArtwork.x, 807);
+  assert.equal(f.story.portraitArtwork.y, 73);
+  assert.equal(f.story.portraitArtwork.scaleX, 1);
+  assert.equal(f.story.portraitArtwork.scaleY, 1);
+  f.tick(13516);
+  assert.ok(Math.abs(f.story.portraitFrame.alpha - 0.5) < 0.001);
+  assert.equal(f.story.portraitFrame.alpha, f.story.portraitTitle.alpha);
+  assert.equal(f.story.screenTimer, null);
+  f.tick(14016);
+  assert.equal(f.story.portraitPhase, 'hold');
+  assert.equal(f.story.portraitFrame.alpha, 1);
+  assert.equal(f.story.portraitTitle.alpha, 1);
+  assert.equal(f.story.portraitVideo, video);
+  assert.equal(f.story.bottomGroup.visible, true);
+  assert.equal(f.story.nextBtn.bg.visible, true);
+  for (const object of [f.story.characterImage, f.story.panelBg, f.story.speakerNameText,
+    f.story.dialogueText, f.story.dialogueRevealedText, f.story.backBtn.bg]) {
+    assert.equal(object.visible, false, 'Only the next arrow returns');
+  }
+  f.tick(74016);
   assert.equal(f.navigations.length, 0);
-  f.tick(16016);
+  assert.equal(f.story.screenTimer, null, 'There is no automatic advance timer');
+  assert.deepEqual(f.loadingScreens, [], 'Do not cover the portrait before the click');
+  f.story.glossaryContainer = displayObject().setVisible(false);
+  f.story.glossaryText = displayObject();
+  f.story.portraitTitle.list[0].emit('pointerup');
+  assert.equal(f.story.glossaryContainer.visible, true);
+  assert.equal(f.story.glossaryText.text, f.story.currentLines[0].portraitReveal.popupText);
+  assert.match(f.story.glossaryText.text, /Русском музее/);
+  f.tick(75016);
+  assert.equal(f.navigations.length, 0, 'Reading the painting source must not leave the scene');
+  f.story.closeGlossaryPopup();
+  assert.equal(f.story.glossaryContainer.visible, false);
+  f.story.events.once('shutdown', () => {
+    assert.deepEqual(f.loadingScreens, ['Загрузка финального экрана…'], 'Cover the canvas before stopping it');
+  });
+  f.story.goNext();
   assert.deepEqual(f.navigations, ['games/finish/index.html']);
-  f.tick(20000);
+  f.tick(80000);
   assert.equal(f.navigations.length, 1);
 });
 
-test('skipping the portrait voice cannot skip the video; title duration remains configurable', () => {
+test('skipping the portrait voice cannot skip the video or the separate final click', () => {
   const f = fixture();
-  f.window.VN.data.storyLines[5][0].portraitReveal.holdDuration = 1500;
   f.start(5);
   f.story.portraitVideo.emit('created');
   f.tick(1016);
@@ -526,10 +650,11 @@ test('skipping the portrait voice cannot skip the video; title duration remains 
   assert.equal(f.story.portraitPhase, 'dialogue', 'Even repeated clicks cannot bypass the video');
   f.story.portraitVideo.emit('complete');
   f.tick(1032);
+  f.finishPortraitReveal();
   assert.equal(f.story.portraitPhase, 'hold');
-  f.tick(2531);
+  f.tick(60000);
   assert.equal(f.navigations.length, 0);
-  f.tick(2532);
+  f.story.goNext();
   assert.equal(f.navigations.length, 1);
 });
 
@@ -545,10 +670,11 @@ test('a naturally ended voice waits for a slower video before starting the hold'
   assert.equal(f.story.screenTimer, null);
   f.story.portraitVideo.emit('complete');
   f.tick(13016);
+  f.finishPortraitReveal();
   assert.equal(f.story.portraitPhase, 'hold');
-  f.tick(17015);
+  f.tick(60000);
   assert.equal(f.navigations.length, 0);
-  f.tick(17016);
+  f.story.goNext();
   assert.equal(f.navigations.length, 1);
 });
 
@@ -559,6 +685,8 @@ test('skipping after the video ends starts the title hold without an extra click
   f.tick(1016);
   f.story.portraitVideo.emit('complete');
   f.story.goNext();
+  assert.equal(f.story.portraitPhase, 'enlarging');
+  f.finishPortraitReveal();
   assert.equal(f.story.portraitPhase, 'hold');
 });
 
@@ -584,6 +712,7 @@ test('history pauses the portrait and restarting the voice still waits for its a
   assert.equal(f.story.portraitPhase, 'dialogue');
   f.advance(10);
   f.tick(30016);
+  f.finishPortraitReveal();
   assert.equal(f.story.portraitPhase, 'hold');
 });
 
@@ -610,7 +739,8 @@ test('portrait video pauses with the scene and shutdown removes media and pendin
   assert.equal(f.story.voiceActive, true);
 });
 
-test('leaving during the portrait hold cancels final navigation', () => {
+for (const phase of ['enlarging', 'revealing', 'hold']) {
+test(`leaving during portrait ${phase} cancels animations and final navigation`, () => {
   const f = fixture();
   f.start(5);
   f.story.portraitVideo.emit('created');
@@ -618,10 +748,16 @@ test('leaving during the portrait hold cancels final navigation', () => {
   f.story.portraitVideo.emit('complete');
   f.story.goNext();
   f.story.goNext();
+  if (phase !== 'enlarging') f.tick(2016);
+  if (phase === 'hold') f.tick(3016);
+  assert.equal(f.story.portraitPhase, phase);
   f.story.events.emit('shutdown');
   f.tick(20000);
+  assert.equal(f.story.portraitPhase, null);
+  assert.equal(f.story.portraitTween, null);
   assert.equal(f.navigations.length, 0);
 });
+}
 
 test('portrait waits until the minigame fade ends before playing', async () => {
   const f = fixture();
@@ -638,16 +774,19 @@ test('portrait waits until the minigame fade ends before playing', async () => {
 
 test('video failure falls back to the existing painting and a missing voice remains readable', () => {
   const f = fixture();
-  f.buffers.delete(f.audio.getUrl('voice_and_sound/screen1_scene6_tolstoy.wav'));
+  f.buffers.delete(f.audio.getUrl('voice_and_sound/screen6_gameplay6/screen1_scene6_tolstoy.wav'));
   f.start(5);
   f.story.portraitVideo.emit('error');
   f.tick(1016);
   assert.equal(f.story.portraitPhase, 'dialogue');
   assert.equal(f.story.portraitVideo.visible, false);
+  assert.equal(f.story.portraitArtwork.list[0].textureKey, 'images/backgrounds/tolstoy.png');
+  assert.equal(f.story.portraitArtwork.list[0].frame, 'portrait');
   assert.equal(f.story.dialogueRevealedText.text, f.story.currentLines[0].text);
   f.tick(20000);
   assert.equal(f.story.portraitPhase, 'dialogue');
   f.story.goNext();
+  f.finishPortraitReveal();
   assert.equal(f.story.portraitPhase, 'hold');
 });
 
@@ -776,12 +915,89 @@ test('slow loading finishes before fading and repeated completion cannot restart
   assert.equal(f.mini.cameras.main.fadeEffect.isRunning, false);
   assert.equal(f.starts.length, 0);
   assert.equal(f.savedScreens.length, 1);
+  f.tick(1300);
+  assert.deepEqual(f.loadingScreens, ['Загрузка продолжения…']);
   ready();
   await flush();
   f.beginMinigameExit();
   assert.equal(f.mini.cameras.main.listenerCount('camerafadeoutcomplete'), 1);
   f.mini.cameras.main.fadeEffect.update(0, 375);
   assert.equal(f.starts.length, 1);
+});
+
+for (const synchronous of [false, true]) {
+  test(`failed prefetch retries in the story loader instead of trapping disabled minigame input (sync: ${synchronous})`, async () => {
+    const f = fixture();
+    f.window.VN.systems.SceneAssets.prefetch = () => {
+      const error = new Error('Temporary loading failure');
+      if (synchronous) throw error;
+      return Promise.reject(error);
+    };
+    f.beginMinigameExit(4);
+    await flush();
+    assert.equal(f.starts.length, 1);
+    assert.equal(f.story.storySceneIndex, 5);
+    assert.equal(f.mini.input.enabled, true, 'Shutdown restores input for the next run');
+    assert.equal(f.loadingScreens.length, 1);
+    assert.equal(f.warnings.length, 1);
+    f.tick(1400);
+    assert.equal(f.story.input.enabled, true);
+    assert.equal(f.story.portraitVideo.playing, true);
+  });
+}
+
+test('leaving during failed prefetch cancels its fallback and loading indicator', async () => {
+  const f = fixture();
+  let fail;
+  f.window.VN.systems.SceneAssets.prefetch = () => new Promise((resolve, reject) => { fail = reject; });
+  f.beginMinigameExit(4);
+  await flush();
+  f.mini.events.emit('shutdown');
+  fail(new Error('Cancelled load'));
+  await flush();
+  f.tick(2000);
+  assert.equal(f.starts.length, 0);
+  assert.equal(f.loadingScreens.length, 0);
+  assert.equal(f.warnings.length, 0);
+});
+
+test('a portrait video that never produces a frame falls back and permits completing the game', () => {
+  const f = fixture();
+  f.start(5);
+  const video = f.story.portraitVideo;
+  f.tick(15999);
+  assert.equal(f.story.portraitPhase, 'loading');
+  f.tick(16000);
+  assert.equal(f.story.portraitPhase, 'dialogue');
+  assert.equal(f.story.portraitArtwork.list[0].textureKey, 'images/backgrounds/tolstoy.png');
+  assert.equal(video.playing, false);
+  assert.equal(video.visible, false);
+  video.emit('created'); // A late video callback must not replace the fallback.
+  assert.equal(video.visible, false);
+  f.story.goNext();
+  f.finishPortraitReveal();
+  assert.equal(f.story.portraitPhase, 'hold');
+  f.story.goNext();
+  assert.deepEqual(f.navigations, ['games/finish/index.html']);
+});
+
+test('ready portrait video cancels the loading timeout and shutdown removes pending fallback', () => {
+  for (const ready of [false, true]) {
+    const f = fixture();
+    f.start(5);
+    const video = f.story.portraitVideo;
+    if (ready) {
+      video.emit('created');
+      f.tick(1016);
+      f.tick(20000);
+      assert.equal(video.visible, true);
+      assert.equal(f.story.portraitAnimationComplete, false);
+    }
+    f.story.events.emit('shutdown');
+    f.tick(40000);
+    assert.equal(f.story.portraitPhase, null);
+    assert.equal(video.destroyed, true);
+  }
 });
 
 for (const duringFade of [false, true]) {

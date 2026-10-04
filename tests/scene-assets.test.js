@@ -188,7 +188,7 @@ test('story preloads a silent character and the background revealed later on the
 test('actual menu and story manifests include UI texture aliases backed by existing PNG files', () => {
   const f = fixture();
   const expected = {
-    MainMenuScene: { gameLogo: 'game_logo.png', mainButtonBg: 'main_button.png', saveButtonBg: 'save_button.png' },
+    MainMenuScene: { gameLogo: 'game_logo.png', mainButtonBg: 'main_button.png', saveButtonBg: 'main_button.png' },
     StoryScene: { dialogTextBg: 'dialog_text_bg.png', historyModalBg: 'history_modal_bg.png', closeButton: 'close_button.png' },
   };
   for (const [scene, textures] of Object.entries(expected)) {
@@ -206,7 +206,9 @@ test('portrait preloads its initial frame and game3 title panel without entering
   const f = fixture();
   f.data.storyLines[1] = [{ portraitReveal: {
     poster: 'images/backgrounds/tolstoy-portrait-start-e1ebd194.png',
-    titlePanel: 'images/game3/item_label_panel.png',
+    frameImage: 'images/backgrounds/portrait-frame.png',
+    fallbackImage: 'images/backgrounds/tolstoy.png',
+    titlePanel: 'images/icon_UI/result_message_panel.png',
   } }];
   const assets = f.assets.assetsFor(f.game, 'StoryScene', { storySceneIndex: 1 });
   for (const path of Object.values(f.data.storyLines[1][0].portraitReveal)) {

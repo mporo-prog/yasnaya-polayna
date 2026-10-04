@@ -43,13 +43,13 @@
       return {
         images: [
           { key: 'menuBackground', url: 'images/backgrounds/menu_screen.png' },
-          { key: 'settingsHeaderBg', url: 'images/icon_UI/settings_header_bg.png' },
+          { key: 'settingsHeaderBg', url: 'images/icon_UI/result_message_panel.png' },
           { key: 'authorsCardBg', url: 'images/icon_UI/text_bg.png' },
           { key: 'settingsBackButton', url: 'images/icon_UI/back_button.png' },
-          { key: 'authorsMuseumLogo', url: 'images/finish/YP_Logo.png' },
-          { key: 'authorsPartnerLogos', url: 'images/finish/all_logos.png' },
-          { key: 'authorsVk', url: 'images/finish/Group%2060.png' },
-          { key: 'authorsTelegram', url: 'images/finish/Group%2062.png' },
+          { key: 'authorsMuseumLogo', url: 'images/icon_UI/YP_Logo.png' },
+          { key: 'authorsPartnerLogos', url: 'images/icon_UI/all_logos.png' },
+          { key: 'authorsVk', url: 'images/icon_UI/Group%2060.png' },
+          { key: 'authorsTelegram', url: 'images/icon_UI/Group%2062.png' },
         ],
       };
     }
@@ -67,6 +67,7 @@
       this.layout = window.VN.systems.Layout;
       this.scrollY = 0;
       this.maxScroll = 0;
+      this.easterEggClicks = 0;
       // Phaser переиспользует объект сцены при повторном запуске:
       // сбрасываем масштаб, чтобы колонка собралась заново.
       this.contentScale = null;
@@ -80,7 +81,10 @@
       this.backButton = this.add.image(0, 0, 'settingsBackButton')
         .setDepth(10)
         .setInteractive({ useHandCursor: true });
-      this.backButton.on('pointerup', () => this.goBack());
+      this.backButton.on('pointerup', () => {
+        window.VN?.systems.AudioManager?.click?.(this);
+        this.goBack();
+      });
 
       this.layout.onLayout(this, (visible, ui) => this.applyLayout(visible, ui));
       this.installScrolling();
@@ -88,10 +92,12 @@
 
     applyLayout(visible, ui) {
       const compact = this.layout.isCompact(this);
+      // Размер «назад» — общий для всех сцен (Layout.UI_BUTTONS).
+      const backSize = this.layout.buttonSize(this, 'back');
       if (compact) {
-        this.backButton.setPosition(ui.x + ui.width * 50 / 917, 197).setDisplaySize(157, 157);
+        this.backButton.setPosition(ui.x + ui.width * 50 / 917, 197).setDisplaySize(backSize, backSize);
       } else {
-        this.backButton.setPosition(ui.x + 152, ui.y + 112).setDisplaySize(96, 96);
+        this.backButton.setPosition(ui.x + 152, ui.y + 112).setDisplaySize(backSize, backSize);
       }
 
       const scale = compact ? COMPACT_SCALE : DESKTOP_SCALE;
@@ -143,7 +149,24 @@
       let rowsBottom = CARD.firstRowY;
       card.people.forEach(([name, org], index) => {
         const y = CARD.firstRowY + index * CARD.rowStep;
-        rows.push(this.add.text(CARD.nameX * s, (top + y) * s, name, rowStyle).setOrigin(0, 0.5));
+        const nameText = this.add.text(CARD.nameX * s, (top + y) * s, name, rowStyle).setOrigin(0, 0.5);
+        if (name === 'Евгений Скуковский') {
+          let pressedPointer = null;
+          nameText.setInteractive();
+          nameText.on('pointerdown', (pointer) => { pressedPointer = pointer.id; });
+          nameText.on('pointerout', () => { pressedPointer = null; });
+          nameText.on('pointerup', (pointer) => {
+            const clicked = pressedPointer === pointer.id;
+            pressedPointer = null;
+            if (!clicked || this.dragMoved) return;
+            this.easterEggClicks += 1;
+            if (this.easterEggClicks === 5) {
+              this.easterEggClicks = 0;
+              window.open('https://www.youtube.com/watch?v=dQw4w9WgXcQ', '_blank', 'noopener');
+            }
+          });
+        }
+        rows.push(nameText);
         const orgText = this.add.text(CARD.orgX * s, (top + y) * s, org, { ...rowStyle, align: 'right' })
           .setOrigin(1, 0.5);
         // Организация в две строки растёт вниз от строки с именем.
@@ -173,7 +196,9 @@
           .setInteractive({ useHandCursor: true });
         button.on('pointerup', () => {
           // Отпускание после прокрутки — не нажатие.
-          if (!this.dragMoved) window.open(social.href, '_blank', 'noopener');
+          if (this.dragMoved) return;
+          window.VN?.systems.AudioManager?.click?.(this);
+          window.open(social.href, '_blank', 'noopener');
         });
         this.content.add(button);
       });

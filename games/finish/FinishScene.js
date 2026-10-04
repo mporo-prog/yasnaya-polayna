@@ -2,10 +2,10 @@
 
 const BASE_WIDTH = 1920;
 const BASE_HEIGHT = 1080;
-const FINISH_IMAGES = `${import.meta.env.BASE_URL}images/finish/`;
+const FINISH_IMAGES = `${import.meta.env.BASE_URL}images/icon_UI/`;
 
 const BACKGROUND = {
-    image: 'background.PNG',
+    image: 'game5.png',
     color: '#8fa3a3'
 };
 
@@ -62,6 +62,17 @@ export class FinishScene extends Phaser.Scene {
     }
 
     preload() {
+        const progress = window.VN.systems.StartupScreen.track(this);
+        if (progress) {
+            this.load.on('progress', progress);
+            this.events.once('shutdown', () => this.load.off('progress', progress));
+        }
+        // DOM-кнопки и CSS-фон тоже должны загрузиться до снятия заставки.
+        this.load.image('finishBackground', `${import.meta.env.BASE_URL}images/backgrounds/${BACKGROUND.image}`);
+        this.load.image('finishReplay', `${FINISH_IMAGES}main_button.png`);
+        SOCIAL_LINKS.items.forEach(({ image }, index) => {
+            this.load.image(`finishSocial${index}`, `${FINISH_IMAGES}${image}`);
+        });
         this.load.image(MAP.key, `${FINISH_IMAGES}${MAP.image}`);
         this.load.image(STATS_PANEL.key, `${import.meta.env.BASE_URL}images/icon_UI/finish_stats_panel.png`);
         STATS_PANEL.rows.forEach(({ icon, image }) => {
@@ -81,6 +92,8 @@ export class FinishScene extends Phaser.Scene {
     }
 
     createFrame() {
+        // HTML-кнопки и ссылки должны лежать выше холста с картой.
+        this.game.domContainer.style.zIndex = '1';
         this.frame = this.add.container(0, 0);
 
         // Clip content: содержимое не выходит за границы макета 1920×1080.
@@ -99,8 +112,16 @@ export class FinishScene extends Phaser.Scene {
         // Холст прозрачный, а обои лежат под ним на всё окно (cover):
         // так они заполняют и поля, которые оставляет FIT, без стыков.
         const app = this.game.canvas.parentElement;
-        app.style.background = `${BACKGROUND.color} url("${encodeURI(FINISH_IMAGES + BACKGROUND.image)}") center / cover no-repeat`;
+        // Используем уже загруженный Image: повторный CSS-запрос при no-store
+        // мог бы оставить финал без фона после снятия заставки.
+        const background = this.textures.get('finishBackground').getSourceImage();
+        background.className = 'finish-background';
+        background.alt = '';
+        background.draggable = false;
+        app.style.background = BACKGROUND.color;
+        app.prepend(background);
         this.events.once('shutdown', () => {
+            background.remove();
             app.style.background = '';
         });
     }
@@ -151,7 +172,7 @@ export class FinishScene extends Phaser.Scene {
 
     createSocialLinks() {
         const { x, size, items } = SOCIAL_LINKS;
-        this.socialLinks = items.map(({ name, image, href, y }) => {
+        this.socialLinks = items.map(({ name, href, y }, index) => {
             const link = document.createElement('a');
             link.className = 'finish-social-link';
             link.href = href;
@@ -161,8 +182,7 @@ export class FinishScene extends Phaser.Scene {
             link.style.width = `${size}px`;
             link.style.height = `${size}px`;
 
-            const icon = document.createElement('img');
-            icon.src = encodeURI(`${FINISH_IMAGES}${image}`);
+            const icon = this.textures.get(`finishSocial${index}`).getSourceImage();
             icon.alt = '';
             icon.width = size;
             icon.height = size;
@@ -180,11 +200,14 @@ export class FinishScene extends Phaser.Scene {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'finish-replay-button';
-        button.textContent = text;
+        const background = this.textures.get('finishReplay').getSourceImage();
+        background.alt = '';
+        background.draggable = false;
+        const label = document.createElement('span');
+        label.textContent = text;
+        button.append(background, label);
         button.style.width = `${width}px`;
         button.style.height = `${height}px`;
-        button.style.backgroundImage = `url("${import.meta.env.BASE_URL}images/icon_UI/finish_replay_button.png")`;
-
         const returnToMenu = () => {
             // При входе основная страница должна открыть меню, а не сохранённую сцену.
             window.VN.systems.GameState.markAtMenu();

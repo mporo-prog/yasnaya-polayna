@@ -1,6 +1,6 @@
 import { BASE_WIDTH, BASE_HEIGHT } from '../constants/Game2Constants.js';
 
-// Координаты центров кружков на фоне background.png (1920×1080).
+// Координаты центров кружков на фоне background.webp (1920×1080).
 // Кружки уже нарисованы в самом фоне, поэтому отдельная графика зон не нужна.
 export const TARGETS = [
     {

@@ -29,7 +29,7 @@
   };
   vn.systems.GameState = { state: { storySceneIndex: 0 } };
   vn.data.storyLines = [[{ speaker: 'A' }], [{ speaker: 'B' }]];
-  vn.data.storyBackgrounds = [['images/icon_UI/back_button.png'], ['images/icon_UI/dialog_text_bg.png']];
+  vn.data.storyBackgrounds = [['images/icon_UI/back_button.webp'], ['images/icon_UI/dialog_text_bg.webp']];
   vn.data.storyCharacterPortraits = {};
   vn.data.storyMinigameLinks = ['GameScene1', null];
   vn.data.storyAudio = [{}, {}];
@@ -58,7 +58,7 @@
   class MiniGame extends Phaser.Scene {
     constructor() { super('GameScene1'); }
     init(data) { this.storySceneIndex = data.storySceneIndex; }
-    getAssetManifest() { return { images: [{ key: 'game-bird', url: 'images/game1/Zyablik_1.png' }] }; }
+    getAssetManifest() { return { images: [{ key: 'game-bird', url: 'images/game1/Zyablik_1.webp' }] }; }
     preload() { vn.systems.SceneAssets.preload(this); }
     create() {
       creates.push('minigame');

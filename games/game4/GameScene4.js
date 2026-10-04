@@ -21,7 +21,7 @@ const PAUSE_BUTTON = {
     x: 100,
     y: 90,
     size: 148,
-    texture: 'images/icon_UI/pause_button.png'
+    texture: 'images/icon_UI/pause_button.webp'
 };
 
 // Зоны сброса — лотки на фоне (координаты картинки 1920×1080).
@@ -57,13 +57,13 @@ const TIME_LIMIT = 30;
 // Пути относительно resource/sound.
 const SOUNDS = {
     // Запись длится ровно 10 секунд — до конца таймера.
-    timer: 'voice_and_sound/scene4_gameplay4/GAMEPLAY4_NEW/gameplay_timer.wav',
-    correct: 'voice_and_sound/scene4_gameplay4/GAMEPLAY4_NEW/gameplay_vernyi_vybor.wav',
+    timer: 'voice_and_sound/scene4_gameplay4/GAMEPLAY4_NEW/gameplay_timer.mp3',
+    correct: 'voice_and_sound/scene4_gameplay4/GAMEPLAY4_NEW/gameplay_vernyi_vybor.mp3',
     // Взяли письмо из стопки.
-    grab: 'voice_and_sound/scene4_gameplay4/GAMEPLAY4_NEW/gameplay3_nazhatie_na_object.wav',
+    grab: 'voice_and_sound/scene4_gameplay4/GAMEPLAY4_NEW/gameplay3_nazhatie_na_object.mp3',
     // Сверху стопки появилось следующее письмо.
-    appear: 'voice_and_sound/scene4_gameplay4/GAMEPLAY4_NEW/gameplay_poyavlenie_new_object.wav',
-    wrong: 'voice_and_sound/scene4_gameplay4/GAMEPLAY4_NEW/gameplay2_neverniy_vybor.wav'
+    appear: 'voice_and_sound/scene4_gameplay4/GAMEPLAY4_NEW/gameplay_poyavlenie_new_object.mp3',
+    wrong: 'voice_and_sound/scene4_gameplay4/GAMEPLAY4_NEW/gameplay2_neverniy_vybor.mp3'
 };
 
 // За сколько секунд до конца включается звук таймера.
@@ -91,7 +91,7 @@ const HINT_NEXT_ARROW = {
     x: 1600,
     y: 825,
     size: 150,
-    texture: 'images/icon_UI/next_button.png'
+    texture: 'images/icon_UI/next_button.webp'
 };
 
 const RESULT_MESSAGE_PANEL = {
@@ -99,7 +99,7 @@ const RESULT_MESSAGE_PANEL = {
     y: 430,
     width: 776.03,
     height: 220,
-    texture: 'images/icon_UI/result_message_panel.png'
+    texture: 'images/icon_UI/result_message_panel.webp'
 };
 
 const INSTRUCTION_PANEL = {
@@ -107,7 +107,7 @@ const INSTRUCTION_PANEL = {
     y: 251,
     width: 1300,
     height: 577.04,
-    texture: 'images/icon_UI/text_bg.png'
+    texture: 'images/icon_UI/text_bg.webp'
 };
 
 const COLOR_OVERLAY = 0x000000;
@@ -206,15 +206,15 @@ export class GameScene4 extends Phaser.Scene {
             images: [
                 {
                     key: 'game4-background',
-                    url: `${imagesPath}background.png`
+                    url: `${imagesPath}background.webp`
                 },
                 {
                     key: CLOCK.emptyTexture,
-                    url: `${imagesPath}clock_timer_empty.png`
+                    url: `${imagesPath}clock_timer_empty.webp`
                 },
                 {
                     key: CLOCK.fullTexture,
-                    url: `${imagesPath}clock_timer_full.png`
+                    url: `${imagesPath}clock_timer_full.webp`
                 },
                 ...[
                     PAUSE_BUTTON,
@@ -227,7 +227,7 @@ export class GameScene4 extends Phaser.Scene {
                 })),
                 ...letterImages.map((image) => ({
                     key: Letter.textureKey(image),
-                    url: `${imagesPath}letters/${image}.png`
+                    url: `${imagesPath}letters/${image}.webp`
                 }))
             ],
 

@@ -24,7 +24,7 @@ window.VN.data.quoteStyle = {
   colorWrong: 0xff3b30,
   overlayAlpha: 0.45,
 
-  // Кнопки-варианты — на плашке кнопок меню (images/icon_UI/main_button.png).
+  // Кнопки-варианты — на плашке кнопок меню (images/icon_UI/main_button.webp).
   // Размер answerWidth × answerHeight; ширина растягивается под длинный
   // текст (answerPaddingX — отступ текста от краёв). Ниже — центры плашек.
   answerWidth: 385,

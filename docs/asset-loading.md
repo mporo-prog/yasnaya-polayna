@@ -46,15 +46,15 @@ CSS Google Fonts подключается без блокировки перво
 Фоны, реплики, портреты и аудио сюжета берутся из существующих `VN.data`.
 Текстуры интерфейса меню и сюжета, картинки и дополнительные звуки мини-игры
 описываются в методе соответствующей сцены. `key` должен совпадать с ключом,
-переданным в `add.image()` или `textures.get()`; одного PNG в `public` недостаточно.
-Например, `dialogTextBg` загружается из `images/icon_UI/dialog_text_bg.png`.
+переданным в `add.image()` или `textures.get()`; одного файла в `public` недостаточно.
+Например, `dialogTextBg` загружается из `images/icon_UI/dialog_text_bg.webp`.
 
 Пример объявления:
 
 ```js
 getAssetManifest() {
   return {
-    images: [{ key: 'table', url: `${import.meta.env.BASE_URL}images/table.png` }],
+    images: [{ key: 'table', url: `${import.meta.env.BASE_URL}images/table.webp` }],
     audio: ['voice_and_sound/example.mp3'],
   };
 }
@@ -88,5 +88,31 @@ getAssetManifest() {
 маршрут, все мини-игры, возврат в меню и холодный запуск `?game=1…5` во фрейме;
 исходное сохранение восстанавливается после проверки.
 
-Форматы изображений и аудио, а также схема сборки JS сохранены.
+Схема сборки JS сохранена.
 Загруженные ресурсы остаются в кеше до закрытия игры.
+
+## Форматы файлов
+
+Картинки хранятся в WebP, звук — в MP3, анимация портрета — в WebM с запасным MP4
+(см. `docs/story-portrait.md`). Новые PNG и WAV перед подключением конвертируются FFmpeg:
+
+```powershell
+# Фоны, персонажи и другие крупные картинки (при заметных артефактах — 90–94)
+ffmpeg -i in.png -vf format=bgra -c:v libwebp -quality 85 -compression_level 6 -map_metadata -1 out.webp
+# Мелкие элементы интерфейса с ровными заливками — без потерь
+ffmpeg -i in.png -vf format=bgra -c:v libwebp -lossless 1 -quality 100 -compression_level 6 -map_metadata -1 out.webp
+# Звук
+ffmpeg -i in.wav -map_metadata -1 -c:a libmp3lame -q:a 2 out.mp3
+```
+
+WebP сохраняется без цветового профиля. PNG с профилем Display P3 (экспорт с Mac)
+перед кодированием переводятся в sRGB, иначе цвета станут бледнее — в `-vf` вместо
+`format=bgra`:
+`format=gbrapf32le,zscale=primariesin=smpte432:transferin=iec61966-2-1:matrixin=gbr:rangein=full:primaries=bt709:transfer=iec61966-2-1:matrix=gbr:range=full,format=bgra`.
+
+MP3 содержит заголовок LAME с задержкой энкодера; Chrome отрезает её при
+декодировании, поэтому длина звука совпадает с WAV и зацикленная музыка не получает
+паузы на стыке. Три WAV совпадали по имени с другими, уже существующими MP3-записями,
+и получили суффикс `_alt`: `voice_and_sound/gameplay1_rasskazchik_alt.mp3`,
+`voice_and_sound/screen_1_1_scene_2_posetitel3_alt.mp3`,
+`voice_and_sound/scene2_gameplay2/screen_1_1_scene_2_posetitel3_alt.mp3`.

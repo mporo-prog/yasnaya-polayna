@@ -13,14 +13,14 @@ const PAUSE_BUTTON = {
     xFrac: 100 / BASE_WIDTH,
     yFrac: 90 / BASE_HEIGHT,
     size: 110,
-    texture: 'images/icon_UI/pause_button.png'
+    texture: 'images/icon_UI/pause_button.webp'
 };
 
 const HINT_NEXT_ARROW = {
     xFrac: 1600 / BASE_WIDTH,
     yFrac: 825 / BASE_HEIGHT,
     size: 150,
-    texture: 'images/icon_UI/next_button.png'
+    texture: 'images/icon_UI/next_button.webp'
 };
 
 const INSTRUCTION_PANEL = {
@@ -28,7 +28,7 @@ const INSTRUCTION_PANEL = {
     yFrac: 251 / BASE_HEIGHT,
     width: 1300,
     height: 577.04,
-    texture: 'images/icon_UI/text_bg.png'
+    texture: 'images/icon_UI/text_bg.webp'
 };
 
 // Картинка — подложка заголовков в настройках и «Авторах»; размер прежний.
@@ -37,7 +37,7 @@ const ITEM_NAME_PANEL = {
     yFrac: 81.48148 / 100,
     width: 477,
     height: 136,
-    texture: 'images/icon_UI/result_message_panel.png'
+    texture: 'images/icon_UI/result_message_panel.webp'
 };
 
 const COLOR_BACKGROUND = 0xffffff;
@@ -80,7 +80,7 @@ const DEFAULT_HINT_DURATION_SECONDS = 2;
 // Сколько неправильный предмет остаётся на экране с нажатой подложкой.
 const WRONG_ITEM_REMOVE_DELAY = 2000;
 // Звучит после озвучки названия неправильного предмета.
-const WRONG_SOUND = 'voice_and_sound/scene3_gameplay3/GAMEPLAY3_NEW/gameplay3_nevernyi_vybor.wav';
+const WRONG_SOUND = 'voice_and_sound/scene3_gameplay3/GAMEPLAY3_NEW/gameplay3_nevernyi_vybor.mp3';
 
 export class GameScene3 extends Phaser.Scene {
 
@@ -99,7 +99,7 @@ export class GameScene3 extends Phaser.Scene {
     getAssetManifest() {
         return {
             images: [
-                { key: BACKGROUND_TEXTURE, url: `${import.meta.env.BASE_URL}images/game3/background.png` },
+                { key: BACKGROUND_TEXTURE, url: `${import.meta.env.BASE_URL}images/game3/background.webp` },
                 ...[PAUSE_BUTTON, HINT_NEXT_ARROW, INSTRUCTION_PANEL, ITEM_NAME_PANEL].map(({ texture }) => ({
                     key: texture,
                     url: `${import.meta.env.BASE_URL}${texture}`
@@ -108,7 +108,7 @@ export class GameScene3 extends Phaser.Scene {
                     [panel, hoverPanel, clickPanel, image].filter(Boolean)
                 ))].map(name => ({
                     key: `game3-${name}`,
-                    url: `${import.meta.env.BASE_URL}images/game3/${name}.png`
+                    url: `${import.meta.env.BASE_URL}images/game3/${name}.webp`
                 }))
             ],
             audio: [...READY_ITEMS.map(({ voice }) => voice).filter(Boolean), WRONG_SOUND]

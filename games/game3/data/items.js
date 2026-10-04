@@ -7,7 +7,7 @@
 export const ITEMS = [
     {
         id: 'egg',
-        voice: 'voice_and_sound/scene3_gameplay3/GAMEPLAY3_NEW/gameplay3_egg.wav',
+        voice: 'voice_and_sound/scene3_gameplay3/GAMEPLAY3_NEW/gameplay3_egg.mp3',
         label: 'Яйцо всмятку',
         panel: 'egg_panel',
         hoverPanel: 'egg_panel_hover',
@@ -19,7 +19,7 @@ export const ITEMS = [
     },
     {
         id: 'sandwich',
-        voice: 'voice_and_sound/scene3_gameplay3/GAMEPLAY3_NEW/gameplay3_buterbrod.wav',
+        voice: 'voice_and_sound/scene3_gameplay3/GAMEPLAY3_NEW/gameplay3_buterbrod.mp3',
         label: 'Бутерброд с бужениной',
         panel: 'wide_panel',
         hoverPanel: 'wide_panel_hover',
@@ -31,7 +31,7 @@ export const ITEMS = [
     },
     {
         id: 'macaroni-cheese',
-        voice: 'voice_and_sound/scene3_gameplay3/GAMEPLAY3_NEW/gameplay3_makarony.wav',
+        voice: 'voice_and_sound/scene3_gameplay3/GAMEPLAY3_NEW/gameplay3_makarony.mp3',
         label: 'Макароны с сыром',
         panel: 'wide_panel',
         hoverPanel: 'wide_panel_hover',
@@ -43,7 +43,7 @@ export const ITEMS = [
     },
     {
         id: 'porridge',
-        voice: 'voice_and_sound/scene3_gameplay3/GAMEPLAY3_NEW/gameplay3_grechka5!.wav',
+        voice: 'voice_and_sound/scene3_gameplay3/GAMEPLAY3_NEW/gameplay3_grechka5!.mp3',
         label: 'Гречневая каша',
         panel: 'wide_panel',
         hoverPanel: 'wide_panel_hover',
@@ -55,7 +55,7 @@ export const ITEMS = [
     },
     {
         id: 'sparkling-water',
-        voice: 'voice_and_sound/scene3_gameplay3/GAMEPLAY3_NEW/gameplay3_mineral_voda.wav',
+        voice: 'voice_and_sound/scene3_gameplay3/GAMEPLAY3_NEW/gameplay3_mineral_voda.mp3',
         label: 'Минеральная вода',
         panel: 'sparkling_water_panel',
         hoverPanel: 'sparkling_water_panel_hover',
@@ -67,7 +67,7 @@ export const ITEMS = [
     },
     {
         id: 'cup',
-        voice: 'voice_and_sound/scene3_gameplay3/GAMEPLAY3_NEW/gameplay3_chai.wav',
+        voice: 'voice_and_sound/scene3_gameplay3/GAMEPLAY3_NEW/gameplay3_chai.mp3',
         label: 'Чёрный чай',
         panel: 'cup_panel',
         hoverPanel: 'cup_panel_hover',

@@ -63,7 +63,7 @@
       assert(story.bottomGroup.visible && story.historyBtn.bg.visible, 'Dialogue accompanies the animation');
       const artwork = story.portraitArtwork;
       const video = story.portraitVideo;
-      assert(story.background.key.endsWith('/portrait-wallpaper.png'), 'Use the supplied empty wallpaper');
+      assert(story.background.key.endsWith('/portrait-wallpaper.webp'), 'Use the supplied empty wallpaper');
       assert(artwork.x === 864 && Math.abs(artwork.y - 70.2) < 0.01, 'Dialogue position: 45% / 6.5%');
       assert(Math.abs(video.displayWidth * artwork.scaleX - 208) < 0.01
         && Math.abs(video.displayHeight * (1 - video.originY) * artwork.scaleY - 612) < 0.01, 'Dialogue size: 208 x 612');
@@ -71,7 +71,7 @@
       assert(Math.abs((game.getTime() - story.voiceStartTime) / 1000 - story.portraitVideo.video.currentTime) < 0.3,
         'Video and voice must share the same start');
       assert(!story.portraitVideo.video.loop && story.portraitVideo.video.muted, 'Silent, non-looping video');
-      assert(story.portraitVideo.video.currentSrc.endsWith('/video/tolstoy-portrait-e1ebd194.mp4'),
+      assert(/\/video\/tolstoy-portrait-e1ebd194\.(webm|mp4)$/.test(story.portraitVideo.video.currentSrc),
         'Use the video converted from the attached GIF, not the old cached asset');
       assert(Math.abs(story.portraitVideo.video.duration - 9.67) < 0.1, 'Preserve the attached GIF timing');
       story.goBack();

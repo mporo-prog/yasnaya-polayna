@@ -42,14 +42,14 @@
     getAssetManifest() {
       return {
         images: [
-          { key: 'menuBackground', url: 'images/backgrounds/menu_screen.png' },
-          { key: 'settingsHeaderBg', url: 'images/icon_UI/result_message_panel.png' },
-          { key: 'authorsCardBg', url: 'images/icon_UI/text_bg.png' },
-          { key: 'settingsBackButton', url: 'images/icon_UI/back_button.png' },
-          { key: 'authorsMuseumLogo', url: 'images/icon_UI/YP_Logo.png' },
-          { key: 'authorsPartnerLogos', url: 'images/icon_UI/all_logos.png' },
-          { key: 'authorsVk', url: 'images/icon_UI/Group%2060.png' },
-          { key: 'authorsTelegram', url: 'images/icon_UI/Group%2062.png' },
+          { key: 'menuBackground', url: 'images/backgrounds/menu_screen.webp' },
+          { key: 'settingsHeaderBg', url: 'images/icon_UI/result_message_panel.webp' },
+          { key: 'authorsCardBg', url: 'images/icon_UI/text_bg.webp' },
+          { key: 'settingsBackButton', url: 'images/icon_UI/back_button.webp' },
+          { key: 'authorsMuseumLogo', url: 'images/icon_UI/YP_Logo.webp' },
+          { key: 'authorsPartnerLogos', url: 'images/icon_UI/all_logos.webp' },
+          { key: 'authorsVk', url: 'images/icon_UI/Group%2060.webp' },
+          { key: 'authorsTelegram', url: 'images/icon_UI/Group%2062.webp' },
         ],
       };
     }

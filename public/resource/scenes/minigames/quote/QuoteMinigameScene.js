@@ -7,10 +7,10 @@
     hero: 'quoteHero',
     plazka: 'quotePlazka',
     dialog: 'dialogTextBg', // тот же ключ и файл, что в StoryScene
-    next: 'images/icon_UI/next_button.png',
-    pause: 'images/icon_UI/pause_button.png',
-    instruction: 'images/icon_UI/text_bg.png',
-    finish: 'images/icon_UI/finish_stats_panel.png',
+    next: 'images/icon_UI/next_button.webp',
+    pause: 'images/icon_UI/pause_button.webp',
+    instruction: 'images/icon_UI/text_bg.webp',
+    finish: 'images/icon_UI/finish_stats_panel.webp',
   };
 
   // Плашка с правилами в начале — как в остальных мини-играх (игра 1).
@@ -21,14 +21,14 @@
   const INSTRUCTION_PANEL = { x: 310, y: 251, width: 1300, height: 577.04 };
   const INTRO_NEXT_ARROW = { x: 1600, y: 825, size: 150 };
     // Плашка экрана правил и финального экрана — тот же файл и тот же
-    // размер, что в GameScene1-3 (public/images/icon_UI/text_bg.png).
-    // instructionPanel: 'images/icon_UI/text_bg.png',
+    // размер, что в GameScene1-3 (public/images/icon_UI/text_bg.webp).
+    // instructionPanel: 'images/icon_UI/text_bg.webp',
 
   // Короткие звуки-реакции на ответ. Фоновая музыка и озвучка правил
   // заданы в data/sceneAudio.js (QuoteMinigameScene).
   const SND = {
-    correct: 'voice_and_sound/scene5_gameplay5/gameplay/gameplay5_vernyi_vybor.wav',
-    wrong: 'voice_and_sound/scene5_gameplay5/gameplay/gameplay5_nevernyi_vybor.wav',
+    correct: 'voice_and_sound/scene5_gameplay5/gameplay/gameplay5_vernyi_vybor.mp3',
+    wrong: 'voice_and_sound/scene5_gameplay5/gameplay/gameplay5_nevernyi_vybor.mp3',
   };
 
   // Панель правил/финала — тот же размер, что в GameScene1-3.
@@ -77,7 +77,7 @@
     getAssetManifest() {
       return {
         images: [
-          { key: IMG.background, url: 'images/backgrounds/withoutTolstoy.png' },
+          { key: IMG.background, url: 'images/backgrounds/withoutTolstoy.webp' },
           // ВАЖНО: путь без "public/" (как и у остальных ассетов — Vite
           // сам отдаёт содержимое public/ с корня сайта, "public/" в самом
           // пути даёт 404). А "й" здесь — специально через ̆
@@ -85,10 +85,10 @@
           // на диске сохранено в NFD-форме (и + ̆ отдельно, так сохраняет
           // git/файловая система), и просто набранная "й" (NFC, слитная)
           // с этим именем побайтово не совпадает — картинка не находится.
-          { key: IMG.hero, url: 'images/hero/Толсто_1.png'},
+          { key: IMG.hero, url: 'images/hero/Толсто_1.webp'},
           // Варианты ответа — на той же плашке, что кнопки меню.
-          { key: IMG.plazka, url: 'images/icon_UI/main_button.png' },
-          { key: IMG.dialog, url: 'images/icon_UI/dialog_text_bg.png' },
+          { key: IMG.plazka, url: 'images/icon_UI/main_button.webp' },
+          { key: IMG.dialog, url: 'images/icon_UI/dialog_text_bg.webp' },
           { key: IMG.next, url: IMG.next },
           { key: IMG.pause, url: IMG.pause },
           { key: IMG.instruction, url: IMG.instruction },

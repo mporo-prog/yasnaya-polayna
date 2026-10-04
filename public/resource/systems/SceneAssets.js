@@ -66,7 +66,7 @@
       const declared = target?.getAssetManifest?.() ?? {};
       const assets = (declared.images ?? []).map(({ key, url }) => image(key, url));
       if (key === 'MainMenuScene') {
-        assets.push(image('menuBackground', 'images/backgrounds/menu_screen.png'));
+        assets.push(image('menuBackground', 'images/backgrounds/menu_screen.webp'));
       } else if (key === 'StoryScene') {
         const index = data.storySceneIndex ?? vn.systems.GameState.state.storySceneIndex;
         for (const path of vn.data.storyBackgrounds[index] ?? []) assets.push(image(path));
@@ -82,7 +82,7 @@
           }
         }
         for (const name of ['pause', 'history', 'back', 'next', 'main']) {
-          assets.push(image('images/icon_UI/' + name + '_button.png'));
+          assets.push(image('images/icon_UI/' + name + '_button.webp'));
         }
       }
       if (!visualsOnly) {

@@ -185,11 +185,11 @@ test('story preloads a silent character and the background revealed later on the
   assert.ok(keys.includes('house.png'));
 });
 
-test('actual menu and story manifests include UI texture aliases backed by existing PNG files', () => {
+test('actual menu and story manifests include UI texture aliases backed by existing WebP files', () => {
   const f = fixture();
   const expected = {
-    MainMenuScene: { gameLogo: 'game_logo.png', mainButtonBg: 'main_button.png', saveButtonBg: 'main_button.png' },
-    StoryScene: { dialogTextBg: 'dialog_text_bg.png', historyModalBg: 'history_modal_bg.png', closeButton: 'close_button.png' },
+    MainMenuScene: { gameLogo: 'game_logo.webp', mainButtonBg: 'main_button.webp', saveButtonBg: 'main_button.webp' },
+    StoryScene: { dialogTextBg: 'dialog_text_bg.webp', historyModalBg: 'history_modal_bg.webp', closeButton: 'close_button.webp' },
   };
   for (const [scene, textures] of Object.entries(expected)) {
     const assets = f.assets.assetsFor(f.game, scene, { storySceneIndex: 0 }, { visualsOnly: true });
@@ -205,10 +205,10 @@ test('actual menu and story manifests include UI texture aliases backed by exist
 test('portrait preloads its initial frame and game3 title panel without entering a placeholder minigame', () => {
   const f = fixture();
   f.data.storyLines[1] = [{ portraitReveal: {
-    poster: 'images/backgrounds/tolstoy-portrait-start-e1ebd194.png',
-    frameImage: 'images/backgrounds/portrait-frame.png',
-    fallbackImage: 'images/backgrounds/tolstoy.png',
-    titlePanel: 'images/icon_UI/result_message_panel.png',
+    poster: 'images/backgrounds/tolstoy-portrait-start-e1ebd194.webp',
+    frameImage: 'images/backgrounds/portrait-frame.webp',
+    fallbackImage: 'images/backgrounds/tolstoy.webp',
+    titlePanel: 'images/icon_UI/result_message_panel.webp',
   } }];
   const assets = f.assets.assetsFor(f.game, 'StoryScene', { storySceneIndex: 1 });
   for (const path of Object.values(f.data.storyLines[1][0].portraitReveal)) {

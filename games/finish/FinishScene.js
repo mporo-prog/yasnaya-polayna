@@ -5,13 +5,13 @@ const BASE_HEIGHT = 1080;
 const FINISH_IMAGES = `${import.meta.env.BASE_URL}images/icon_UI/`;
 
 const BACKGROUND = {
-    image: 'game5.png',
+    image: 'game5.webp',
     color: '#8fa3a3'
 };
 
 const MAP = {
     key: 'finishRouteMap',
-    image: 'map.png',
+    image: 'map.webp',
     x: 0,
     y: 250,
     width: 1420,
@@ -31,10 +31,10 @@ const STATS_PANEL = {
     firstRowY: 152,
     rowStep: 65,
     rows: [
-        { icon: 'finishBoot', image: 'boot.png', width: 43, height: 46, text: '5 350 шагов' },
-        { icon: 'finishKilometers', image: 'kilometrs.png', width: 51, height: 53, text: '4 километра' },
-        { icon: 'finishPhoto', image: 'photo.png', width: 40, height: 31, text: '126 живописных фото' },
-        { icon: 'finishStories', image: 'stories.png', width: 27, height: 44, text: '10 сториз' }
+        { icon: 'finishBoot', image: 'boot.webp', width: 43, height: 46, text: '5 350 шагов' },
+        { icon: 'finishKilometers', image: 'kilometrs.webp', width: 51, height: 53, text: '4 километра' },
+        { icon: 'finishPhoto', image: 'photo.webp', width: 40, height: 31, text: '126 живописных фото' },
+        { icon: 'finishStories', image: 'stories.webp', width: 27, height: 44, text: '10 сториз' }
     ]
 };
 
@@ -42,8 +42,8 @@ const SOCIAL_LINKS = {
     x: 1540,
     size: 221,
     items: [
-        { name: 'ВКонтакте', image: 'Group 60.png', href: 'https://vk.ru/yaspol', y: 120 },
-        { name: 'Telegram', image: 'Group 62.png', href: 'https://t.me/ypmuseum', y: 380 }
+        { name: 'ВКонтакте', image: 'Group 60.webp', href: 'https://vk.ru/yaspol', y: 120 },
+        { name: 'Telegram', image: 'Group 62.webp', href: 'https://t.me/ypmuseum', y: 380 }
     ]
 };
 
@@ -69,12 +69,12 @@ export class FinishScene extends Phaser.Scene {
         }
         // DOM-кнопки и CSS-фон тоже должны загрузиться до снятия заставки.
         this.load.image('finishBackground', `${import.meta.env.BASE_URL}images/backgrounds/${BACKGROUND.image}`);
-        this.load.image('finishReplay', `${FINISH_IMAGES}main_button.png`);
+        this.load.image('finishReplay', `${FINISH_IMAGES}main_button.webp`);
         SOCIAL_LINKS.items.forEach(({ image }, index) => {
             this.load.image(`finishSocial${index}`, `${FINISH_IMAGES}${image}`);
         });
         this.load.image(MAP.key, `${FINISH_IMAGES}${MAP.image}`);
-        this.load.image(STATS_PANEL.key, `${import.meta.env.BASE_URL}images/icon_UI/finish_stats_panel.png`);
+        this.load.image(STATS_PANEL.key, `${import.meta.env.BASE_URL}images/icon_UI/finish_stats_panel.webp`);
         STATS_PANEL.rows.forEach(({ icon, image }) => {
             this.load.image(icon, `${FINISH_IMAGES}${image}`);
         });

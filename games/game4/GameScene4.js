@@ -5,12 +5,10 @@
 const BASE_WIDTH = 1920;
 const BASE_HEIGHT = 1080;
 
-const GAME4_SAVE_KEY = 'game4_save_v1';
 import { Game4Timer } from './systems/Game4Timer.js';
 import { Letter } from './models/Letter.js';
 import { LetterStack } from './models/LetterStack.js';
 import { Envelope } from './models/Envelope.js';
-import { Game4Storage } from './systems/Game4Storage.js';
 import {
     letterList,
     letterImages,
@@ -187,10 +185,6 @@ export class GameScene4 extends Phaser.Scene {
 
     constructor() {
         super('GameScene4');
-
-        this.handlePageHide = () => {
-            this.saveGame4State();
-        };
     }
 
     init(data) {
@@ -256,14 +250,11 @@ export class GameScene4 extends Phaser.Scene {
 
     create() {
 
-        this.storage = new Game4Storage(GAME4_SAVE_KEY);
-
         this.completed = false;
         this.timeLeft = undefined;
         this.timer = null;
         this.timerStarted = false;
         this.activeHint = null;
-        this.trayLetters = [];
         this.timerSound = null;
 
         this.sceneAudio = null;
@@ -279,24 +270,11 @@ export class GameScene4 extends Phaser.Scene {
         this.createOverlays();
         window.VN?.systems.SceneAssets?.prefetchNext(this);
 
-        // Перезагрузка возможна и во время анимации последнего отсортированного письма.
-        const sceneAudio = window.VN?.systems.SceneAudio;
-        if (this.checkGameFinished()) {
-            // Восстановленная победа пропускает правила и их озвучку.
-            this.sceneAudio = sceneAudio?.enter(this, { ...sceneAudio.getConfig(this), sounds: [] });
-            this.winGame();
-        } else {
-            // Таймер и письма оживают только после экрана с правилами.
-            // Правила закрываются только нажатием (см. createOverlay).
-            this.showHint(this.introOverlay, () => this.startGame(), null);
-            this.sceneAudio = sceneAudio?.enter(this);
-            this.unlockAudio();
-        }
-
-        window.addEventListener(
-            'pagehide',
-            this.handlePageHide
-        );
+        // Таймер и письма оживают только после экрана с правилами.
+        // Правила закрываются только нажатием (см. createOverlay).
+        this.showHint(this.introOverlay, () => this.startGame(), null);
+        this.sceneAudio = window.VN?.systems.SceneAudio?.enter(this);
+        this.unlockAudio();
 
         // Звук таймера замирает вместе с игрой под меню паузы.
         const pauseSound = () => this.timerSound?.pause();
@@ -305,22 +283,15 @@ export class GameScene4 extends Phaser.Scene {
         this.events.on('resume', resumeSound);
 
         this.events.once('shutdown', () => {
-            window.removeEventListener(
-                'pagehide',
-                this.handlePageHide
-            );
-
             this.events.off('pause', pauseSound);
             this.events.off('resume', resumeSound);
 
             // Уход в другую игру или в меню завершает попытку.
-            // Сохранение переживает только перезагрузку страницы (pagehide).
             this.stopTimerSound();
             this.stopBackgroundSound();
             this.clearHint();
             this.timer?.destroy();
             this.completed = true;
-            this.clearGame4Save();
         });
     }
 
@@ -358,60 +329,24 @@ export class GameScene4 extends Phaser.Scene {
         this.scene.bringToTop('PauseScene');
     }
 
+    // Каждая попытка — с полной перемешанной стопки и полного таймера.
+    // Ход попытки не сохраняется: после перезагрузки страницы основное
+    // сохранение возвращает в эту мини-игру, и она начинается заново.
     createLetters() {
 
-        let saved = this.loadGame4State();
+        const randomList =
+            Phaser.Utils.Array.Shuffle([...letterList]);
 
-        // Сохранение с письмами, которых больше нет в игре (например,
-        // удалённые розовые), не восстанавливаем — попытка начинается заново.
-        const known = new Set(letterImages);
-        const isKnown = ({ image }) => !image || known.has(image);
-        if (saved && ![...saved.letters, ...(saved.trayLetters ?? [])].every(isKnown)) {
-            this.clearGame4Save();
-            saved = null;
-        }
+        const letters = randomList.map(letter => {
+            return new Letter(
+                letter.envelope,
+                letter.image
+            );
+        });
 
-        let letters;
-
-        if (saved) {
-
-            letters = saved.letters.map(letter => {
-                return new Letter(
-                    letter.envelope,
-                    // Старые сохранения хранили цвет вместо картинки.
-                    letter.image ??
-                        letterImagesByEnvelope[letter.envelope][0]
-                );
-            });
-
-            this.sortedLetters = saved.sortedLetters;
-            this.totalLetters = saved.totalLetters;
-
-            // Уже разложенные письма снова лежат в своих лотках.
-            (saved.trayLetters ?? []).forEach(({ envelope, image }) => {
-                const letter = new Letter(envelope, image);
-                letter.sprite = this.add.image(0, 0, Letter.textureKey(image));
-                this.placeInTray(letter, false);
-            });
-            // После перезагрузки письма остаются, а таймер начинается заново.
-            this.timeLeft = TIME_LIMIT;
-
-        } else {
-
-            const randomList =
-                Phaser.Utils.Array.Shuffle([...letterList]);
-
-            letters = randomList.map(letter => {
-                return new Letter(
-                    letter.envelope,
-                    letter.image
-                );
-            });
-
-            this.totalLetters = letters.length;
-            this.sortedLetters = 0;
-            this.timeLeft = TIME_LIMIT;
-        }
+        this.totalLetters = letters.length;
+        this.sortedLetters = 0;
+        this.timeLeft = TIME_LIMIT;
 
         const letterWidth = 525;
         const letterHeight = 375;
@@ -433,38 +368,6 @@ export class GameScene4 extends Phaser.Scene {
 
             letter.sprite.setDepth(index);
         });
-    }
-
-    saveGame4State() {
-        if (this.completed || !this.letterStack) return;
-        this.storage.save({
-
-            letters: this.letterStack
-                .getAll()
-                .map(letter => ({
-                    envelope: letter.envelope,
-                    image: letter.image
-                })),
-
-            trayLetters: this.trayLetters.map(letter => ({
-                envelope: letter.envelope,
-                image: letter.image
-            })),
-
-            sortedLetters: this.sortedLetters,
-
-            totalLetters: this.totalLetters,
-
-            timeLeft: this.timeLeft
-        });
-    }
-
-    loadGame4State() {
-        return this.storage.load();
-    }
-
-    clearGame4Save() {
-        this.storage.clear();
     }
 
     // Добавляет объект к часам: центр часов + смещение по вертикали,
@@ -531,8 +434,6 @@ export class GameScene4 extends Phaser.Scene {
                 ) {
                     this.startTimerSound();
                 }
-
-                this.saveGame4State();
             },
 
             () => {
@@ -843,7 +744,7 @@ export class GameScene4 extends Phaser.Scene {
             this.stopTimerSound();
         }
 
-        this.placeInTray(letter, true, () => {
+        this.placeInTray(letter, () => {
 
             if (finished) {
                 this.winGame();
@@ -853,14 +754,12 @@ export class GameScene4 extends Phaser.Scene {
             this.activateTopLetter();
             if (!this.letterStack.isEmpty()) this.playSound(SOUNDS.appear);
         });
-
-        this.saveGame4State();
     }
 
     // Кладёт письмо сверху стопки в его лоток. Лоток — часть фона,
     // поэтому письмо переносится в контейнер фона и дальше
     // двигается и масштабируется вместе с ним.
-    placeInTray(letter, animate, onComplete) {
+    placeInTray(letter, onComplete) {
 
         const tray = TRAYS.find(item => item.id === letter.envelope).stack;
         const stage = this.background.stage;
@@ -885,16 +784,6 @@ export class GameScene4 extends Phaser.Scene {
                 tray.height / sprite.height
             )
         };
-
-        this.trayLetters.push(letter);
-
-        if (!animate) {
-            sprite.setPosition(target.x, target.y)
-                .setAngle(target.angle)
-                .setScale(target.scale);
-            onComplete?.();
-            return;
-        }
 
         this.tweens.add({
             targets: sprite,
@@ -928,7 +817,7 @@ export class GameScene4 extends Phaser.Scene {
         return this.letterStack.isEmpty();
     }
 
-    // Останавливает попытку: дальше письма не двигаются и не сохраняются.
+    // Останавливает попытку: дальше письма не двигаются.
     endAttempt() {
 
         if (this.completed) {
@@ -940,8 +829,6 @@ export class GameScene4 extends Phaser.Scene {
         this.timer?.stop();
 
         this.stopTimerSound();
-
-        this.clearGame4Save();
 
         this.letterStack.getAll().forEach(letter => {
             letter.lock();
@@ -1146,15 +1033,9 @@ export class GameScene4 extends Phaser.Scene {
 
     restartGame() {
 
-        this.clearGame4Save();
-
         this.scene.restart({
             storySceneIndex: this.storySceneIndex,
             minigameId: this.minigameId
         });
-    }
-
-    clearGame4Save() {
-        this.storage.clear();
     }
 }

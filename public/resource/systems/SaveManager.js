@@ -83,7 +83,7 @@
     clear: function () {
       try {
         localStorage.removeItem(STORAGE_KEY);
-        // Сортировка писем хранит ход попытки отдельно от сюжетной позиции.
+        // Ход сортировки писем, оставшийся от прежних версий игры.
         localStorage.removeItem('game4_save_v1');
       } catch (err) {
         console.warn('[SaveManager] Не удалось удалить сохранение:', err);

@@ -81,31 +81,39 @@
         assert(scene.minigameId === `story_${index + 1}_minigame`, 'Правильный id для ' + key);
       }
     });
-    await check('Сортировка писем сохраняет стопку, счётчик и таймер', async () => {
+    await check('Сортировка писем после перезагрузки начинается заново', async () => {
       state().goToScreen(3, 0);
       state().markMinigameStarted();
       const scene = await reload('GameScene4');
+      const total = scene.letterStack.getCount();
+      scene.dismissHint();
+      scene.timer.start(12);
       scene.timer.pause();
-      scene.deleteLetter(scene.letterStack.getTopLetter());
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      const remaining = scene.letterStack.getCount();
-      const sorted = scene.sortedLetters;
-      const seconds = scene.timeLeft;
+      scene.sortLetter(scene.letterStack.getTopLetter());
+      scene.sortLetter(scene.letterStack.getTopLetter());
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      assert(scene.sortedLetters === 2 && scene.letterStack.getCount() === total - 2, 'Письма разложены до перезагрузки');
       const restored = await reload('GameScene4');
-      restored.timer.pause();
-      assert(restored.letterStack.getCount() === remaining, 'Оставшиеся письма');
-      assert(restored.sortedLetters === sorted, 'Число отсортированных');
-      assert(restored.timeLeft === seconds, 'Оставшееся время');
+      assert(restored.minigameId === 'story_4_minigame', 'Та же мини-игра');
+      assert(restored.letterStack.getCount() === total, 'Все письма снова в стопке');
+      assert(restored.sortedLetters === 0, 'Счётчик сброшен');
+      assert(restored.timeLeft === restored.timer.duration && !restored.timerStarted, 'Полный таймер, ещё не запущен');
+      assert(restored.activeHint?.overlay === restored.introOverlay, 'Снова экран правил');
+      const inTrays = restored.background.stage.list.filter((object) => object.type === 'Image' && object.texture.key.startsWith('game4-letter-'));
+      assert(inTrays.length === 0, 'Лотки пусты');
+      assert(localStorage.getItem('game4_save_v1') === null, 'Ход попытки не сохраняется');
     });
-    await check('Истечение 30 минут в скрытой вкладке очищает и сюжет, и письма', async () => {
+    await check('Истечение 30 минут в скрытой вкладке очищает сюжет и старый ключ писем', async () => {
       const doc = frame.contentDocument;
       Object.defineProperty(doc, 'hidden', { configurable: true, value: true });
       doc.dispatchEvent(new frame.contentWindow.Event('visibilitychange'));
       state().state.lastActiveAt = Date.now() - 31 * 60 * 1000;
       localStorage.setItem('vn_save_v1', JSON.stringify(state().state));
+      // Ключ, оставшийся у игроков от версии, где сортировка писем сохраняла ход попытки.
+      localStorage.setItem('game4_save_v1', '{"letters":[]}');
       await reload('MainMenuScene');
       assert(state().state.storySceneIndex === 0, 'Просроченный сюжет сброшен');
-      assert(localStorage.getItem('game4_save_v1') === null, 'Просроченная попытка писем удалена');
+      assert(localStorage.getItem('game4_save_v1') === null, 'Старый ключ писем удалён');
     });
     await check('Возврат на просроченную вкладку останавливает сюжет под паузой и настройки', async () => {
       game.scene.getScene('MainMenuScene').startGame();

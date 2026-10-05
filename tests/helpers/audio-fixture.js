@@ -49,12 +49,24 @@ export function fixture() {
       return node;
     },
     createBufferSource() {
+      const events = new EventEmitter();
       const source = {
         disconnected: false,
         connect(destination) { this.destination = destination; },
         disconnect() { this.disconnected = true; },
         start(time) { this.startAt = time; },
         stop(time = context.currentTime) { this.stopAt = time; },
+        addEventListener(type, listener, options) {
+          if (options?.once) events.once(type, listener);
+          else events.on(type, listener);
+        },
+        removeEventListener(type, listener) { events.off(type, listener); },
+        finish() {
+          if (this.finished) return;
+          this.finished = true;
+          this.onended?.();
+          events.emit('ended');
+        },
       };
       sources.push(source);
       return source;
@@ -80,7 +92,7 @@ export function fixture() {
     context.currentTime = time;
     for (const source of sources) {
       if (source.stopAt <= time || (!source.loop && source.startAt + source.buffer.duration <= time)) {
-        source.onended?.();
+        source.finish();
       }
     }
   }

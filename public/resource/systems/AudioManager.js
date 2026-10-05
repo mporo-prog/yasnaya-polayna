@@ -105,10 +105,13 @@
       };
     },
 
-    // Вызывать в preload(). Ключом служит полный URL, общий для всех сцен.
+    // Вызывать в preload(). Ключом служит полный URL, общий для всех сцен;
+    // скачивается он с версией файла (см. AssetVersions.js).
     load(scene, path) {
       const { key } = resolve(path);
-      if (!scene.cache.audio.exists(key)) scene.load.audio(key, key);
+      if (!scene.cache.audio.exists(key)) {
+        scene.load.audio(key, window.VN.systems.AssetVersions?.url(key) ?? key);
+      }
       return key;
     },
 

@@ -534,6 +534,16 @@ for (const game of [2, 3, 4, 5]) {
   });
 }
 
+test('portrait video is requested with file versions, keeping the WebM-first source order', () => {
+  const f = fixture();
+  f.window.VN.systems.AssetVersions = { url: (url) => url + '?v=test' };
+  f.start(5);
+  const sources = f.window.VN.data.storyLines[5].find((entry) => entry.portraitReveal).portraitReveal.video;
+  assert.equal(JSON.stringify(f.story.portraitVideo.url),
+    JSON.stringify(sources.map((source) => ({ ...source, url: source.url + '?v=test' }))));
+  assert.equal(sources[0].type, 'vp9');
+});
+
 test('portrait video, voice and dialogue start together when the first frame is ready', () => {
   const f = fixture();
   f.start(5);

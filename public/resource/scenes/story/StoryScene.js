@@ -997,7 +997,10 @@
         this.portraitPlaybackReady = true;
       };
       video.once('error', showFallback);
-      video.loadURL(config.video, true);
+      // Адреса с версией файла (см. AssetVersions.js); строка, объект или их список.
+      const versioned = (url) => window.VN.systems.AssetVersions?.url(url) ?? url;
+      video.loadURL([].concat(config.video).map((source) => (typeof source === 'string'
+        ? versioned(source) : { ...source, url: versioned(source.url) })), true);
       let started = false;
       const play = () => {
         if (failed) return;

@@ -1,7 +1,10 @@
 import { defineConfig } from 'vite';
+import { assetVersions } from './build/assetVersions.js';
 
 export default defineConfig({
     base: '/yasnaya-polayna/',
+    // Новые версии файлов public/ доходят до вернувшихся игроков, см. docs/caching.md.
+    plugins: [assetVersions()],
     build: {
         rollupOptions: {
             input: {

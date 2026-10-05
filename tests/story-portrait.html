@@ -71,7 +71,8 @@
       assert(Math.abs((game.getTime() - story.voiceStartTime) / 1000 - story.portraitVideo.video.currentTime) < 0.3,
         'Video and voice must share the same start');
       assert(!story.portraitVideo.video.loop && story.portraitVideo.video.muted, 'Silent, non-looping video');
-      assert(/\/video\/tolstoy-portrait-e1ebd194\.(webm|mp4)$/.test(story.portraitVideo.video.currentSrc),
+      // В сборке адрес оканчивается версией файла: ?v=<хэш> (docs/caching.md).
+      assert(/\/video\/tolstoy-portrait-e1ebd194\.(webm|mp4)(\?|$)/.test(story.portraitVideo.video.currentSrc),
         'Use the video converted from the attached GIF, not the old cached asset');
       assert(Math.abs(story.portraitVideo.video.duration - 9.67) < 0.1, 'Preserve the attached GIF timing');
       story.goBack();

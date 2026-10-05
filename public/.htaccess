@@ -8,6 +8,23 @@ DirectoryIndex index.html
     AddType video/webm .webm
 </IfModule>
 
+# HTML is revalidated on every visit. Without Cache-Control browsers keep it
+# heuristically and keep requesting old file versions. Scripts, styles,
+# images and sound are served by the hosting's nginx with a 45-day cache; new
+# versions reach players through ?v=<content hash> added at build time
+# (build/assetVersions.js, docs/caching.md).
+<IfModule mod_headers.c>
+    <FilesMatch "\.html?$">
+        Header set Cache-Control "no-cache"
+    </FilesMatch>
+</IfModule>
+<IfModule !mod_headers.c>
+    <IfModule mod_expires.c>
+        ExpiresActive On
+        ExpiresByType text/html "access plus 0 seconds"
+    </IfModule>
+</IfModule>
+
 # Compress text assets when the hosting supports Apache gzip filters.
 <IfModule mod_deflate.c>
     <IfModule mod_filter.c>

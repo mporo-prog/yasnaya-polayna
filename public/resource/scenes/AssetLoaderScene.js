@@ -1,4 +1,7 @@
 (function () {
+  // Адрес с версией файла; ключ кэша Phaser остаётся прежним (см. AssetVersions.js).
+  const versioned = (url) => window.VN.systems.AssetVersions?.url(url) ?? url;
+
   /** Живёт рядом с игровыми сценами; не рисует и не воспроизводит звук. */
   class AssetLoaderScene extends Phaser.Scene {
     constructor() {
@@ -21,10 +24,11 @@
             resolve();
           });
           for (const asset of assets) {
+            const url = versioned(asset.url);
             if (asset.type === 'image') {
-              this.load.image({ key: asset.key, url: asset.url, xhrSettings: { timeout: 15000 } });
+              this.load.image({ key: asset.key, url, xhrSettings: { timeout: 15000 } });
             } else {
-              this.load.audio(asset.key, asset.url, {}, { timeout: 15000 });
+              this.load.audio(asset.key, url, {}, { timeout: 15000 });
             }
           }
           this.load.start();

@@ -67,16 +67,20 @@ export class FinishScene extends Phaser.Scene {
             this.load.on('progress', progress);
             this.events.once('shutdown', () => this.load.off('progress', progress));
         }
+        // Адрес с версией файла (см. resource/systems/AssetVersions.js).
+        const loadImage = (key, url) => {
+            this.load.image(key, window.VN.systems.AssetVersions?.url(url) ?? url);
+        };
         // DOM-кнопки и CSS-фон тоже должны загрузиться до снятия заставки.
-        this.load.image('finishBackground', `${import.meta.env.BASE_URL}images/backgrounds/${BACKGROUND.image}`);
-        this.load.image('finishReplay', `${FINISH_IMAGES}main_button.webp`);
+        loadImage('finishBackground', `${import.meta.env.BASE_URL}images/backgrounds/${BACKGROUND.image}`);
+        loadImage('finishReplay', `${FINISH_IMAGES}main_button.webp`);
         SOCIAL_LINKS.items.forEach(({ image }, index) => {
-            this.load.image(`finishSocial${index}`, `${FINISH_IMAGES}${image}`);
+            loadImage(`finishSocial${index}`, `${FINISH_IMAGES}${image}`);
         });
-        this.load.image(MAP.key, `${FINISH_IMAGES}${MAP.image}`);
-        this.load.image(STATS_PANEL.key, `${import.meta.env.BASE_URL}images/icon_UI/finish_stats_panel.webp`);
+        loadImage(MAP.key, `${FINISH_IMAGES}${MAP.image}`);
+        loadImage(STATS_PANEL.key, `${import.meta.env.BASE_URL}images/icon_UI/finish_stats_panel.webp`);
         STATS_PANEL.rows.forEach(({ icon, image }) => {
-            this.load.image(icon, `${FINISH_IMAGES}${image}`);
+            loadImage(icon, `${FINISH_IMAGES}${image}`);
         });
     }
 

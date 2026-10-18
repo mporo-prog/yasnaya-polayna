@@ -3,6 +3,7 @@ import { TARGETS } from './data/targets.js';
 import {
     BASE_WIDTH,
     BASE_HEIGHT,
+    MAP_BACKGROUND,
     TARGET_SIZE,
     ITEM_SIZE,
     PAUSE_BUTTON,
@@ -389,7 +390,7 @@ export class GameScene2 extends Phaser.Scene {
             this.background = this.layout.addBackground(
                 this,
                 'game2-background',
-                // Карта и её зоны сохраняются целиком при любых пропорциях окна.
+                // Общая система координат карты и зон при любых пропорциях окна.
                 {
                     keep: new Phaser.Geom.Rectangle(0, 0, BASE_WIDTH, BASE_HEIGHT),
                     // Поля у края заполняет деревянная стена справа от карты — без зеркал.
@@ -397,20 +398,18 @@ export class GameScene2 extends Phaser.Scene {
                 }
             );
             this.stage = this.background.stage;
-            return;
+        } else {
+            this.background = this.add.image(0, 0, 'game2-background');
+            this.stage = this.add.container(0, 0);
+            this.stage.add(this.background);
         }
 
-        this.background = this.add.image(
-            BASE_WIDTH / 2,
-            BASE_HEIGHT / 2,
-            'game2-background'
-        ).setDisplaySize(
-            BASE_WIDTH,
-            BASE_HEIGHT
-        );
-
-        this.stage = this.add.container(0, 0);
-        this.stage.add(this.background);
+        // Увеличиваем изображение внутри stage, а не сам stage с иконками.
+        // TARGETS уже учитывает эти масштаб и смещение; размер иконок прежний.
+        const image = this.background.image ?? this.background;
+        image.setOrigin(0, 0)
+            .setPosition(MAP_BACKGROUND.x, MAP_BACKGROUND.y)
+            .setDisplaySize(BASE_WIDTH * MAP_BACKGROUND.scale, BASE_HEIGHT * MAP_BACKGROUND.scale);
     }
 
     createTargets() {
@@ -645,10 +644,19 @@ export class GameScene2 extends Phaser.Scene {
      * 2 снизу между ними) справа от карты и над плашкой предмета.
      */
     itemPlacement(ui) {
-        if (!ui || !this.layout?.isCompact(this)) return null;
+        if (!ui) return null;
+        const mapRight = this.stage.x
+            + (MAP_BACKGROUND.x + MAP_BACKGROUND.right * MAP_BACKGROUND.scale) * this.stage.scaleX;
+        if (!this.layout?.isCompact(this)) {
+            // Сохраняем размер и сетку предметов, сдвигая её за край выросшей карты.
+            const firstLeft = Math.min(...this.things.map((thing) => thing.slot.x - ITEM_SIZE / 2));
+            const shift = Math.max(0, mapRight + 24 - firstLeft);
+            return {
+                size: ITEM_SIZE,
+                slots: this.things.map(({ slot }) => ({ x: slot.x + shift, y: slot.y })),
+            };
+        }
         const panelTop = this.infoPanelLayout(ui).panel.y;
-        // Правый край карты на фоне — x≈1120 из 1920.
-        const mapRight = this.stage.x + 1120 * this.stage.scaleX;
         const left = mapRight + 30;
         const right = ui.right - 30;
         const top = ui.top + 40;

@@ -3,9 +3,13 @@ export const BASE_HEIGHT = 1080;
 
 export const ITEM_SIZE = 152;
 
-// Иконка на кружке карты — чуть больше самого кружка (≈127 px).
+// Увеличиваем только фон: кружки ≈104 px становятся ≈132 px.
+// Смещение оставляет левый край карты в кадре, а нижние зоны — над репликой.
+export const MAP_BACKGROUND = { scale: 1.27, x: -70, y: -50, right: 1120 };
+
+// Размеры предметов и радиус попадания не зависят от увеличения фона.
 export const TARGET_SIZE = 132;
-export const MATCH_RADIUS = 70;
+export const MATCH_RADIUS = 91;
 
 // Плашка с названием и описанием предмета (как в сюжетной сцене).
 export const INFO_PANEL = {

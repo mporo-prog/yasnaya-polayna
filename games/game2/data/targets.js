@@ -1,26 +1,30 @@
-import { BASE_WIDTH, BASE_HEIGHT } from '../constants/Game2Constants.js';
+import { MAP_BACKGROUND } from '../constants/Game2Constants.js';
 
-// Координаты центров кружков на фоне background.webp (1920×1080).
-// Кружки уже нарисованы в самом фоне, поэтому отдельная графика зон не нужна.
+// Центры кружков в исходном background.webp (1920×1080), до увеличения.
+// В конце переводим их в координаты сцены тем же преобразованием, что и фон.
 export const TARGETS = [
     {
         id: 'stable',
-        x: 246,
-        y: 368
+        x: 407.5,
+        y: 542.5
     },
     {
         id: 'greenhouse',
-        x: 373,
-        y: 597
+        x: 537,
+        y: 280.5
     },
     {
         id: 'meadow',
-        x: 870,
-        y: 308
+        x: 885,
+        y: 299.5
     },
     {
         id: 'bench',
-        x: 885,
-        y: 541
+        x: 877.5,
+        y: 563
     }
-];
+].map(({ x, y, ...target }) => ({
+    ...target,
+    x: MAP_BACKGROUND.x + x * MAP_BACKGROUND.scale,
+    y: MAP_BACKGROUND.y + y * MAP_BACKGROUND.scale,
+}));
